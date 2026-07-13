@@ -60,7 +60,9 @@ export type Database = {
           description: string
           equipment: string
           id: string
+          incident_no: string | null
           occurred_at: string
+          report_data: Json
           reported_by: string | null
           reporter_name: string | null
           root_cause: string | null
@@ -77,7 +79,9 @@ export type Database = {
           description: string
           equipment: string
           id?: string
+          incident_no?: string | null
           occurred_at?: string
+          report_data?: Json
           reported_by?: string | null
           reporter_name?: string | null
           root_cause?: string | null
@@ -94,7 +98,9 @@ export type Database = {
           description?: string
           equipment?: string
           id?: string
+          incident_no?: string | null
           occurred_at?: string
+          report_data?: Json
           reported_by?: string | null
           reporter_name?: string | null
           root_cause?: string | null

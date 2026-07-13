@@ -469,6 +469,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   useEffect(() => {
     if (!isNew || !hydrated) return;
+    if (form.mode !== "structured") return;
     if (form.lines.length > 0) return;
     if (!stationId) return;
     let next: Line[] | null = null;

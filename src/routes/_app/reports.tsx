@@ -415,11 +415,15 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     if (!existing) return;
     setStationId(existing.station_id);
+    const existingLines = (existing.lines ?? []).map(normalizeLine);
+    const isFree = existingLines.length === 0;
     setForm({
       report_date: existing.report_date,
       shift: existing.shift,
-      lines: (existing.lines ?? []).map(normalizeLine),
-      remarks: existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
+      mode: isFree ? "free" : "structured",
+      body: isFree ? (existing.remarks ?? []).join("\n") : "",
+      lines: existingLines,
+      remarks: !isFree && existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
       reported_by: existing.reported_by ?? "",
     });
     setHydrated(true);

@@ -36,6 +36,11 @@ interface Station {
   name_ar: string;
 }
 
+interface Extra {
+  label: string;
+  value: string;
+}
+
 interface Line {
   label: string;
   pumps: string[];
@@ -43,6 +48,7 @@ interface Line {
   outlet: string;
   flow: string;
   svs: string;
+  extras?: Extra[];
 }
 
 interface ShiftReport {
@@ -57,11 +63,68 @@ interface ShiftReport {
   created_at: string;
 }
 
+interface TplSection {
+  id: string;
+  name_en: string;
+  name_ar: string | null;
+  sort_order: number;
+}
+interface TplField {
+  id: string;
+  section_id: string | null;
+  label_en: string;
+  label_ar: string | null;
+  unit: string | null;
+  sort_order: number;
+}
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/* Build default lines from station code — e.g. PS1_AB → LINE A + LINE B */
+/* Build lines from a station's reading template (sections + fields). */
+function linesFromTemplate(sections: TplSection[], fields: TplField[]): Line[] {
+  const bySection: Record<string, TplField[]> = {};
+  const orphan: TplField[] = [];
+  for (const f of fields) {
+    if (f.section_id) (bySection[f.section_id] ??= []).push(f);
+    else orphan.push(f);
+  }
+  const mk = (label: string, fs: TplField[]): Line => {
+    const line: Line = {
+      label,
+      pumps: [],
+      inlet: "",
+      outlet: "",
+      flow: "",
+      svs: "",
+      extras: [],
+    };
+    const sorted = fs.slice().sort((a, b) => a.sort_order - b.sort_order);
+    for (const f of sorted) {
+      const l = f.label_en.toLowerCase();
+      if (/^\s*(mp|pump)\b/i.test(f.label_en) || /pump/i.test(l)) {
+        line.pumps.push("");
+      } else if (l.includes("inlet")) line.inlet = "";
+      else if (l.includes("outlet") || l.includes("discharge")) line.outlet = "";
+      else if (l.includes("flow")) line.flow = "";
+      else if (l.includes("svs")) line.svs = "";
+      else line.extras!.push({ label: f.label_en, value: "" });
+    }
+    if (line.pumps.length === 0 && line.extras!.length === 0) {
+      line.pumps = Array(4).fill("");
+    }
+    return line;
+  };
+  const result: Line[] = sections
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((s) => mk(s.name_en, bySection[s.id] ?? []));
+  if (orphan.length > 0) result.unshift(mk("GENERAL", orphan));
+  return result.length > 0 ? result : [mk("LINE 1", [])];
+}
+
+/* Fallback: derive default lines from station code — e.g. PS1_AB → LINE A + LINE B */
 function defaultLinesFor(code: string | undefined): Line[] {
   const mkLine = (label: string, pumpCount = 4): Line => ({
     label,
@@ -70,6 +133,7 @@ function defaultLinesFor(code: string | undefined): Line[] {
     outlet: "",
     flow: "",
     svs: "",
+    extras: [],
   });
   if (!code) return [mkLine("LINE 1")];
   const suffix = code.split("_").pop()?.toUpperCase() ?? "";

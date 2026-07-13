@@ -453,7 +453,7 @@ export type Database = {
       app_role: "admin" | "supervisor" | "operator" | "viewer"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
-      reading_frequency: "hourly" | "every_2h" | "every_6h"
+      reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -584,7 +584,7 @@ export const Constants = {
       app_role: ["admin", "supervisor", "operator", "viewer"],
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],
-      reading_frequency: ["hourly", "every_2h", "every_6h"],
+      reading_frequency: ["hourly", "every_2h", "every_6h", "every_4h"],
     },
   },
 } as const

@@ -19,6 +19,7 @@ import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,10 +70,16 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/availability': typeof AppAvailabilityRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/readings': typeof AppReadingsRoute
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/availability'
     | '/dashboard'
     | '/incidents'
     | '/readings'
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/availability'
     | '/dashboard'
     | '/incidents'
     | '/readings'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/auth'
+    | '/_app/availability'
     | '/_app/dashboard'
     | '/_app/incidents'
     | '/_app/readings'
@@ -220,10 +232,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/availability': {
+      id: '/_app/availability'
+      path: '/availability'
+      fullPath: '/availability'
+      preLoaderRoute: typeof AppAvailabilityRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAvailabilityRoute: typeof AppAvailabilityRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppReadingsRoute: typeof AppReadingsRoute
@@ -234,6 +254,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAvailabilityRoute: AppAvailabilityRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppIncidentsRoute: AppIncidentsRoute,
   AppReadingsRoute: AppReadingsRoute,
@@ -253,13 +274,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

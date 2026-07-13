@@ -18,7 +18,8 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-// ExcelJS is imported dynamically inside the export function to avoid SSR/bundling issues.
+import { saveAs } from "file-saver";
+// ExcelJS, jsPDF and html2canvas are imported dynamically inside the export functions.
 
 const searchSchema = z.object({
   id: z.string().optional(),
@@ -543,11 +544,25 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </button>
         <div className="flex-1" />
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            try {
+              await exportAvailabilityPdf({
+                locale,
+                station: station ?? null,
+                entryDate,
+              });
+            } catch (err) {
+              console.error("PDF export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير PDF: " : "PDF export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
         >
           <Printer className="h-4 w-4" />
-          {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
+          {locale === "ar" ? "تصدير PDF" : "Export PDF"}
         </button>
         <button
           onClick={async () => {
@@ -564,9 +579,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             } catch (err) {
               console.error("Excel export failed", err);
               toast.error(
-                locale === "ar"
-                  ? "تعذر تصدير Excel: " + (err as Error).message
-                  : "Excel export failed: " + (err as Error).message,
+                (locale === "ar" ? "تعذر تصدير Excel: " : "Excel export failed: ") +
+                  ((err as Error)?.message || String(err)),
               );
             }
           }}
@@ -1278,13 +1292,44 @@ async function exportAvailabilityXlsx(opts: {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
   const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.xlsx`;
-  a.href = url;
-  a.download = fname;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  saveAs(blob, fname);
+}
+
+async function exportAvailabilityPdf(opts: {
+  locale: "ar" | "en";
+  station: Station | null;
+  entryDate: string;
+}) {
+  const { station, entryDate } = opts;
+  const el = document.getElementById("print-sheet");
+  if (!el) throw new Error("Report container not found");
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+  const canvas = await html2canvas(el, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+  });
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW;
+  const imgH = (canvas.height * imgW) / canvas.width;
+  let heightLeft = imgH;
+  let position = 0;
+  pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+  heightLeft -= pageH;
+  while (heightLeft > 0) {
+    position = heightLeft - imgH;
+    pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+    heightLeft -= pageH;
+  }
+  const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.pdf`;
+  pdf.save(fname);
 }

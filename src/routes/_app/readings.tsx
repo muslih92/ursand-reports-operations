@@ -553,16 +553,17 @@ function EntryView({
                     const isSubHeader = !f.unit;
                     if (isSubHeader) {
                       return (
-                        <tr key={f.id} className="border-t bg-primary/5">
+                        <tr key={f.id} className="border-t">
                           <td
                             colSpan={template.time_slots.length + 1}
-                            className="px-3 py-2 sticky start-0 z-10 font-bold text-primary text-sm uppercase tracking-wide"
+                            className="px-3 py-2 bg-primary/15 font-bold text-primary text-sm uppercase tracking-wide"
                           >
                             {locale === "ar" ? f.label_ar : f.label_en}
                           </td>
                         </tr>
                       );
                     }
+
                     return (
                       <tr key={f.id} className="border-t">
                         <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e">

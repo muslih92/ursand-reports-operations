@@ -1,0 +1,1 @@
+ALTER TYPE reading_frequency ADD VALUE IF NOT EXISTS 'every_4h';

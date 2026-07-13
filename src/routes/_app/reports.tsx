@@ -421,19 +421,64 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setHydrated(true);
   }, [isNew, existing, profile?.station_id]);
 
-  // For new reports: whenever station is picked (and no lines yet), preset default lines from station code
+  // For new reports: whenever station is picked (and no lines yet), preset lines
+  // from that station's active reading template. Fall back to code-based lines
+  // if the station has no template configured yet.
+  const { data: tplData } = useQuery({
+    queryKey: ["station-template-shape", stationId],
+    enabled: isNew && hydrated && !!stationId && form.lines.length === 0,
+    queryFn: async () => {
+      const tpl = await supabase
+        .from("reading_templates")
+        .select("id")
+        .eq("station_id", stationId)
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (tpl.error) throw tpl.error;
+      if (!tpl.data) return { sections: [] as TplSection[], fields: [] as TplField[] };
+      const [secRes, fldRes] = await Promise.all([
+        supabase
+          .from("reading_sections")
+          .select("id, name_en, name_ar, sort_order")
+          .eq("template_id", tpl.data.id)
+          .order("sort_order"),
+        supabase
+          .from("reading_fields")
+          .select("id, section_id, label_en, label_ar, unit, sort_order")
+          .eq("template_id", tpl.data.id)
+          .order("sort_order"),
+      ]);
+      if (secRes.error) throw secRes.error;
+      if (fldRes.error) throw fldRes.error;
+      return {
+        sections: (secRes.data ?? []) as TplSection[],
+        fields: (fldRes.data ?? []) as TplField[],
+      };
+    },
+  });
+
   useEffect(() => {
     if (!isNew || !hydrated) return;
     if (form.lines.length > 0) return;
-    const code = stationMap[stationId]?.code;
-    if (!code) return;
+    if (!stationId) return;
+    let next: Line[] | null = null;
+    if (tplData) {
+      if (tplData.sections.length > 0 || tplData.fields.length > 0) {
+        next = linesFromTemplate(tplData.sections, tplData.fields);
+      } else {
+        next = defaultLinesFor(stationMap[stationId]?.code);
+      }
+    }
+    if (!next) return;
     setForm((f) => ({
       ...f,
-      lines: defaultLinesFor(code),
+      lines: next!,
       reported_by: f.reported_by || profile?.full_name || "",
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew, hydrated, stationId, stationMap]);
+  }, [isNew, hydrated, stationId, tplData, stationMap]);
 
   const save = useMutation({
     mutationFn: async () => {

@@ -544,11 +544,25 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </button>
         <div className="flex-1" />
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            try {
+              await exportAvailabilityPdf({
+                locale,
+                station: station ?? null,
+                entryDate,
+              });
+            } catch (err) {
+              console.error("PDF export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير PDF: " : "PDF export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
         >
           <Printer className="h-4 w-4" />
-          {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
+          {locale === "ar" ? "تصدير PDF" : "Export PDF"}
         </button>
         <button
           onClick={async () => {
@@ -565,9 +579,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             } catch (err) {
               console.error("Excel export failed", err);
               toast.error(
-                locale === "ar"
-                  ? "تعذر تصدير Excel: " + (err as Error).message
-                  : "Excel export failed: " + (err as Error).message,
+                (locale === "ar" ? "تعذر تصدير Excel: " : "Excel export failed: ") +
+                  ((err as Error)?.message || String(err)),
               );
             }
           }}

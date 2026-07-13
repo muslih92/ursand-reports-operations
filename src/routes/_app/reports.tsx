@@ -36,6 +36,11 @@ interface Station {
   name_ar: string;
 }
 
+interface Extra {
+  label: string;
+  value: string;
+}
+
 interface Line {
   label: string;
   pumps: string[];
@@ -43,6 +48,7 @@ interface Line {
   outlet: string;
   flow: string;
   svs: string;
+  extras?: Extra[];
 }
 
 interface ShiftReport {
@@ -57,11 +63,68 @@ interface ShiftReport {
   created_at: string;
 }
 
+interface TplSection {
+  id: string;
+  name_en: string;
+  name_ar: string | null;
+  sort_order: number;
+}
+interface TplField {
+  id: string;
+  section_id: string | null;
+  label_en: string;
+  label_ar: string | null;
+  unit: string | null;
+  sort_order: number;
+}
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/* Build default lines from station code — e.g. PS1_AB → LINE A + LINE B */
+/* Build lines from a station's reading template (sections + fields). */
+function linesFromTemplate(sections: TplSection[], fields: TplField[]): Line[] {
+  const bySection: Record<string, TplField[]> = {};
+  const orphan: TplField[] = [];
+  for (const f of fields) {
+    if (f.section_id) (bySection[f.section_id] ??= []).push(f);
+    else orphan.push(f);
+  }
+  const mk = (label: string, fs: TplField[]): Line => {
+    const line: Line = {
+      label,
+      pumps: [],
+      inlet: "",
+      outlet: "",
+      flow: "",
+      svs: "",
+      extras: [],
+    };
+    const sorted = fs.slice().sort((a, b) => a.sort_order - b.sort_order);
+    for (const f of sorted) {
+      const l = f.label_en.toLowerCase();
+      if (/^\s*(mp|pump)\b/i.test(f.label_en) || /pump/i.test(l)) {
+        line.pumps.push("");
+      } else if (l.includes("inlet")) line.inlet = "";
+      else if (l.includes("outlet") || l.includes("discharge")) line.outlet = "";
+      else if (l.includes("flow")) line.flow = "";
+      else if (l.includes("svs")) line.svs = "";
+      else line.extras!.push({ label: f.label_en, value: "" });
+    }
+    if (line.pumps.length === 0 && line.extras!.length === 0) {
+      line.pumps = Array(4).fill("");
+    }
+    return line;
+  };
+  const result: Line[] = sections
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((s) => mk(s.name_en, bySection[s.id] ?? []));
+  if (orphan.length > 0) result.unshift(mk("GENERAL", orphan));
+  return result.length > 0 ? result : [mk("LINE 1", [])];
+}
+
+/* Fallback: derive default lines from station code — e.g. PS1_AB → LINE A + LINE B */
 function defaultLinesFor(code: string | undefined): Line[] {
   const mkLine = (label: string, pumpCount = 4): Line => ({
     label,
@@ -70,6 +133,7 @@ function defaultLinesFor(code: string | undefined): Line[] {
     outlet: "",
     flow: "",
     svs: "",
+    extras: [],
   });
   if (!code) return [mkLine("LINE 1")];
   const suffix = code.split("_").pop()?.toUpperCase() ?? "";
@@ -357,19 +421,64 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setHydrated(true);
   }, [isNew, existing, profile?.station_id]);
 
-  // For new reports: whenever station is picked (and no lines yet), preset default lines from station code
+  // For new reports: whenever station is picked (and no lines yet), preset lines
+  // from that station's active reading template. Fall back to code-based lines
+  // if the station has no template configured yet.
+  const { data: tplData } = useQuery({
+    queryKey: ["station-template-shape", stationId],
+    enabled: isNew && hydrated && !!stationId && form.lines.length === 0,
+    queryFn: async () => {
+      const tpl = await supabase
+        .from("reading_templates")
+        .select("id")
+        .eq("station_id", stationId)
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (tpl.error) throw tpl.error;
+      if (!tpl.data) return { sections: [] as TplSection[], fields: [] as TplField[] };
+      const [secRes, fldRes] = await Promise.all([
+        supabase
+          .from("reading_sections")
+          .select("id, name_en, name_ar, sort_order")
+          .eq("template_id", tpl.data.id)
+          .order("sort_order"),
+        supabase
+          .from("reading_fields")
+          .select("id, section_id, label_en, label_ar, unit, sort_order")
+          .eq("template_id", tpl.data.id)
+          .order("sort_order"),
+      ]);
+      if (secRes.error) throw secRes.error;
+      if (fldRes.error) throw fldRes.error;
+      return {
+        sections: (secRes.data ?? []) as TplSection[],
+        fields: (fldRes.data ?? []) as TplField[],
+      };
+    },
+  });
+
   useEffect(() => {
     if (!isNew || !hydrated) return;
     if (form.lines.length > 0) return;
-    const code = stationMap[stationId]?.code;
-    if (!code) return;
+    if (!stationId) return;
+    let next: Line[] | null = null;
+    if (tplData) {
+      if (tplData.sections.length > 0 || tplData.fields.length > 0) {
+        next = linesFromTemplate(tplData.sections, tplData.fields);
+      } else {
+        next = defaultLinesFor(stationMap[stationId]?.code);
+      }
+    }
+    if (!next) return;
     setForm((f) => ({
       ...f,
-      lines: defaultLinesFor(code),
+      lines: next!,
       reported_by: f.reported_by || profile?.full_name || "",
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew, hydrated, stationId, stationMap]);
+  }, [isNew, hydrated, stationId, tplData, stationMap]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -672,6 +781,9 @@ function normalizeLine(l: Line): Line {
     outlet: l.outlet ?? "",
     flow: l.flow ?? "",
     svs: l.svs ?? "",
+    extras: Array.isArray(l.extras)
+      ? l.extras.map((e) => ({ label: e.label ?? "", value: e.value ?? "" }))
+      : [],
   };
 }
 
@@ -751,6 +863,20 @@ function LineBlock({
           <Row label="Outlet Pressure" value={line.outlet} onChange={(v) => onChange({ outlet: v })} disabled={disabled} />
           <Row label="Flow" value={line.flow} onChange={(v) => onChange({ flow: v })} disabled={disabled} />
           <Row label="SVS Status" value={line.svs} onChange={(v) => onChange({ svs: v })} disabled={disabled} />
+          {(line.extras ?? []).map((ex, ei) => (
+            <Row
+              key={`ex-${ei}`}
+              label={ex.label}
+              value={ex.value}
+              onChange={(v) => {
+                const next = (line.extras ?? []).map((e, i) =>
+                  i === ei ? { ...e, value: v } : e,
+                );
+                onChange({ extras: next });
+              }}
+              disabled={disabled}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -795,6 +921,7 @@ function buildPlainText(f: FormState, station: Station | undefined, locale: "ar"
     lines.push(bullet("Outlet Pressure", ln.outlet));
     lines.push(bullet("Flow", ln.flow));
     lines.push(bullet("SVS Status", ln.svs));
+    for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
     lines.push("");
   }
   lines.push(`Activities / Remarks:`);

@@ -414,8 +414,17 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   // Merge existing values once available
   useEffect(() => {
     if (!existingValues) return;
-    const next: Record<string, { status: EqStatus; remark: string }> = {};
-    for (const v of existingValues) next[v.equipment_id] = { status: v.status, remark: v.remark ?? "" };
+    const next: Record<string, ValueDraft> = {};
+    for (const v of existingValues) {
+      next[v.equipment_id] = {
+        status: v.status,
+        problem_description: v.problem_description ?? v.remark ?? "",
+        work_notification: v.work_notification ?? "",
+        work_center: v.work_center ?? "",
+        notification_date: v.notification_date ?? "",
+        ets: v.ets ?? "",
+      };
+    }
     setValues((prev) => ({ ...next, ...prev }));
   }, [existingValues]);
 
@@ -425,7 +434,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setValues((prev) => {
       const next = { ...prev };
       for (const e of equipment) {
-        if (!next[e.id]) next[e.id] = { status: "in_service", remark: "" };
+        if (!next[e.id]) next[e.id] = emptyDraft();
       }
       return next;
     });

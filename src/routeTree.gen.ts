@@ -75,11 +75,6 @@ const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   path: '/availability',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
-  id: '/availability',
-  path: '/availability',
-  getParentRoute: () => AppRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute

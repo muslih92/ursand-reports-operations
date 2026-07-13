@@ -982,19 +982,24 @@ function buildPlainText(f: FormState, station: Station | undefined, locale: "ar"
   const s = station ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}` : "";
   const bullet = (label: string, v: string) => `• ${label}: ${v || "—"}`;
   const lines: string[] = [`${s} Shift Report`, ``, `Date: ${f.report_date}`, `Shift: ${shiftLabel(f.shift, "en")}`, ``];
-  for (const ln of f.lines) {
-    lines.push(ln.label);
-    ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
-    lines.push(bullet("Inlet Pressure", ln.inlet));
-    lines.push(bullet("Outlet Pressure", ln.outlet));
-    lines.push(bullet("Flow", ln.flow));
-    lines.push(bullet("SVS Status", ln.svs));
-    for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
+  if (f.mode === "free") {
+    lines.push(f.body || "—");
+    lines.push("");
+  } else {
+    for (const ln of f.lines) {
+      lines.push(ln.label);
+      ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
+      lines.push(bullet("Inlet Pressure", ln.inlet));
+      lines.push(bullet("Outlet Pressure", ln.outlet));
+      lines.push(bullet("Flow", ln.flow));
+      lines.push(bullet("SVS Status", ln.svs));
+      for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
+      lines.push("");
+    }
+    lines.push(`Activities / Remarks:`);
+    lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
     lines.push("");
   }
-  lines.push(`Activities / Remarks:`);
-  lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
-  lines.push("");
   lines.push(`Reported by: ${f.reported_by}`);
   return lines.join("\n");
 }

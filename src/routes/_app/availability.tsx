@@ -18,7 +18,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import ExcelJS from "exceljs";
+// ExcelJS is imported dynamically inside the export function to avoid SSR/bundling issues.
 
 const searchSchema = z.object({
   id: z.string().optional(),

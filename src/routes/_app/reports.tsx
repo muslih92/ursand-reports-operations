@@ -434,7 +434,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   // if the station has no template configured yet.
   const { data: tplData } = useQuery({
     queryKey: ["station-template-shape", stationId],
-    enabled: isNew && hydrated && !!stationId && form.lines.length === 0,
+    enabled: isNew && hydrated && !!stationId && form.mode === "structured" && form.lines.length === 0,
     queryFn: async () => {
       const tpl = await supabase
         .from("reading_templates")

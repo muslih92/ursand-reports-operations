@@ -60,28 +60,43 @@ export type Database = {
           created_at: string
           entry_id: string
           equipment_id: string
+          ets: string | null
           id: string
+          notification_date: string | null
+          problem_description: string | null
           remark: string | null
           status: Database["public"]["Enums"]["equipment_status"]
           updated_at: string
+          work_center: string | null
+          work_notification: string | null
         }
         Insert: {
           created_at?: string
           entry_id: string
           equipment_id: string
+          ets?: string | null
           id?: string
+          notification_date?: string | null
+          problem_description?: string | null
           remark?: string | null
           status: Database["public"]["Enums"]["equipment_status"]
           updated_at?: string
+          work_center?: string | null
+          work_notification?: string | null
         }
         Update: {
           created_at?: string
           entry_id?: string
           equipment_id?: string
+          ets?: string | null
           id?: string
+          notification_date?: string | null
+          problem_description?: string | null
           remark?: string | null
           status?: Database["public"]["Enums"]["equipment_status"]
           updated_at?: string
+          work_center?: string | null
+          work_notification?: string | null
         }
         Relationships: [
           {

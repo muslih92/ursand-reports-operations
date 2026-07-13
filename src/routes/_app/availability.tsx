@@ -18,7 +18,8 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-// ExcelJS is imported dynamically inside the export function to avoid SSR/bundling issues.
+import { saveAs } from "file-saver";
+// ExcelJS, jsPDF and html2canvas are imported dynamically inside the export functions.
 
 const searchSchema = z.object({
   id: z.string().optional(),

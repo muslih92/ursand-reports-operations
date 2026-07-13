@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      equipment_availability_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          id: string
+          notes: string | null
+          operator_id: string | null
+          operator_name: string | null
+          station_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
+          station_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
+          station_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_availability_entries_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_availability_values: {
+        Row: {
+          created_at: string
+          entry_id: string
+          equipment_id: string
+          id: string
+          remark: string | null
+          status: Database["public"]["Enums"]["equipment_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          equipment_id: string
+          id?: string
+          remark?: string | null
+          status: Database["public"]["Enums"]["equipment_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          equipment_id?: string
+          id?: string
+          remark?: string | null
+          status?: Database["public"]["Enums"]["equipment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_availability_values_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_availability_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_availability_values_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "station_equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_attachments: {
         Row: {
           content_type: string | null
@@ -437,6 +523,50 @@ export type Database = {
           },
         ]
       }
+      station_equipment: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name_ar: string
+          name_en: string
+          sort_order: number
+          station_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name_ar: string
+          name_en: string
+          sort_order?: number
+          station_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name_ar?: string
+          name_en?: string
+          sort_order?: number
+          station_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_equipment_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stations: {
         Row: {
           active: boolean
@@ -504,6 +634,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "supervisor" | "operator" | "viewer"
+      equipment_status:
+        | "in_service"
+        | "standby"
+        | "out_of_service"
+        | "fixed_speed"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
       reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
@@ -635,6 +770,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "supervisor", "operator", "viewer"],
+      equipment_status: [
+        "in_service",
+        "standby",
+        "out_of_service",
+        "fixed_speed",
+      ],
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],
       reading_frequency: ["hourly", "every_2h", "every_6h", "every_4h"],

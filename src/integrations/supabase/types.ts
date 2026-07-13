@@ -214,6 +214,7 @@ export type Database = {
           label_en: string
           max_value: number | null
           min_value: number | null
+          section_id: string | null
           sort_order: number
           template_id: string
           unit: string | null
@@ -225,6 +226,7 @@ export type Database = {
           label_en: string
           max_value?: number | null
           min_value?: number | null
+          section_id?: string | null
           sort_order?: number
           template_id: string
           unit?: string | null
@@ -236,13 +238,56 @@ export type Database = {
           label_en?: string
           max_value?: number | null
           min_value?: number | null
+          section_id?: string | null
           sort_order?: number
           template_id?: string
           unit?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "reading_fields_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "reading_sections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reading_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "reading_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reading_sections: {
+        Row: {
+          created_at: string
+          id: string
+          name_ar: string | null
+          name_en: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name_ar?: string | null
+          name_en: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name_ar?: string | null
+          name_en?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sections_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "reading_templates"
@@ -260,6 +305,7 @@ export type Database = {
           name_ar: string
           name_en: string
           station_id: string | null
+          time_slots: string[]
         }
         Insert: {
           active?: boolean
@@ -270,6 +316,7 @@ export type Database = {
           name_ar: string
           name_en: string
           station_id?: string | null
+          time_slots?: string[]
         }
         Update: {
           active?: boolean
@@ -280,6 +327,7 @@ export type Database = {
           name_ar?: string
           name_en?: string
           station_id?: string | null
+          time_slots?: string[]
         }
         Relationships: [
           {

@@ -16,12 +16,12 @@ import {
   Trash2,
   Sun,
   Moon,
+  X,
 } from "lucide-react";
 import { z } from "zod";
 
 const searchSchema = z.object({
   id: z.string().optional(),
-  station: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/reports")({
@@ -36,29 +36,21 @@ interface Station {
   name_ar: string;
 }
 
+interface Line {
+  label: string;
+  pumps: string[];
+  inlet: string;
+  outlet: string;
+  flow: string;
+  svs: string;
+}
+
 interface ShiftReport {
   id: string;
   station_id: string;
   report_date: string;
   shift: "day" | "night";
-  line1_label: string;
-  line1_mp1: string | null;
-  line1_mp2: string | null;
-  line1_mp3: string | null;
-  line1_mp4: string | null;
-  line1_inlet: string | null;
-  line1_outlet: string | null;
-  line1_flow: string | null;
-  line1_svs: string | null;
-  line2_label: string;
-  line2_mp1: string | null;
-  line2_mp2: string | null;
-  line2_mp3: string | null;
-  line2_mp4: string | null;
-  line2_inlet: string | null;
-  line2_outlet: string | null;
-  line2_flow: string | null;
-  line2_svs: string | null;
+  lines: Line[];
   remarks: string[];
   reported_by: string | null;
   operator_id: string | null;
@@ -67,6 +59,23 @@ interface ShiftReport {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+/* Build default lines from station code — e.g. PS1_AB → LINE A + LINE B */
+function defaultLinesFor(code: string | undefined): Line[] {
+  const mkLine = (label: string, pumpCount = 4): Line => ({
+    label,
+    pumps: Array(pumpCount).fill(""),
+    inlet: "",
+    outlet: "",
+    flow: "",
+    svs: "",
+  });
+  if (!code) return [mkLine("LINE 1")];
+  const suffix = code.split("_").pop()?.toUpperCase() ?? "";
+  const letters = suffix.split("");
+  if (letters.length === 0) return [mkLine("LINE 1")];
+  return letters.map((l) => mkLine(`LINE ${l}`));
 }
 
 function ReportsPage() {
@@ -122,7 +131,7 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
       if (stationFilter) q = q.eq("station_id", stationFilter);
       const { data, error } = await q;
       if (error) throw error;
-      return data as ShiftReport[];
+      return (data ?? []) as unknown as ShiftReport[];
     },
   });
 
@@ -270,30 +279,13 @@ function shiftLabel(s: "day" | "night", locale: "ar" | "en") {
 
 /* ============================ EDITOR ============================ */
 
-const EMPTY: Omit<ShiftReport, "id" | "created_at" | "operator_id" | "station_id"> = {
-  report_date: todayISO(),
-  shift: "day",
-  line1_label: "LINE A/B",
-  line1_mp1: "",
-  line1_mp2: "",
-  line1_mp3: "",
-  line1_mp4: "",
-  line1_inlet: "",
-  line1_outlet: "",
-  line1_flow: "",
-  line1_svs: "",
-  line2_label: "LINE G",
-  line2_mp1: "",
-  line2_mp2: "",
-  line2_mp3: "",
-  line2_mp4: "",
-  line2_inlet: "",
-  line2_outlet: "",
-  line2_flow: "",
-  line2_svs: "",
-  remarks: ["", "", "", "", ""],
-  reported_by: "",
-};
+interface FormState {
+  report_date: string;
+  shift: "day" | "night";
+  lines: Line[];
+  remarks: string[];
+  reported_by: string;
+}
 
 function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const { locale, dir, t } = useI18n();
@@ -325,18 +317,31 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as ShiftReport;
+      return data as unknown as ShiftReport;
     },
   });
 
   const [stationId, setStationId] = useState<string>(profile?.station_id ?? "");
-  const [form, setForm] = useState({ ...EMPTY });
+  const [form, setForm] = useState<FormState>(() => ({
+    report_date: todayISO(),
+    shift: "day",
+    lines: [],
+    remarks: ["", "", "", "", ""],
+    reported_by: "",
+  }));
   const [hydrated, setHydrated] = useState(false);
 
+  const stationMap = useMemo(() => {
+    const m: Record<string, Station> = {};
+    for (const s of stations ?? []) m[s.id] = s;
+    return m;
+  }, [stations]);
+
+  // Hydrate on first load
   useEffect(() => {
     if (isNew) {
-      setStationId(profile?.station_id ?? "");
-      setForm({ ...EMPTY, reported_by: profile?.full_name ?? "" });
+      const sid = profile?.station_id ?? "";
+      setStationId(sid);
       setHydrated(true);
       return;
     }
@@ -345,42 +350,42 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setForm({
       report_date: existing.report_date,
       shift: existing.shift,
-      line1_label: existing.line1_label,
-      line1_mp1: existing.line1_mp1 ?? "",
-      line1_mp2: existing.line1_mp2 ?? "",
-      line1_mp3: existing.line1_mp3 ?? "",
-      line1_mp4: existing.line1_mp4 ?? "",
-      line1_inlet: existing.line1_inlet ?? "",
-      line1_outlet: existing.line1_outlet ?? "",
-      line1_flow: existing.line1_flow ?? "",
-      line1_svs: existing.line1_svs ?? "",
-      line2_label: existing.line2_label,
-      line2_mp1: existing.line2_mp1 ?? "",
-      line2_mp2: existing.line2_mp2 ?? "",
-      line2_mp3: existing.line2_mp3 ?? "",
-      line2_mp4: existing.line2_mp4 ?? "",
-      line2_inlet: existing.line2_inlet ?? "",
-      line2_outlet: existing.line2_outlet ?? "",
-      line2_flow: existing.line2_flow ?? "",
-      line2_svs: existing.line2_svs ?? "",
+      lines: (existing.lines ?? []).map(normalizeLine),
       remarks: existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
       reported_by: existing.reported_by ?? "",
     });
     setHydrated(true);
-  }, [isNew, existing, profile?.station_id, profile?.full_name]);
+  }, [isNew, existing, profile?.station_id]);
+
+  // For new reports: whenever station is picked (and no lines yet), preset default lines from station code
+  useEffect(() => {
+    if (!isNew || !hydrated) return;
+    if (form.lines.length > 0) return;
+    const code = stationMap[stationId]?.code;
+    if (!code) return;
+    setForm((f) => ({
+      ...f,
+      lines: defaultLinesFor(code),
+      reported_by: f.reported_by || profile?.full_name || "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew, hydrated, stationId, stationMap]);
 
   const save = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
       const payload = {
-        ...form,
         station_id: stationId,
+        report_date: form.report_date,
+        shift: form.shift,
+        lines: form.lines,
         remarks: form.remarks.map((r) => r.trim()).filter(Boolean),
+        reported_by: form.reported_by || null,
       };
       if (isNew) {
         const { data, error } = await supabase
           .from("shift_reports")
-          .insert({ ...payload, operator_id: profile?.id })
+          .insert({ ...payload, operator_id: profile?.id ?? null })
           .select("id")
           .single();
         if (error) throw error;
@@ -394,18 +399,12 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["shift-reports"] });
       qc.invalidateQueries({ queryKey: ["shift-report", newId] });
-      if (isNew) {
-        // switch to edit-mode url without reload
-        window.history.replaceState({}, "", `?id=${newId}`);
-      }
+      if (isNew) window.history.replaceState({}, "", `?id=${newId}`);
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 
-  const station = useMemo(
-    () => (stations ?? []).find((s) => s.id === stationId),
-    [stations, stationId],
-  );
+  const station = stationMap[stationId];
 
   const emailReport = () => {
     const subject = `Shift Report - ${form.report_date} - ${shiftLabel(form.shift, "en")}${
@@ -429,11 +428,46 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   }
 
   const stationTitle =
-    station && (station.code + " · " + (locale === "ar" ? station.name_ar : station.name_en));
+    station && `${station.code} · ${locale === "ar" ? station.name_ar : station.name_en}`;
+
+  const updateLine = (i: number, patch: Partial<Line>) => {
+    setForm((f) => {
+      const arr = [...f.lines];
+      arr[i] = { ...arr[i], ...patch };
+      return { ...f, lines: arr };
+    });
+  };
+
+  const setPump = (li: number, pi: number, v: string) => {
+    setForm((f) => {
+      const arr = f.lines.map((l) => ({ ...l, pumps: [...l.pumps] }));
+      arr[li].pumps[pi] = v;
+      return { ...f, lines: arr };
+    });
+  };
+
+  const addPump = (li: number) =>
+    updateLine(li, { pumps: [...form.lines[li].pumps, ""] });
+  const removePump = (li: number) => {
+    if (form.lines[li].pumps.length <= 1) return;
+    updateLine(li, { pumps: form.lines[li].pumps.slice(0, -1) });
+  };
+
+  const addLine = () =>
+    setForm((f) => ({
+      ...f,
+      lines: [
+        ...f.lines,
+        { label: `LINE ${f.lines.length + 1}`, pumps: ["", "", "", ""], inlet: "", outlet: "", flow: "", svs: "" },
+      ],
+    }));
+
+  const removeLine = (i: number) =>
+    setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
 
   return (
     <div className="space-y-5">
-      {/* Toolbar — hidden on print */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         <button
           onClick={onBack}
@@ -466,7 +500,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </button>
       </div>
 
-      {/* Meta inputs — hidden on print */}
+      {/* Meta inputs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">{t("common.station")}</label>
@@ -514,7 +548,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             {locale === "ar" ? "بواسطة" : "Reported by"}
           </label>
           <input
-            value={form.reported_by ?? ""}
+            value={form.reported_by}
             onChange={(e) => setForm((f) => ({ ...f, reported_by: e.target.value }))}
             disabled={!canWrite}
             className="h-10 px-3 rounded-lg border bg-background text-sm"
@@ -540,51 +574,36 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
 
-        <LineBlock
-          label={form.line1_label}
-          onLabel={(v) => setForm((f) => ({ ...f, line1_label: v }))}
-          fields={{
-            mp1: form.line1_mp1 ?? "",
-            mp2: form.line1_mp2 ?? "",
-            mp3: form.line1_mp3 ?? "",
-            mp4: form.line1_mp4 ?? "",
-            inlet: form.line1_inlet ?? "",
-            outlet: form.line1_outlet ?? "",
-            flow: form.line1_flow ?? "",
-            svs: form.line1_svs ?? "",
-          }}
-          onField={(k, v) =>
-            setForm((f) => ({
-              ...f,
-              [`line1_${k}`]: v,
-            }))
-          }
-          disabled={!canWrite}
-        />
+        {form.lines.length === 0 ? (
+          <div className="text-center text-sm text-muted-foreground py-6">
+            {locale === "ar" ? "اختر محطة لتحميل الخطوط" : "Pick a station to load lines"}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {form.lines.map((line, li) => (
+              <LineBlock
+                key={li}
+                line={line}
+                onChange={(patch) => updateLine(li, patch)}
+                onSetPump={(pi, v) => setPump(li, pi, v)}
+                onAddPump={() => addPump(li)}
+                onRemovePump={() => removePump(li)}
+                onRemove={() => removeLine(li)}
+                disabled={!canWrite}
+                locale={locale}
+              />
+            ))}
+          </div>
+        )}
 
-        <div className="h-4" />
-
-        <LineBlock
-          label={form.line2_label}
-          onLabel={(v) => setForm((f) => ({ ...f, line2_label: v }))}
-          fields={{
-            mp1: form.line2_mp1 ?? "",
-            mp2: form.line2_mp2 ?? "",
-            mp3: form.line2_mp3 ?? "",
-            mp4: form.line2_mp4 ?? "",
-            inlet: form.line2_inlet ?? "",
-            outlet: form.line2_outlet ?? "",
-            flow: form.line2_flow ?? "",
-            svs: form.line2_svs ?? "",
-          }}
-          onField={(k, v) =>
-            setForm((f) => ({
-              ...f,
-              [`line2_${k}`]: v,
-            }))
-          }
-          disabled={!canWrite}
-        />
+        {canWrite && (
+          <button
+            onClick={addLine}
+            className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline print:hidden"
+          >
+            <Plus className="h-4 w-4" /> {locale === "ar" ? "إضافة خط" : "Add line"}
+          </button>
+        )}
 
         <div className="mt-6">
           <h3 className="font-bold text-sm mb-2 uppercase">Activities / Remarks:</h3>
@@ -602,7 +621,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                     })
                   }
                   disabled={!canWrite}
-                  placeholder={locale === "ar" ? "…" : "…"}
+                  placeholder="…"
                   className="flex-1 h-8 px-1 border-b bg-transparent text-sm focus:outline-none focus:border-primary print:border-b print:border-black"
                 />
               </li>
@@ -610,9 +629,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </ul>
           {canWrite && (
             <button
-              onClick={() =>
-                setForm((f) => ({ ...f, remarks: [...f.remarks, ""] }))
-              }
+              onClick={() => setForm((f) => ({ ...f, remarks: [...f.remarks, ""] }))}
               className="mt-2 text-xs text-primary hover:underline print:hidden"
             >
               + {locale === "ar" ? "إضافة سطر" : "Add line"}
@@ -631,7 +648,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      {/* Print rules */}
       <style>{`
         @media print {
           @page { size: A4; margin: 15mm; }
@@ -639,7 +655,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           aside, header, nav, .print\\:hidden { display: none !important; }
           main { padding: 0 !important; }
           #print-sheet { color: black !important; }
-          #print-sheet input { border: none !important; background: transparent !important; color: black !important; padding: 0 !important; height: auto !important; }
+          #print-sheet input, #print-sheet select { border: none !important; background: transparent !important; color: black !important; padding: 0 !important; height: auto !important; -webkit-appearance: none; appearance: none; }
         }
       `}</style>
     </div>
@@ -648,43 +664,94 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
 /* ============================ LINE BLOCK ============================ */
 
-interface LineFields {
-  mp1: string; mp2: string; mp3: string; mp4: string;
-  inlet: string; outlet: string; flow: string; svs: string;
+function normalizeLine(l: Line): Line {
+  return {
+    label: l.label ?? "LINE",
+    pumps: Array.isArray(l.pumps) ? l.pumps.map((p) => p ?? "") : [],
+    inlet: l.inlet ?? "",
+    outlet: l.outlet ?? "",
+    flow: l.flow ?? "",
+    svs: l.svs ?? "",
+  };
 }
 
 function LineBlock({
-  label,
-  onLabel,
-  fields,
-  onField,
+  line,
+  onChange,
+  onSetPump,
+  onAddPump,
+  onRemovePump,
+  onRemove,
   disabled,
+  locale,
 }: {
-  label: string;
-  onLabel: (v: string) => void;
-  fields: LineFields;
-  onField: (k: keyof LineFields, v: string) => void;
+  line: Line;
+  onChange: (patch: Partial<Line>) => void;
+  onSetPump: (pi: number, v: string) => void;
+  onAddPump: () => void;
+  onRemovePump: () => void;
+  onRemove: () => void;
   disabled: boolean;
+  locale: "ar" | "en";
 }) {
   return (
     <section className="border rounded-lg overflow-hidden print:border-black print:rounded-none">
-      <div className="bg-primary/10 px-4 py-2 print:bg-transparent print:border-b print:border-black">
+      <div className="bg-primary/10 px-4 py-2 print:bg-transparent print:border-b print:border-black flex items-center gap-2">
         <input
-          value={label}
-          onChange={(e) => onLabel(e.target.value)}
+          value={line.label}
+          onChange={(e) => onChange({ label: e.target.value })}
           disabled={disabled}
-          className="w-full bg-transparent text-base font-bold uppercase tracking-wide focus:outline-none"
+          className="flex-1 bg-transparent text-base font-bold uppercase tracking-wide focus:outline-none"
         />
+        {!disabled && (
+          <button
+            onClick={onRemove}
+            className="text-destructive p-1 rounded hover:bg-destructive/10 print:hidden"
+            aria-label="remove line"
+            title={locale === "ar" ? "حذف الخط" : "Remove line"}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 p-4 text-sm print:gap-y-1 print:p-3">
-        <Row label="MP 1"           value={fields.mp1}    onChange={(v) => onField("mp1", v)}    disabled={disabled} />
-        <Row label="Inlet Pressure" value={fields.inlet}  onChange={(v) => onField("inlet", v)}  disabled={disabled} />
-        <Row label="MP 2"           value={fields.mp2}    onChange={(v) => onField("mp2", v)}    disabled={disabled} />
-        <Row label="Outlet Pressure" value={fields.outlet} onChange={(v) => onField("outlet", v)} disabled={disabled} />
-        <Row label="MP 3"           value={fields.mp3}    onChange={(v) => onField("mp3", v)}    disabled={disabled} />
-        <Row label="Flow"           value={fields.flow}   onChange={(v) => onField("flow", v)}   disabled={disabled} />
-        <Row label="MP 4"           value={fields.mp4}    onChange={(v) => onField("mp4", v)}    disabled={disabled} />
-        <Row label="SVS Status"     value={fields.svs}    onChange={(v) => onField("svs", v)}    disabled={disabled} />
+        {/* Pumps column */}
+        <div className="space-y-2 print:space-y-1">
+          {line.pumps.map((p, pi) => (
+            <Row
+              key={pi}
+              label={`MP ${pi + 1}`}
+              value={p}
+              onChange={(v) => onSetPump(pi, v)}
+              disabled={disabled}
+            />
+          ))}
+          {!disabled && (
+            <div className="flex gap-2 print:hidden pt-1">
+              <button
+                onClick={onAddPump}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> {locale === "ar" ? "إضافة مضخة" : "Add pump"}
+              </button>
+              {line.pumps.length > 1 && (
+                <button
+                  onClick={onRemovePump}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  − {locale === "ar" ? "حذف الأخيرة" : "Remove last"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Other fields column */}
+        <div className="space-y-2 print:space-y-1">
+          <Row label="Inlet Pressure" value={line.inlet} onChange={(v) => onChange({ inlet: v })} disabled={disabled} />
+          <Row label="Outlet Pressure" value={line.outlet} onChange={(v) => onChange({ outlet: v })} disabled={disabled} />
+          <Row label="Flow" value={line.flow} onChange={(v) => onChange({ flow: v })} disabled={disabled} />
+          <Row label="SVS Status" value={line.svs} onChange={(v) => onChange({ svs: v })} disabled={disabled} />
+        </div>
       </div>
     </section>
   );
@@ -717,42 +784,22 @@ function Row({
 
 /* ============================ EMAIL TEXT ============================ */
 
-function buildPlainText(
-  f: typeof EMPTY,
-  station: Station | undefined,
-  locale: "ar" | "en",
-) {
+function buildPlainText(f: FormState, station: Station | undefined, locale: "ar" | "en") {
   const s = station ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}` : "";
-  const line = (label: string, v: string) => `• ${label}: ${v || "—"}`;
-  return [
-    `${s} Shift Report`,
-    ``,
-    `Date: ${f.report_date}`,
-    `Shift: ${shiftLabel(f.shift, "en")}`,
-    ``,
-    f.line1_label,
-    line("MP 1", f.line1_mp1 ?? ""),
-    line("MP 2", f.line1_mp2 ?? ""),
-    line("MP 3", f.line1_mp3 ?? ""),
-    line("MP 4", f.line1_mp4 ?? ""),
-    line("Inlet Pressure", f.line1_inlet ?? ""),
-    line("Outlet Pressure", f.line1_outlet ?? ""),
-    line("Flow", f.line1_flow ?? ""),
-    line("SVS Status", f.line1_svs ?? ""),
-    ``,
-    f.line2_label,
-    line("MP 1", f.line2_mp1 ?? ""),
-    line("MP 2", f.line2_mp2 ?? ""),
-    line("MP 3", f.line2_mp3 ?? ""),
-    line("MP 4", f.line2_mp4 ?? ""),
-    line("Inlet Pressure", f.line2_inlet ?? ""),
-    line("Outlet Pressure", f.line2_outlet ?? ""),
-    line("Flow", f.line2_flow ?? ""),
-    line("SVS Status", f.line2_svs ?? ""),
-    ``,
-    `Activities / Remarks:`,
-    ...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`),
-    ``,
-    `Reported by: ${f.reported_by ?? ""}`,
-  ].join("\n");
+  const bullet = (label: string, v: string) => `• ${label}: ${v || "—"}`;
+  const lines: string[] = [`${s} Shift Report`, ``, `Date: ${f.report_date}`, `Shift: ${shiftLabel(f.shift, "en")}`, ``];
+  for (const ln of f.lines) {
+    lines.push(ln.label);
+    ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
+    lines.push(bullet("Inlet Pressure", ln.inlet));
+    lines.push(bullet("Outlet Pressure", ln.outlet));
+    lines.push(bullet("Flow", ln.flow));
+    lines.push(bullet("SVS Status", ln.svs));
+    lines.push("");
+  }
+  lines.push(`Activities / Remarks:`);
+  lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
+  lines.push("");
+  lines.push(`Reported by: ${f.reported_by}`);
+  return lines.join("\n");
 }

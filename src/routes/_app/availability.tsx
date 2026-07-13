@@ -638,44 +638,53 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               : "No equipment defined. Add via Equipment List on the main page."}
           </div>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40">
+          <div className="rounded-lg border overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="bg-primary/10 text-primary">
                 <tr>
-                  <th className="text-start px-3 py-2 font-medium w-16">#</th>
-                  <th className="text-start px-3 py-2 font-medium">
-                    {locale === "ar" ? "المعدة" : "Equipment"}
+                  <th className="text-start px-2 py-2 font-semibold w-28">
+                    {locale === "ar" ? "رقم المضخة" : "Pump No."}
                   </th>
-                  <th className="text-start px-3 py-2 font-medium w-64">
-                    {t("common.status")}
+                  <th className="text-start px-2 py-2 font-semibold">
+                    {locale === "ar" ? "وصف المشكلة" : "Problem Description"}
                   </th>
-                  <th className="text-start px-3 py-2 font-medium">
-                    {locale === "ar" ? "ملاحظة" : "Remark"}
+                  <th className="text-start px-2 py-2 font-semibold w-40">
+                    {locale === "ar" ? "الحالة" : "Unit Status"}
                   </th>
+                  <th className="text-start px-2 py-2 font-semibold w-36">
+                    {locale === "ar" ? "رقم الإشعار" : "W. Notification"}
+                  </th>
+                  <th className="text-start px-2 py-2 font-semibold w-28">
+                    {locale === "ar" ? "مركز العمل" : "Work Center"}
+                  </th>
+                  <th className="text-start px-2 py-2 font-semibold w-36">
+                    {locale === "ar" ? "التاريخ" : "Date"}
+                  </th>
+                  <th className="text-start px-2 py-2 font-semibold w-28">ETS</th>
                 </tr>
               </thead>
               <tbody>
-                {(equipment ?? []).map((e, i) => {
-                  const v = values[e.id] ?? { status: "in_service" as EqStatus, remark: "" };
+                {(equipment ?? []).map((e) => {
+                  const v = values[e.id] ?? emptyDraft();
+                  const update = (patch: Partial<ValueDraft>) =>
+                    setValues((prev) => ({ ...prev, [e.id]: { ...v, ...patch } }));
                   return (
-                    <tr key={e.id} className="border-t">
-                      <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                      <td className="px-3 py-2 font-medium">
-                        <div>{e.code}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {locale === "ar" ? e.name_ar : e.name_en}
-                        </div>
+                    <tr key={e.id} className="border-t align-top">
+                      <td className="px-2 py-2 font-semibold whitespace-nowrap">{e.code}</td>
+                      <td className="px-2 py-2">
+                        <input
+                          value={v.problem_description}
+                          onChange={(ev) => update({ problem_description: ev.target.value })}
+                          disabled={!canWrite}
+                          placeholder="—"
+                          className="h-9 px-2 rounded-md border bg-background text-sm w-full print:border-0 print:px-0"
+                        />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2">
                         <div className="print:hidden">
                           <select
                             value={v.status}
-                            onChange={(ev) =>
-                              setValues((prev) => ({
-                                ...prev,
-                                [e.id]: { ...v, status: ev.target.value as EqStatus },
-                              }))
-                            }
+                            onChange={(ev) => update({ status: ev.target.value as EqStatus })}
                             disabled={!canWrite}
                             className={`h-9 px-2 rounded-md border text-sm w-full ${statusColor(v.status)}`}
                           >
@@ -692,17 +701,41 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                           {statusLabel(v.status, locale)}
                         </span>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-2">
                         <input
-                          value={v.remark}
-                          onChange={(ev) =>
-                            setValues((prev) => ({
-                              ...prev,
-                              [e.id]: { ...v, remark: ev.target.value },
-                            }))
-                          }
+                          value={v.work_notification}
+                          onChange={(ev) => update({ work_notification: ev.target.value })}
                           disabled={!canWrite}
-                          placeholder={locale === "ar" ? "—" : "—"}
+                          placeholder="—"
+                          dir="ltr"
+                          className="h-9 px-2 rounded-md border bg-background text-sm w-full print:border-0 print:px-0"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          value={v.work_center}
+                          onChange={(ev) => update({ work_center: ev.target.value })}
+                          disabled={!canWrite}
+                          placeholder="IMD/EMD/MMD"
+                          className="h-9 px-2 rounded-md border bg-background text-sm w-full print:border-0 print:px-0"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="date"
+                          value={v.notification_date}
+                          onChange={(ev) => update({ notification_date: ev.target.value })}
+                          disabled={!canWrite}
+                          dir="ltr"
+                          className="h-9 px-2 rounded-md border bg-background text-sm w-full print:border-0 print:px-0"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          value={v.ets}
+                          onChange={(ev) => update({ ets: ev.target.value })}
+                          disabled={!canWrite}
+                          placeholder="—"
                           className="h-9 px-2 rounded-md border bg-background text-sm w-full print:border-0 print:px-0"
                         />
                       </td>

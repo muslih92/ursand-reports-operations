@@ -495,8 +495,14 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         station_id: stationId,
         report_date: form.report_date,
         shift: form.shift,
-        lines: JSON.parse(JSON.stringify(form.lines)),
-        remarks: form.remarks.map((r) => r.trim()).filter(Boolean),
+        lines:
+          form.mode === "free" ? [] : JSON.parse(JSON.stringify(form.lines)),
+        remarks:
+          form.mode === "free"
+            ? form.body.trim()
+              ? [form.body]
+              : []
+            : form.remarks.map((r) => r.trim()).filter(Boolean),
         reported_by: form.reported_by || null,
       };
       if (isNew) {

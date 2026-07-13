@@ -66,7 +66,7 @@ function ReadingsPage() {
   const templateId = search.template;
 
   const setSearch = (patch: Partial<z.infer<typeof searchSchema>>) => {
-    navigate({ search: (prev) => ({ ...prev, ...patch }) as never, replace: false });
+    navigate({ search: (prev: z.infer<typeof searchSchema>) => ({ ...prev, ...patch }), replace: false });
   };
 
   if (!templateId) {

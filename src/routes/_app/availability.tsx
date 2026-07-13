@@ -18,7 +18,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import ExcelJS from "exceljs";
+// ExcelJS is imported dynamically inside the export function to avoid SSR/bundling issues.
 
 const searchSchema = z.object({
   id: z.string().optional(),
@@ -550,18 +550,27 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
         </button>
         <button
-          onClick={() =>
-            exportAvailabilityXlsx({
-              locale,
-              station: station ?? null,
-              entryDate,
-              operatorName,
-              notes,
-              equipment: equipment ?? [],
-              values,
-            })
-          }
-          disabled={!stationId || (equipment ?? []).length === 0}
+          onClick={async () => {
+            try {
+              await exportAvailabilityXlsx({
+                locale,
+                station: station ?? null,
+                entryDate,
+                operatorName,
+                notes,
+                equipment: equipment ?? [],
+                values,
+              });
+            } catch (err) {
+              console.error("Excel export failed", err);
+              toast.error(
+                locale === "ar"
+                  ? "تعذر تصدير Excel: " + (err as Error).message
+                  : "Excel export failed: " + (err as Error).message,
+              );
+            }
+          }}
+          disabled={!stationId}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent disabled:opacity-50"
         >
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
@@ -1107,6 +1116,7 @@ async function exportAvailabilityXlsx(opts: {
   values: Record<string, ValueDraft>;
 }) {
   const { locale, station, entryDate, operatorName, notes, equipment, values } = opts;
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "WTCO";
   wb.created = new Date();
@@ -1195,7 +1205,7 @@ async function exportAvailabilityXlsx(opts: {
       v?.notification_date ?? "",
       v?.ets ?? "",
     ];
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
       cell.border = {
         top: { style: "thin", color: { argb: "FFBFBFBF" } },
         bottom: { style: "thin", color: { argb: "FFBFBFBF" } },

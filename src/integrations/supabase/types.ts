@@ -384,6 +384,104 @@ export type Database = {
           },
         ]
       }
+      shift_reports: {
+        Row: {
+          created_at: string
+          id: string
+          line1_flow: string | null
+          line1_inlet: string | null
+          line1_label: string
+          line1_mp1: string | null
+          line1_mp2: string | null
+          line1_mp3: string | null
+          line1_mp4: string | null
+          line1_outlet: string | null
+          line1_svs: string | null
+          line2_flow: string | null
+          line2_inlet: string | null
+          line2_label: string
+          line2_mp1: string | null
+          line2_mp2: string | null
+          line2_mp3: string | null
+          line2_mp4: string | null
+          line2_outlet: string | null
+          line2_svs: string | null
+          operator_id: string | null
+          remarks: string[]
+          report_date: string
+          reported_by: string | null
+          shift: string
+          station_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line1_flow?: string | null
+          line1_inlet?: string | null
+          line1_label?: string
+          line1_mp1?: string | null
+          line1_mp2?: string | null
+          line1_mp3?: string | null
+          line1_mp4?: string | null
+          line1_outlet?: string | null
+          line1_svs?: string | null
+          line2_flow?: string | null
+          line2_inlet?: string | null
+          line2_label?: string
+          line2_mp1?: string | null
+          line2_mp2?: string | null
+          line2_mp3?: string | null
+          line2_mp4?: string | null
+          line2_outlet?: string | null
+          line2_svs?: string | null
+          operator_id?: string | null
+          remarks?: string[]
+          report_date: string
+          reported_by?: string | null
+          shift: string
+          station_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line1_flow?: string | null
+          line1_inlet?: string | null
+          line1_label?: string
+          line1_mp1?: string | null
+          line1_mp2?: string | null
+          line1_mp3?: string | null
+          line1_mp4?: string | null
+          line1_outlet?: string | null
+          line1_svs?: string | null
+          line2_flow?: string | null
+          line2_inlet?: string | null
+          line2_label?: string
+          line2_mp1?: string | null
+          line2_mp2?: string | null
+          line2_mp3?: string | null
+          line2_mp4?: string | null
+          line2_outlet?: string | null
+          line2_svs?: string | null
+          operator_id?: string | null
+          remarks?: string[]
+          report_date?: string
+          reported_by?: string | null
+          shift?: string
+          station_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_reports_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stations: {
         Row: {
           active: boolean

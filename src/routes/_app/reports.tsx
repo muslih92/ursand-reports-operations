@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -16,7 +16,6 @@ import {
   Trash2,
   Sun,
   Moon,
-  X,
 } from "lucide-react";
 import { z } from "zod";
 
@@ -36,110 +35,25 @@ interface Station {
   name_ar: string;
 }
 
-interface Extra {
-  label: string;
-  value: string;
-}
-
-interface Line {
-  label: string;
-  pumps: string[];
-  inlet: string;
-  outlet: string;
-  flow: string;
-  svs: string;
-  extras?: Extra[];
-}
-
 interface ShiftReport {
   id: string;
   station_id: string;
   report_date: string;
   shift: "day" | "night";
-  lines: Line[];
+  lines: unknown;
   remarks: string[];
   reported_by: string | null;
   operator_id: string | null;
   created_at: string;
 }
 
-interface TplSection {
-  id: string;
-  name_en: string;
-  name_ar: string | null;
-  sort_order: number;
-}
-interface TplField {
-  id: string;
-  section_id: string | null;
-  label_en: string;
-  label_ar: string | null;
-  unit: string | null;
-  sort_order: number;
-}
-
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/* Build lines from a station's reading template (sections + fields). */
-function linesFromTemplate(sections: TplSection[], fields: TplField[]): Line[] {
-  const bySection: Record<string, TplField[]> = {};
-  const orphan: TplField[] = [];
-  for (const f of fields) {
-    if (f.section_id) (bySection[f.section_id] ??= []).push(f);
-    else orphan.push(f);
-  }
-  const mk = (label: string, fs: TplField[]): Line => {
-    const line: Line = {
-      label,
-      pumps: [],
-      inlet: "",
-      outlet: "",
-      flow: "",
-      svs: "",
-      extras: [],
-    };
-    const sorted = fs.slice().sort((a, b) => a.sort_order - b.sort_order);
-    for (const f of sorted) {
-      const l = f.label_en.toLowerCase();
-      if (/^\s*(mp|pump)\b/i.test(f.label_en) || /pump/i.test(l)) {
-        line.pumps.push("");
-      } else if (l.includes("inlet")) line.inlet = "";
-      else if (l.includes("outlet") || l.includes("discharge")) line.outlet = "";
-      else if (l.includes("flow")) line.flow = "";
-      else if (l.includes("svs")) line.svs = "";
-      else line.extras!.push({ label: f.label_en, value: "" });
-    }
-    if (line.pumps.length === 0 && line.extras!.length === 0) {
-      line.pumps = Array(4).fill("");
-    }
-    return line;
-  };
-  const result: Line[] = sections
-    .slice()
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((s) => mk(s.name_en, bySection[s.id] ?? []));
-  if (orphan.length > 0) result.unshift(mk("GENERAL", orphan));
-  return result.length > 0 ? result : [mk("LINE 1", [])];
-}
-
-/* Fallback: derive default lines from station code — e.g. PS1_AB → LINE A + LINE B */
-function defaultLinesFor(code: string | undefined): Line[] {
-  const mkLine = (label: string, pumpCount = 4): Line => ({
-    label,
-    pumps: Array(pumpCount).fill(""),
-    inlet: "",
-    outlet: "",
-    flow: "",
-    svs: "",
-    extras: [],
-  });
-  if (!code) return [mkLine("LINE 1")];
-  const suffix = code.split("_").pop()?.toUpperCase() ?? "";
-  const letters = suffix.split("");
-  if (letters.length === 0) return [mkLine("LINE 1")];
-  return letters.map((l) => mkLine(`LINE ${l}`));
+function shiftLabel(s: "day" | "night", locale: "ar" | "en") {
+  if (s === "day") return locale === "ar" ? "نهاري (6ص - 6م)" : "Day (6am - 6pm)";
+  return locale === "ar" ? "ليلي (6م - 6ص)" : "Night (6pm - 6am)";
 }
 
 function ReportsPage() {
@@ -336,20 +250,12 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
   );
 }
 
-function shiftLabel(s: "day" | "night", locale: "ar" | "en") {
-  if (s === "day") return locale === "ar" ? "نهاري (6ص - 6م)" : "Day (6am - 6pm)";
-  return locale === "ar" ? "ليلي (6م - 6ص)" : "Night (6pm - 6am)";
-}
-
 /* ============================ EDITOR ============================ */
 
 interface FormState {
   report_date: string;
   shift: "day" | "night";
-  mode: "structured" | "free";
   body: string;
-  lines: Line[];
-  remarks: string[];
   reported_by: string;
 }
 
@@ -391,10 +297,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [form, setForm] = useState<FormState>(() => ({
     report_date: todayISO(),
     shift: "day",
-    mode: "structured",
     body: "",
-    lines: [],
-    remarks: ["", "", "", "", ""],
     reported_by: "",
   }));
   const [hydrated, setHydrated] = useState(false);
@@ -405,89 +308,26 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     return m;
   }, [stations]);
 
-  // Hydrate on first load
   useEffect(() => {
     if (isNew) {
-      const sid = profile?.station_id ?? "";
-      setStationId(sid);
+      setStationId(profile?.station_id ?? "");
+      setForm((f) => ({
+        ...f,
+        reported_by: f.reported_by || profile?.full_name || "",
+      }));
       setHydrated(true);
       return;
     }
     if (!existing) return;
     setStationId(existing.station_id);
-    const existingLines = (existing.lines ?? []).map(normalizeLine);
-    const isFree = existingLines.length === 0;
     setForm({
       report_date: existing.report_date,
       shift: existing.shift,
-      mode: isFree ? "free" : "structured",
-      body: isFree ? (existing.remarks ?? []).join("\n") : "",
-      lines: existingLines,
-      remarks: !isFree && existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
+      body: (existing.remarks ?? []).join("\n"),
       reported_by: existing.reported_by ?? "",
     });
     setHydrated(true);
-  }, [isNew, existing, profile?.station_id]);
-
-  // For new reports: whenever station is picked (and no lines yet), preset lines
-  // from that station's active reading template. Fall back to code-based lines
-  // if the station has no template configured yet.
-  const { data: tplData } = useQuery({
-    queryKey: ["station-template-shape", stationId],
-    enabled: isNew && hydrated && !!stationId && form.mode === "structured" && form.lines.length === 0,
-    queryFn: async () => {
-      const tpl = await supabase
-        .from("reading_templates")
-        .select("id")
-        .eq("station_id", stationId)
-        .eq("active", true)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (tpl.error) throw tpl.error;
-      if (!tpl.data) return { sections: [] as TplSection[], fields: [] as TplField[] };
-      const [secRes, fldRes] = await Promise.all([
-        supabase
-          .from("reading_sections")
-          .select("id, name_en, name_ar, sort_order")
-          .eq("template_id", tpl.data.id)
-          .order("sort_order"),
-        supabase
-          .from("reading_fields")
-          .select("id, section_id, label_en, label_ar, unit, sort_order")
-          .eq("template_id", tpl.data.id)
-          .order("sort_order"),
-      ]);
-      if (secRes.error) throw secRes.error;
-      if (fldRes.error) throw fldRes.error;
-      return {
-        sections: (secRes.data ?? []) as TplSection[],
-        fields: (fldRes.data ?? []) as TplField[],
-      };
-    },
-  });
-
-  useEffect(() => {
-    if (!isNew || !hydrated) return;
-    if (form.mode !== "structured") return;
-    if (form.lines.length > 0) return;
-    if (!stationId) return;
-    let next: Line[] | null = null;
-    if (tplData) {
-      if (tplData.sections.length > 0 || tplData.fields.length > 0) {
-        next = linesFromTemplate(tplData.sections, tplData.fields);
-      } else {
-        next = defaultLinesFor(stationMap[stationId]?.code);
-      }
-    }
-    if (!next) return;
-    setForm((f) => ({
-      ...f,
-      lines: next!,
-      reported_by: f.reported_by || profile?.full_name || "",
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew, hydrated, stationId, tplData, stationMap]);
+  }, [isNew, existing, profile?.station_id, profile?.full_name]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -496,14 +336,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         station_id: stationId,
         report_date: form.report_date,
         shift: form.shift,
-        lines:
-          form.mode === "free" ? [] : JSON.parse(JSON.stringify(form.lines)),
-        remarks:
-          form.mode === "free"
-            ? form.body.trim()
-              ? [form.body]
-              : []
-            : form.remarks.map((r) => r.trim()).filter(Boolean),
+        lines: [],
+        remarks: form.body.trim() ? [form.body] : [],
         reported_by: form.reported_by || null,
       };
       if (isNew) {
@@ -534,7 +368,17 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     const subject = `Shift Report - ${form.report_date} - ${shiftLabel(form.shift, "en")}${
       station ? " - " + station.code : ""
     }`;
-    const body = buildPlainText(form, station, locale);
+    const s = station ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}` : "";
+    const body = [
+      `${s} Shift Report`,
+      ``,
+      `Date: ${form.report_date}`,
+      `Shift: ${shiftLabel(form.shift, "en")}`,
+      ``,
+      form.body || "—",
+      ``,
+      `Reported by: ${form.reported_by}`,
+    ].join("\n");
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
@@ -553,41 +397,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const stationTitle =
     station && `${station.code} · ${locale === "ar" ? station.name_ar : station.name_en}`;
-
-  const updateLine = (i: number, patch: Partial<Line>) => {
-    setForm((f) => {
-      const arr = [...f.lines];
-      arr[i] = { ...arr[i], ...patch };
-      return { ...f, lines: arr };
-    });
-  };
-
-  const setPump = (li: number, pi: number, v: string) => {
-    setForm((f) => {
-      const arr = f.lines.map((l) => ({ ...l, pumps: [...l.pumps] }));
-      arr[li].pumps[pi] = v;
-      return { ...f, lines: arr };
-    });
-  };
-
-  const addPump = (li: number) =>
-    updateLine(li, { pumps: [...form.lines[li].pumps, ""] });
-  const removePump = (li: number) => {
-    if (form.lines[li].pumps.length <= 1) return;
-    updateLine(li, { pumps: form.lines[li].pumps.slice(0, -1) });
-  };
-
-  const addLine = () =>
-    setForm((f) => ({
-      ...f,
-      lines: [
-        ...f.lines,
-        { label: `LINE ${f.lines.length + 1}`, pumps: ["", "", "", ""], inlet: "", outlet: "", flow: "", svs: "" },
-      ],
-    }));
-
-  const removeLine = (i: number) =>
-    setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }));
 
   return (
     <div className="space-y-5">
@@ -680,39 +489,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
-      {/* Mode toggle */}
-      <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <span className="text-xs text-muted-foreground">
-          {locale === "ar" ? "نوع التقرير:" : "Report mode:"}
-        </span>
-        <div className="inline-flex rounded-lg border overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, mode: "structured" }))}
-            disabled={!canWrite}
-            className={`px-3 h-8 text-xs font-medium ${
-              form.mode === "structured"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background hover:bg-accent"
-            }`}
-          >
-            {locale === "ar" ? "منظم (خطوط)" : "Structured"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, mode: "free" }))}
-            disabled={!canWrite}
-            className={`px-3 h-8 text-xs font-medium border-s ${
-              form.mode === "free"
-                ? "bg-primary text-primary-foreground"
-                : "bg-background hover:bg-accent"
-            }`}
-          >
-            {locale === "ar" ? "نص حر" : "Free text"}
-          </button>
-        </div>
-      </div>
-
       {/* Printable sheet */}
       <div
         id="print-sheet"
@@ -731,88 +507,17 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
 
-        {form.mode === "free" ? (
-          <div>
-            <textarea
-              value={form.body}
-              onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-              disabled={!canWrite}
-              placeholder={
-                locale === "ar"
-                  ? "اكتب تقرير الشفت هنا…"
-                  : "Write your shift report here…"
-              }
-              rows={16}
-              className="w-full min-h-[360px] p-3 rounded-lg border bg-background text-sm font-mono leading-relaxed focus:outline-none focus:border-primary whitespace-pre-wrap print:border-0 print:p-0 print:font-serif print:text-[13px]"
-              dir="auto"
-            />
-          </div>
-        ) : (
-          <>
-            {form.lines.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-6">
-                {locale === "ar" ? "اختر محطة لتحميل الخطوط" : "Pick a station to load lines"}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {form.lines.map((line, li) => (
-                  <LineBlock
-                    key={li}
-                    line={line}
-                    onChange={(patch) => updateLine(li, patch)}
-                    onSetPump={(pi, v) => setPump(li, pi, v)}
-                    onAddPump={() => addPump(li)}
-                    onRemovePump={() => removePump(li)}
-                    onRemove={() => removeLine(li)}
-                    disabled={!canWrite}
-                    locale={locale}
-                  />
-                ))}
-              </div>
-            )}
-
-            {canWrite && (
-              <button
-                onClick={addLine}
-                className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline print:hidden"
-              >
-                <Plus className="h-4 w-4" /> {locale === "ar" ? "إضافة خط" : "Add line"}
-              </button>
-            )}
-
-            <div className="mt-6">
-              <h3 className="font-bold text-sm mb-2 uppercase">Activities / Remarks:</h3>
-              <ul className="space-y-1.5">
-                {form.remarks.map((r, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-2 h-1 w-1 rounded-full bg-foreground shrink-0 print:bg-black" />
-                    <input
-                      value={r}
-                      onChange={(e) =>
-                        setForm((f) => {
-                          const arr = [...f.remarks];
-                          arr[i] = e.target.value;
-                          return { ...f, remarks: arr };
-                        })
-                      }
-                      disabled={!canWrite}
-                      placeholder="…"
-                      className="flex-1 h-8 px-1 border-b bg-transparent text-sm focus:outline-none focus:border-primary print:border-b print:border-black"
-                    />
-                  </li>
-                ))}
-              </ul>
-              {canWrite && (
-                <button
-                  onClick={() => setForm((f) => ({ ...f, remarks: [...f.remarks, ""] }))}
-                  className="mt-2 text-xs text-primary hover:underline print:hidden"
-                >
-                  + {locale === "ar" ? "إضافة سطر" : "Add line"}
-                </button>
-              )}
-            </div>
-          </>
-        )}
+        <textarea
+          value={form.body}
+          onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+          disabled={!canWrite}
+          placeholder={
+            locale === "ar" ? "اكتب تقرير الشفت هنا…" : "Write your shift report here…"
+          }
+          rows={18}
+          className="w-full min-h-[420px] p-3 rounded-lg border bg-background text-sm leading-relaxed focus:outline-none focus:border-primary whitespace-pre-wrap print:border-0 print:p-0 print:text-[13px]"
+          dir="auto"
+        />
 
         <div className="mt-8 pt-4 border-t flex justify-between text-sm">
           <div>
@@ -832,174 +537,13 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           aside, header, nav, .print\\:hidden { display: none !important; }
           main { padding: 0 !important; }
           #print-sheet { color: black !important; }
-          #print-sheet input, #print-sheet select { border: none !important; background: transparent !important; color: black !important; padding: 0 !important; height: auto !important; -webkit-appearance: none; appearance: none; }
+          #print-sheet textarea, #print-sheet input, #print-sheet select {
+            border: none !important; background: transparent !important; color: black !important;
+            padding: 0 !important; height: auto !important; resize: none !important;
+            -webkit-appearance: none; appearance: none;
+          }
         }
       `}</style>
     </div>
   );
-}
-
-/* ============================ LINE BLOCK ============================ */
-
-function normalizeLine(l: Line): Line {
-  return {
-    label: l.label ?? "LINE",
-    pumps: Array.isArray(l.pumps) ? l.pumps.map((p) => p ?? "") : [],
-    inlet: l.inlet ?? "",
-    outlet: l.outlet ?? "",
-    flow: l.flow ?? "",
-    svs: l.svs ?? "",
-    extras: Array.isArray(l.extras)
-      ? l.extras.map((e) => ({ label: e.label ?? "", value: e.value ?? "" }))
-      : [],
-  };
-}
-
-function LineBlock({
-  line,
-  onChange,
-  onSetPump,
-  onAddPump,
-  onRemovePump,
-  onRemove,
-  disabled,
-  locale,
-}: {
-  line: Line;
-  onChange: (patch: Partial<Line>) => void;
-  onSetPump: (pi: number, v: string) => void;
-  onAddPump: () => void;
-  onRemovePump: () => void;
-  onRemove: () => void;
-  disabled: boolean;
-  locale: "ar" | "en";
-}) {
-  return (
-    <section className="border rounded-lg overflow-hidden print:border-black print:rounded-none">
-      <div className="bg-primary/10 px-4 py-2 print:bg-transparent print:border-b print:border-black flex items-center gap-2">
-        <input
-          value={line.label}
-          onChange={(e) => onChange({ label: e.target.value })}
-          disabled={disabled}
-          className="flex-1 bg-transparent text-base font-bold uppercase tracking-wide focus:outline-none"
-        />
-        {!disabled && (
-          <button
-            onClick={onRemove}
-            className="text-destructive p-1 rounded hover:bg-destructive/10 print:hidden"
-            aria-label="remove line"
-            title={locale === "ar" ? "حذف الخط" : "Remove line"}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 p-4 text-sm print:gap-y-1 print:p-3">
-        {/* Pumps column */}
-        <div className="space-y-2 print:space-y-1">
-          {line.pumps.map((p, pi) => (
-            <Row
-              key={pi}
-              label={`MP ${pi + 1}`}
-              value={p}
-              onChange={(v) => onSetPump(pi, v)}
-              disabled={disabled}
-            />
-          ))}
-          {!disabled && (
-            <div className="flex gap-2 print:hidden pt-1">
-              <button
-                onClick={onAddPump}
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <Plus className="h-3 w-3" /> {locale === "ar" ? "إضافة مضخة" : "Add pump"}
-              </button>
-              {line.pumps.length > 1 && (
-                <button
-                  onClick={onRemovePump}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  − {locale === "ar" ? "حذف الأخيرة" : "Remove last"}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-        {/* Other fields column */}
-        <div className="space-y-2 print:space-y-1">
-          <Row label="Inlet Pressure" value={line.inlet} onChange={(v) => onChange({ inlet: v })} disabled={disabled} />
-          <Row label="Outlet Pressure" value={line.outlet} onChange={(v) => onChange({ outlet: v })} disabled={disabled} />
-          <Row label="Flow" value={line.flow} onChange={(v) => onChange({ flow: v })} disabled={disabled} />
-          <Row label="SVS Status" value={line.svs} onChange={(v) => onChange({ svs: v })} disabled={disabled} />
-          {(line.extras ?? []).map((ex, ei) => (
-            <Row
-              key={`ex-${ei}`}
-              label={ex.label}
-              value={ex.value}
-              onChange={(v) => {
-                const next = (line.extras ?? []).map((e, i) =>
-                  i === ei ? { ...e, value: v } : e,
-                );
-                onChange({ extras: next });
-              }}
-              disabled={disabled}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Row({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="mt-0.5 h-1 w-1 rounded-full bg-foreground shrink-0 print:bg-black" />
-      <span className="font-medium w-[140px] shrink-0">{label}:</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="flex-1 h-8 px-1 border-b bg-transparent focus:outline-none focus:border-primary print:border-b print:border-black"
-      />
-    </div>
-  );
-}
-
-/* ============================ EMAIL TEXT ============================ */
-
-function buildPlainText(f: FormState, station: Station | undefined, locale: "ar" | "en") {
-  const s = station ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}` : "";
-  const bullet = (label: string, v: string) => `• ${label}: ${v || "—"}`;
-  const lines: string[] = [`${s} Shift Report`, ``, `Date: ${f.report_date}`, `Shift: ${shiftLabel(f.shift, "en")}`, ``];
-  if (f.mode === "free") {
-    lines.push(f.body || "—");
-    lines.push("");
-  } else {
-    for (const ln of f.lines) {
-      lines.push(ln.label);
-      ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
-      lines.push(bullet("Inlet Pressure", ln.inlet));
-      lines.push(bullet("Outlet Pressure", ln.outlet));
-      lines.push(bullet("Flow", ln.flow));
-      lines.push(bullet("SVS Status", ln.svs));
-      for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
-      lines.push("");
-    }
-    lines.push(`Activities / Remarks:`);
-    lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
-    lines.push("");
-  }
-  lines.push(`Reported by: ${f.reported_by}`);
-  return lines.join("\n");
 }

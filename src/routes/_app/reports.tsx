@@ -781,6 +781,9 @@ function normalizeLine(l: Line): Line {
     outlet: l.outlet ?? "",
     flow: l.flow ?? "",
     svs: l.svs ?? "",
+    extras: Array.isArray(l.extras)
+      ? l.extras.map((e) => ({ label: e.label ?? "", value: e.value ?? "" }))
+      : [],
   };
 }
 

@@ -346,6 +346,8 @@ function shiftLabel(s: "day" | "night", locale: "ar" | "en") {
 interface FormState {
   report_date: string;
   shift: "day" | "night";
+  mode: "structured" | "free";
+  body: string;
   lines: Line[];
   remarks: string[];
   reported_by: string;

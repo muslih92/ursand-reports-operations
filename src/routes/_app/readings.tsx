@@ -529,8 +529,8 @@ function EntryView({
         if (fs.length === 0) return null;
         return (
           <div key={sec.id} className="rounded-xl border bg-card overflow-hidden">
-            <div className="px-4 py-2.5 border-b bg-muted/40">
-              <h2 className="text-sm font-semibold">
+            <div className="px-4 py-3 border-b bg-primary/10">
+              <h2 className="text-base font-bold text-primary uppercase tracking-wide">
                 {locale === "ar" ? sec.name_ar : sec.name_en}
               </h2>
             </div>

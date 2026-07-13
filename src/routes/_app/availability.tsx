@@ -550,6 +550,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
         </button>
         <button
+          onClick={() =>
+            exportAvailabilityXlsx({
+              locale,
+              station: station ?? null,
+              entryDate,
+              operatorName,
+              notes,
+              equipment: equipment ?? [],
+              values,
+            })
+          }
+          disabled={!stationId || (equipment ?? []).length === 0}
+          className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent disabled:opacity-50"
+        >
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          {locale === "ar" ? "تصدير Excel" : "Export Excel"}
+        </button>
+        <button
           onClick={() => save.mutate()}
           disabled={!canWrite || save.isPending}
           className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"

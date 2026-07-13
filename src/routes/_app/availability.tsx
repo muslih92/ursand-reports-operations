@@ -1292,13 +1292,44 @@ async function exportAvailabilityXlsx(opts: {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
   const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.xlsx`;
-  a.href = url;
-  a.download = fname;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  saveAs(blob, fname);
+}
+
+async function exportAvailabilityPdf(opts: {
+  locale: "ar" | "en";
+  station: Station | null;
+  entryDate: string;
+}) {
+  const { station, entryDate } = opts;
+  const el = document.getElementById("print-sheet");
+  if (!el) throw new Error("Report container not found");
+  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+    import("html2canvas"),
+    import("jspdf"),
+  ]);
+  const canvas = await html2canvas(el, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+  });
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF("p", "mm", "a4");
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const imgW = pageW;
+  const imgH = (canvas.height * imgW) / canvas.width;
+  let heightLeft = imgH;
+  let position = 0;
+  pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+  heightLeft -= pageH;
+  while (heightLeft > 0) {
+    position = heightLeft - imgH;
+    pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
+    heightLeft -= pageH;
+  }
+  const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.pdf`;
+  pdf.save(fname);
 }

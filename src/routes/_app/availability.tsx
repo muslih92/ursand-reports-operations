@@ -1196,7 +1196,7 @@ async function exportAvailabilityXlsx(opts: {
       v?.notification_date ?? "",
       v?.ets ?? "",
     ];
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
       cell.border = {
         top: { style: "thin", color: { argb: "FFBFBFBF" } },
         bottom: { style: "thin", color: { argb: "FFBFBFBF" } },

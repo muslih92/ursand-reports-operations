@@ -391,6 +391,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [form, setForm] = useState<FormState>(() => ({
     report_date: todayISO(),
     shift: "day",
+    mode: "structured",
+    body: "",
     lines: [],
     remarks: ["", "", "", "", ""],
     reported_by: "",

@@ -63,6 +63,31 @@ interface ValueRow {
   equipment_id: string;
   status: EqStatus;
   remark: string | null;
+  problem_description: string | null;
+  work_notification: string | null;
+  work_center: string | null;
+  notification_date: string | null;
+  ets: string | null;
+}
+
+interface ValueDraft {
+  status: EqStatus;
+  problem_description: string;
+  work_notification: string;
+  work_center: string;
+  notification_date: string;
+  ets: string;
+}
+
+function emptyDraft(): ValueDraft {
+  return {
+    status: "in_service",
+    problem_description: "",
+    work_notification: "",
+    work_center: "",
+    notification_date: "",
+    ets: "",
+  };
 }
 
 const STATUS_LIST: EqStatus[] = ["in_service", "standby", "out_of_service", "fixed_speed"];

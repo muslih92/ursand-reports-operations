@@ -535,14 +535,14 @@ function EntryView({
               </h2>
             </div>
             <div className="overflow-auto">
-              <table className="w-full text-sm" dir={dir}>
+              <table className="w-max min-w-full table-fixed text-sm" dir={dir}>
                 <thead className="bg-muted/20">
                   <tr>
-                    <th className="text-start px-3 py-2 font-medium sticky start-0 bg-muted/40 z-10 min-w-[160px]">
+                    <th className="text-start px-3 py-2 font-medium sticky start-0 bg-muted/40 z-10 w-[230px] min-w-[230px] max-w-[230px]">
                       {locale === "ar" ? "الحقل" : "Field"}
                     </th>
                     {template.time_slots.map((slot) => (
-                      <th key={slot} className="px-2 py-2 font-medium text-center min-w-[80px]" dir="ltr">
+                      <th key={slot} className="w-[86px] min-w-[86px] px-2 py-2 font-medium text-center" dir="ltr">
                         {slot}
                       </th>
                     ))}
@@ -566,8 +566,8 @@ function EntryView({
 
                     return (
                       <tr key={f.id} className="border-t">
-                        <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e">
-                          <div className="font-medium truncate">
+                        <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e w-[230px] min-w-[230px] max-w-[230px] align-top">
+                          <div className="font-medium whitespace-normal break-words leading-snug">
                             {locale === "ar" ? f.label_ar : f.label_en}
                           </div>
                           <div className="text-xs text-muted-foreground" dir="ltr">
@@ -577,7 +577,7 @@ function EntryView({
                         {template.time_slots.map((slot) => {
                           const key = `${f.id}|${slot}`;
                           return (
-                            <td key={slot} className="p-1">
+                            <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
                               <input
                                 type="number"
                                 step="any"

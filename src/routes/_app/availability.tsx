@@ -1107,6 +1107,7 @@ async function exportAvailabilityXlsx(opts: {
   values: Record<string, ValueDraft>;
 }) {
   const { locale, station, entryDate, operatorName, notes, equipment, values } = opts;
+  const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "WTCO";
   wb.created = new Date();

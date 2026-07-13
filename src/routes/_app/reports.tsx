@@ -378,7 +378,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         station_id: stationId,
         report_date: form.report_date,
         shift: form.shift,
-        lines: form.lines,
+        lines: form.lines as unknown as Record<string, unknown>[],
         remarks: form.remarks.map((r) => r.trim()).filter(Boolean),
         reported_by: form.reported_by || null,
       };

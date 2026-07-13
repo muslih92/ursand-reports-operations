@@ -346,6 +346,8 @@ function shiftLabel(s: "day" | "night", locale: "ar" | "en") {
 interface FormState {
   report_date: string;
   shift: "day" | "night";
+  mode: "structured" | "free";
+  body: string;
   lines: Line[];
   remarks: string[];
   reported_by: string;
@@ -389,6 +391,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [form, setForm] = useState<FormState>(() => ({
     report_date: todayISO(),
     shift: "day",
+    mode: "structured",
+    body: "",
     lines: [],
     remarks: ["", "", "", "", ""],
     reported_by: "",
@@ -411,11 +415,15 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     }
     if (!existing) return;
     setStationId(existing.station_id);
+    const existingLines = (existing.lines ?? []).map(normalizeLine);
+    const isFree = existingLines.length === 0;
     setForm({
       report_date: existing.report_date,
       shift: existing.shift,
-      lines: (existing.lines ?? []).map(normalizeLine),
-      remarks: existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
+      mode: isFree ? "free" : "structured",
+      body: isFree ? (existing.remarks ?? []).join("\n") : "",
+      lines: existingLines,
+      remarks: !isFree && existing.remarks.length ? existing.remarks : ["", "", "", "", ""],
       reported_by: existing.reported_by ?? "",
     });
     setHydrated(true);
@@ -426,7 +434,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   // if the station has no template configured yet.
   const { data: tplData } = useQuery({
     queryKey: ["station-template-shape", stationId],
-    enabled: isNew && hydrated && !!stationId && form.lines.length === 0,
+    enabled: isNew && hydrated && !!stationId && form.mode === "structured" && form.lines.length === 0,
     queryFn: async () => {
       const tpl = await supabase
         .from("reading_templates")
@@ -461,6 +469,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   useEffect(() => {
     if (!isNew || !hydrated) return;
+    if (form.mode !== "structured") return;
     if (form.lines.length > 0) return;
     if (!stationId) return;
     let next: Line[] | null = null;
@@ -487,8 +496,14 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         station_id: stationId,
         report_date: form.report_date,
         shift: form.shift,
-        lines: JSON.parse(JSON.stringify(form.lines)),
-        remarks: form.remarks.map((r) => r.trim()).filter(Boolean),
+        lines:
+          form.mode === "free" ? [] : JSON.parse(JSON.stringify(form.lines)),
+        remarks:
+          form.mode === "free"
+            ? form.body.trim()
+              ? [form.body]
+              : []
+            : form.remarks.map((r) => r.trim()).filter(Boolean),
         reported_by: form.reported_by || null,
       };
       if (isNew) {
@@ -665,6 +680,39 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
 
+      {/* Mode toggle */}
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        <span className="text-xs text-muted-foreground">
+          {locale === "ar" ? "نوع التقرير:" : "Report mode:"}
+        </span>
+        <div className="inline-flex rounded-lg border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, mode: "structured" }))}
+            disabled={!canWrite}
+            className={`px-3 h-8 text-xs font-medium ${
+              form.mode === "structured"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background hover:bg-accent"
+            }`}
+          >
+            {locale === "ar" ? "منظم (خطوط)" : "Structured"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, mode: "free" }))}
+            disabled={!canWrite}
+            className={`px-3 h-8 text-xs font-medium border-s ${
+              form.mode === "free"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background hover:bg-accent"
+            }`}
+          >
+            {locale === "ar" ? "نص حر" : "Free text"}
+          </button>
+        </div>
+      </div>
+
       {/* Printable sheet */}
       <div
         id="print-sheet"
@@ -683,68 +731,88 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
 
-        {form.lines.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-6">
-            {locale === "ar" ? "اختر محطة لتحميل الخطوط" : "Pick a station to load lines"}
+        {form.mode === "free" ? (
+          <div>
+            <textarea
+              value={form.body}
+              onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+              disabled={!canWrite}
+              placeholder={
+                locale === "ar"
+                  ? "اكتب تقرير الشفت هنا…"
+                  : "Write your shift report here…"
+              }
+              rows={16}
+              className="w-full min-h-[360px] p-3 rounded-lg border bg-background text-sm font-mono leading-relaxed focus:outline-none focus:border-primary whitespace-pre-wrap print:border-0 print:p-0 print:font-serif print:text-[13px]"
+              dir="auto"
+            />
           </div>
         ) : (
-          <div className="space-y-4">
-            {form.lines.map((line, li) => (
-              <LineBlock
-                key={li}
-                line={line}
-                onChange={(patch) => updateLine(li, patch)}
-                onSetPump={(pi, v) => setPump(li, pi, v)}
-                onAddPump={() => addPump(li)}
-                onRemovePump={() => removePump(li)}
-                onRemove={() => removeLine(li)}
-                disabled={!canWrite}
-                locale={locale}
-              />
-            ))}
-          </div>
-        )}
+          <>
+            {form.lines.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-6">
+                {locale === "ar" ? "اختر محطة لتحميل الخطوط" : "Pick a station to load lines"}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {form.lines.map((line, li) => (
+                  <LineBlock
+                    key={li}
+                    line={line}
+                    onChange={(patch) => updateLine(li, patch)}
+                    onSetPump={(pi, v) => setPump(li, pi, v)}
+                    onAddPump={() => addPump(li)}
+                    onRemovePump={() => removePump(li)}
+                    onRemove={() => removeLine(li)}
+                    disabled={!canWrite}
+                    locale={locale}
+                  />
+                ))}
+              </div>
+            )}
 
-        {canWrite && (
-          <button
-            onClick={addLine}
-            className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline print:hidden"
-          >
-            <Plus className="h-4 w-4" /> {locale === "ar" ? "إضافة خط" : "Add line"}
-          </button>
-        )}
+            {canWrite && (
+              <button
+                onClick={addLine}
+                className="mt-4 inline-flex items-center gap-1 text-sm text-primary hover:underline print:hidden"
+              >
+                <Plus className="h-4 w-4" /> {locale === "ar" ? "إضافة خط" : "Add line"}
+              </button>
+            )}
 
-        <div className="mt-6">
-          <h3 className="font-bold text-sm mb-2 uppercase">Activities / Remarks:</h3>
-          <ul className="space-y-1.5">
-            {form.remarks.map((r, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="mt-2 h-1 w-1 rounded-full bg-foreground shrink-0 print:bg-black" />
-                <input
-                  value={r}
-                  onChange={(e) =>
-                    setForm((f) => {
-                      const arr = [...f.remarks];
-                      arr[i] = e.target.value;
-                      return { ...f, remarks: arr };
-                    })
-                  }
-                  disabled={!canWrite}
-                  placeholder="…"
-                  className="flex-1 h-8 px-1 border-b bg-transparent text-sm focus:outline-none focus:border-primary print:border-b print:border-black"
-                />
-              </li>
-            ))}
-          </ul>
-          {canWrite && (
-            <button
-              onClick={() => setForm((f) => ({ ...f, remarks: [...f.remarks, ""] }))}
-              className="mt-2 text-xs text-primary hover:underline print:hidden"
-            >
-              + {locale === "ar" ? "إضافة سطر" : "Add line"}
-            </button>
-          )}
-        </div>
+            <div className="mt-6">
+              <h3 className="font-bold text-sm mb-2 uppercase">Activities / Remarks:</h3>
+              <ul className="space-y-1.5">
+                {form.remarks.map((r, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="mt-2 h-1 w-1 rounded-full bg-foreground shrink-0 print:bg-black" />
+                    <input
+                      value={r}
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const arr = [...f.remarks];
+                          arr[i] = e.target.value;
+                          return { ...f, remarks: arr };
+                        })
+                      }
+                      disabled={!canWrite}
+                      placeholder="…"
+                      className="flex-1 h-8 px-1 border-b bg-transparent text-sm focus:outline-none focus:border-primary print:border-b print:border-black"
+                    />
+                  </li>
+                ))}
+              </ul>
+              {canWrite && (
+                <button
+                  onClick={() => setForm((f) => ({ ...f, remarks: [...f.remarks, ""] }))}
+                  className="mt-2 text-xs text-primary hover:underline print:hidden"
+                >
+                  + {locale === "ar" ? "إضافة سطر" : "Add line"}
+                </button>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="mt-8 pt-4 border-t flex justify-between text-sm">
           <div>
@@ -914,19 +982,24 @@ function buildPlainText(f: FormState, station: Station | undefined, locale: "ar"
   const s = station ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}` : "";
   const bullet = (label: string, v: string) => `• ${label}: ${v || "—"}`;
   const lines: string[] = [`${s} Shift Report`, ``, `Date: ${f.report_date}`, `Shift: ${shiftLabel(f.shift, "en")}`, ``];
-  for (const ln of f.lines) {
-    lines.push(ln.label);
-    ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
-    lines.push(bullet("Inlet Pressure", ln.inlet));
-    lines.push(bullet("Outlet Pressure", ln.outlet));
-    lines.push(bullet("Flow", ln.flow));
-    lines.push(bullet("SVS Status", ln.svs));
-    for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
+  if (f.mode === "free") {
+    lines.push(f.body || "—");
+    lines.push("");
+  } else {
+    for (const ln of f.lines) {
+      lines.push(ln.label);
+      ln.pumps.forEach((p, i) => lines.push(bullet(`MP ${i + 1}`, p)));
+      lines.push(bullet("Inlet Pressure", ln.inlet));
+      lines.push(bullet("Outlet Pressure", ln.outlet));
+      lines.push(bullet("Flow", ln.flow));
+      lines.push(bullet("SVS Status", ln.svs));
+      for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
+      lines.push("");
+    }
+    lines.push(`Activities / Remarks:`);
+    lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
     lines.push("");
   }
-  lines.push(`Activities / Remarks:`);
-  lines.push(...f.remarks.filter((r) => r.trim()).map((r) => `• ${r}`));
-  lines.push("");
   lines.push(`Reported by: ${f.reported_by}`);
   return lines.join("\n");
 }

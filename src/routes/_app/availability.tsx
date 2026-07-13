@@ -550,18 +550,27 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
         </button>
         <button
-          onClick={() =>
-            exportAvailabilityXlsx({
-              locale,
-              station: station ?? null,
-              entryDate,
-              operatorName,
-              notes,
-              equipment: equipment ?? [],
-              values,
-            })
-          }
-          disabled={!stationId || (equipment ?? []).length === 0}
+          onClick={async () => {
+            try {
+              await exportAvailabilityXlsx({
+                locale,
+                station: station ?? null,
+                entryDate,
+                operatorName,
+                notes,
+                equipment: equipment ?? [],
+                values,
+              });
+            } catch (err) {
+              console.error("Excel export failed", err);
+              toast.error(
+                locale === "ar"
+                  ? "تعذر تصدير Excel: " + (err as Error).message
+                  : "Excel export failed: " + (err as Error).message,
+              );
+            }
+          }}
+          disabled={!stationId}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent disabled:opacity-50"
         >
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />

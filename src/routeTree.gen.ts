@@ -20,7 +20,6 @@ import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
-import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,6 +68,11 @@ const AppIncidentsRoute = AppIncidentsRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAvailabilityRoute = AppAvailabilityRouteImport.update({

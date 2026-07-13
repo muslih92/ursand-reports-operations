@@ -921,6 +921,7 @@ function buildPlainText(f: FormState, station: Station | undefined, locale: "ar"
     lines.push(bullet("Outlet Pressure", ln.outlet));
     lines.push(bullet("Flow", ln.flow));
     lines.push(bullet("SVS Status", ln.svs));
+    for (const ex of ln.extras ?? []) lines.push(bullet(ex.label, ex.value));
     lines.push("");
   }
   lines.push(`Activities / Remarks:`);

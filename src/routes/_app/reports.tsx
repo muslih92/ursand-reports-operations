@@ -863,6 +863,20 @@ function LineBlock({
           <Row label="Outlet Pressure" value={line.outlet} onChange={(v) => onChange({ outlet: v })} disabled={disabled} />
           <Row label="Flow" value={line.flow} onChange={(v) => onChange({ flow: v })} disabled={disabled} />
           <Row label="SVS Status" value={line.svs} onChange={(v) => onChange({ svs: v })} disabled={disabled} />
+          {(line.extras ?? []).map((ex, ei) => (
+            <Row
+              key={`ex-${ei}`}
+              label={ex.label}
+              value={ex.value}
+              onChange={(v) => {
+                const next = (line.extras ?? []).map((e, i) =>
+                  i === ei ? { ...e, value: v } : e,
+                );
+                onChange({ extras: next });
+              }}
+              disabled={disabled}
+            />
+          ))}
         </div>
       </div>
     </section>

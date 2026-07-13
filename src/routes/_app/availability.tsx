@@ -1068,3 +1068,213 @@ function EquipmentManager({ stationId, onBack }: { stationId: string; onBack: ()
     </div>
   );
 }
+
+/* ============================ XLSX EXPORT ============================ */
+
+function xlsxStatusLabel(s: EqStatus): string {
+  switch (s) {
+    case "in_service":
+      return "IN SERVICE";
+    case "standby":
+      return "ON STANDBY";
+    case "out_of_service":
+      return "OUT OF SERVICE";
+    case "fixed_speed":
+      return "STANDBY ON FIXED SPEED";
+  }
+}
+
+function xlsxStatusFill(s: EqStatus): string {
+  switch (s) {
+    case "in_service":
+      return "FFC6EFCE";
+    case "standby":
+      return "FFBDD7EE";
+    case "out_of_service":
+      return "FFFFC7CE";
+    case "fixed_speed":
+      return "FFFFEB9C";
+  }
+}
+
+async function exportAvailabilityXlsx(opts: {
+  locale: "ar" | "en";
+  station: Station | null;
+  entryDate: string;
+  operatorName: string;
+  notes: string;
+  equipment: Equipment[];
+  values: Record<string, ValueDraft>;
+}) {
+  const { locale, station, entryDate, operatorName, notes, equipment, values } = opts;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+  const stationLabel = station
+    ? `${station.code} - ${locale === "ar" ? station.name_ar : station.name_en}`
+    : "";
+  const ws = wb.addWorksheet(station?.code || "Report", {
+    views: [{ state: "frozen", ySplit: 6, rightToLeft: locale === "ar" }],
+    pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+
+  ws.columns = [
+    { width: 14 }, // Pump No.
+    { width: 50 }, // Problem Description
+    { width: 22 }, // Unit Status
+    { width: 18 }, // W. Notification
+    { width: 14 }, // Work Center
+    { width: 14 }, // Date
+    { width: 14 }, // ETS
+  ];
+
+  // Title
+  ws.mergeCells("A1:G1");
+  const t1 = ws.getCell("A1");
+  t1.value = "JUBAIL WATER TRANSMISSION SYSTEM";
+  t1.font = { bold: true, size: 14, color: { argb: "FF1F4E78" } };
+  t1.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(1).height = 24;
+
+  ws.mergeCells("A2:G2");
+  const t2 = ws.getCell("A2");
+  t2.value = "DAILY REPORT OF PUMPING STATIONS STATUS";
+  t2.font = { bold: true, size: 12, color: { argb: "FF1F4E78" } };
+  t2.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(2).height = 20;
+
+  // Meta
+  ws.getCell("A4").value = "STATION";
+  ws.getCell("A4").font = { bold: true };
+  ws.mergeCells("B4:D4");
+  ws.getCell("B4").value = stationLabel;
+  ws.getCell("E4").value = "DATE";
+  ws.getCell("E4").font = { bold: true };
+  ws.mergeCells("F4:G4");
+  ws.getCell("F4").value = entryDate;
+  ws.getCell("F4").alignment = { horizontal: "left" };
+
+  // Header row (row 6)
+  const headers = [
+    "Pump No.",
+    "Problem Description",
+    "Unit Status",
+    "W. Notification",
+    "Work Center",
+    "Date",
+    "ETS",
+  ];
+  const headerRow = ws.getRow(6);
+  headers.forEach((h, i) => {
+    const c = headerRow.getCell(i + 1);
+    c.value = h;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    c.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+  headerRow.height = 22;
+
+  // Data rows
+  let r = 7;
+  for (const e of equipment) {
+    const v = values[e.id];
+    const status = (v?.status ?? "in_service") as EqStatus;
+    const row = ws.getRow(r++);
+    row.values = [
+      e.code,
+      v?.problem_description ?? "",
+      xlsxStatusLabel(status),
+      v?.work_notification ?? "",
+      v?.work_center ?? "",
+      v?.notification_date ?? "",
+      v?.ets ?? "",
+    ];
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFBFBFBF" } },
+        bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+        left: { style: "thin", color: { argb: "FFBFBFBF" } },
+        right: { style: "thin", color: { argb: "FFBFBFBF" } },
+      };
+      cell.alignment = { vertical: "middle", wrapText: true };
+      if (colNumber === 1) cell.font = { bold: true };
+      if (colNumber === 3) {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: xlsxStatusFill(status) },
+        };
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+        cell.font = { bold: true };
+      }
+    });
+  }
+
+  // Data validation for the Status column (dropdown list)
+  const lastRow = r - 1;
+  if (lastRow >= 7) {
+    for (let i = 7; i <= lastRow; i++) {
+      ws.getCell(`C${i}`).dataValidation = {
+        type: "list",
+        allowBlank: false,
+        formulae: ['"IN SERVICE,ON STANDBY,OUT OF SERVICE,STANDBY ON FIXED SPEED"'],
+      };
+    }
+  }
+
+  // Notes
+  const notesRow = lastRow + 2;
+  ws.getCell(`A${notesRow}`).value = "Notes:";
+  ws.getCell(`A${notesRow}`).font = { bold: true };
+  ws.mergeCells(`B${notesRow}:G${notesRow}`);
+  ws.getCell(`B${notesRow}`).value = notes || "";
+  ws.getCell(`B${notesRow}`).alignment = { wrapText: true, vertical: "top" };
+  ws.getRow(notesRow).height = 40;
+
+  const byRow = notesRow + 1;
+  ws.getCell(`A${byRow}`).value = "Reported by:";
+  ws.getCell(`A${byRow}`).font = { bold: true };
+  ws.getCell(`B${byRow}`).value = operatorName || "";
+
+  // Legend
+  const legendRow = byRow + 2;
+  const legends: { label: string; s: EqStatus }[] = [
+    { label: "IN SERVICE", s: "in_service" },
+    { label: "ON STANDBY", s: "standby" },
+    { label: "OUT OF SERVICE", s: "out_of_service" },
+    { label: "STANDBY ON FIXED SPEED", s: "fixed_speed" },
+  ];
+  legends.forEach((l, i) => {
+    const c = ws.getCell(legendRow, i + 1);
+    c.value = l.label;
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(l.s) } };
+    c.font = { bold: true };
+    c.alignment = { horizontal: "center" };
+    c.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.xlsx`;
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet } from "lucide-react";
+import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ interface NavItem { to: string; icon: React.ComponentType<{ className?: string }
 const NAV: NavItem[] = [
   { to: "/dashboard", icon: LayoutDashboard, key: "nav.dashboard" },
   { to: "/readings", icon: ClipboardList, key: "nav.readings" },
+  { to: "/availability", icon: Activity, key: "nav.availability" },
   { to: "/incidents", icon: AlertTriangle, key: "nav.incidents" },
   { to: "/reports", icon: FileText, key: "nav.reports" },
   { to: "/stations", icon: Building2, key: "nav.stations", adminOnly: true },

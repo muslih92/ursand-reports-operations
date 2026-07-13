@@ -370,7 +370,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [entryDate, setEntryDate] = useState<string>(todayISO());
   const [operatorName, setOperatorName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [values, setValues] = useState<Record<string, { status: EqStatus; remark: string }>>({});
+  const [values, setValues] = useState<Record<string, ValueDraft>>({});
   const [hydrated, setHydrated] = useState(false);
 
   const { data: equipment } = useQuery({

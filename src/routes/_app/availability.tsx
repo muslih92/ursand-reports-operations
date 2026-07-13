@@ -473,12 +473,20 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         if (error) throw error;
       }
 
-      const rows = equipment.map((e) => ({
-        entry_id: entryId,
-        equipment_id: e.id,
-        status: (values[e.id]?.status ?? "in_service") as EqStatus,
-        remark: values[e.id]?.remark || null,
-      }));
+      const rows = equipment.map((e) => {
+        const v = values[e.id] ?? emptyDraft();
+        return {
+          entry_id: entryId,
+          equipment_id: e.id,
+          status: v.status,
+          remark: v.problem_description || null,
+          problem_description: v.problem_description || null,
+          work_notification: v.work_notification || null,
+          work_center: v.work_center || null,
+          notification_date: v.notification_date || null,
+          ets: v.ets || null,
+        };
+      });
       const { error: vErr } = await supabase
         .from("equipment_availability_values")
         .upsert(rows, { onConflict: "entry_id,equipment_id" });

@@ -549,39 +549,53 @@ function EntryView({
                   </tr>
                 </thead>
                 <tbody>
-                  {fs.map((f) => (
-                    <tr key={f.id} className="border-t">
-                      <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e">
-                        <div className="font-medium truncate">
-                          {locale === "ar" ? f.label_ar : f.label_en}
-                        </div>
-                        {f.unit && (
+                  {fs.map((f) => {
+                    const isSubHeader = !f.unit;
+                    if (isSubHeader) {
+                      return (
+                        <tr key={f.id} className="border-t bg-primary/5">
+                          <td
+                            colSpan={template.time_slots.length + 1}
+                            className="px-3 py-2 sticky start-0 z-10 font-bold text-primary text-sm uppercase tracking-wide"
+                          >
+                            {locale === "ar" ? f.label_ar : f.label_en}
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return (
+                      <tr key={f.id} className="border-t">
+                        <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e">
+                          <div className="font-medium truncate">
+                            {locale === "ar" ? f.label_ar : f.label_en}
+                          </div>
                           <div className="text-xs text-muted-foreground" dir="ltr">
                             {f.unit}
                           </div>
-                        )}
-                      </td>
-                      {template.time_slots.map((slot) => {
-                        const key = `${f.id}|${slot}`;
-                        return (
-                          <td key={slot} className="p-1">
-                            <input
-                              type="number"
-                              step="any"
-                              inputMode="decimal"
-                              value={values[key] ?? ""}
-                              onChange={(e) =>
-                                setValues((v) => ({ ...v, [key]: e.target.value }))
-                              }
-                              disabled={!canWrite}
-                              className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                              dir="ltr"
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                        </td>
+                        {template.time_slots.map((slot) => {
+                          const key = `${f.id}|${slot}`;
+                          return (
+                            <td key={slot} className="p-1">
+                              <input
+                                type="number"
+                                step="any"
+                                inputMode="decimal"
+                                value={values[key] ?? ""}
+                                onChange={(e) =>
+                                  setValues((v) => ({ ...v, [key]: e.target.value }))
+                                }
+                                disabled={!canWrite}
+                                className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                dir="ltr"
+                              />
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+
                 </tbody>
               </table>
             </div>

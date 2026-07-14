@@ -18,7 +18,6 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import { saveAs } from "file-saver";
 // ExcelJS, jsPDF and html2canvas are imported dynamically inside the export functions.
 
 const searchSchema = z.object({
@@ -374,6 +373,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [operatorName, setOperatorName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [values, setValues] = useState<Record<string, ValueDraft>>({});
+  const [excelDownload, setExcelDownload] = useState<{ url: string; filename: string } | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const { data: equipment } = useQuery({
@@ -442,6 +442,12 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       return next;
     });
   }, [equipment]);
+
+  useEffect(() => {
+    return () => {
+      if (excelDownload) URL.revokeObjectURL(excelDownload.url);
+    };
+  }, [excelDownload]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -567,7 +573,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <button
           onClick={async () => {
             try {
-              await exportAvailabilityXlsx({
+              const file = await exportAvailabilityXlsx({
                 locale,
                 station: station ?? null,
                 entryDate,
@@ -576,6 +582,16 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 equipment: equipment ?? [],
                 values,
               });
+              const url = downloadBlob(file.blob, file.filename);
+              setExcelDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return { url, filename: file.filename };
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف Excel. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "Excel file is ready. If it does not download, use the download link.",
+              );
             } catch (err) {
               console.error("Excel export failed", err);
               toast.error(
@@ -590,6 +606,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
           {locale === "ar" ? "تصدير Excel" : "Export Excel"}
         </button>
+        {excelDownload && (
+          <a
+            href={excelDownload.url}
+            download={excelDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {locale === "ar" ? "تحميل Excel" : "Download Excel"}
+          </a>
+        )}
         <button
           onClick={() => save.mutate()}
           disabled={!canWrite || save.isPending}
@@ -1130,8 +1158,10 @@ async function exportAvailabilityXlsx(opts: {
   values: Record<string, ValueDraft>;
 }) {
   const { locale, station, entryDate, operatorName, notes, equipment, values } = opts;
-  const ExcelJS = (await import("exceljs")).default;
-  const wb = new ExcelJS.Workbook();
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
   wb.creator = "WTCO";
   wb.created = new Date();
   const stationLabel = station
@@ -1293,7 +1323,20 @@ async function exportAvailabilityXlsx(opts: {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.xlsx`;
-  saveAs(blob, fname);
+  return { blob, filename: fname };
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return url;
 }
 
 async function exportAvailabilityPdf(opts: {

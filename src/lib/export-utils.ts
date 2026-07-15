@@ -142,6 +142,12 @@ export async function buildElementPdf(opts: {
   `;
   host.append(style, clone);
   document.body.appendChild(host);
+  const htmlStyle = document.documentElement.getAttribute("style");
+  const bodyStyle = document.body.getAttribute("style");
+  document.documentElement.style.setProperty("background-color", "#ffffff", "important");
+  document.documentElement.style.setProperty("color", "#111827", "important");
+  document.body.style.setProperty("background-color", "#ffffff", "important");
+  document.body.style.setProperty("color", "#111827", "important");
 
   try {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
@@ -175,6 +181,10 @@ export async function buildElementPdf(opts: {
 
     return { blob: pdf.output("blob"), filename: opts.filename };
   } finally {
+    if (htmlStyle === null) document.documentElement.removeAttribute("style");
+    else document.documentElement.setAttribute("style", htmlStyle);
+    if (bodyStyle === null) document.body.removeAttribute("style");
+    else document.body.setAttribute("style", bodyStyle);
     host.remove();
   }
 }

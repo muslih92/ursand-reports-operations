@@ -5,8 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Save, ClipboardList, CheckCircle2, Circle } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  ClipboardList,
+  CheckCircle2,
+  Circle,
+  Printer,
+  FileSpreadsheet,
+} from "lucide-react";
 import { z } from "zod";
+import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({
   template: z.string().optional(),
@@ -341,6 +351,8 @@ function EntryView({
   const [values, setValues] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [operatorName, setOperatorName] = useState("");
+  const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
+  const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -354,6 +366,13 @@ function EntryView({
     setOperatorName(data.entry?.operator_name ?? profile?.full_name ?? "");
     setHydrated(true);
   }, [data, profile?.full_name]);
+
+  useEffect(() => {
+    return () => {
+      if (excelDownload) URL.revokeObjectURL(excelDownload.url);
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
+    };
+  }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -483,14 +502,109 @@ function EntryView({
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
         </div>
-        <button
-          onClick={() => save.mutate()}
-          disabled={!canWrite || save.isPending}
-          className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
-        >
-          <Save className="h-4 w-4" />
-          {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : t("common.save")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={async () => {
+              try {
+                const file = await buildElementPdf({
+                  elementId: "readings-print-sheet",
+                  filename: `Readings_${safeFilePart(template.code)}_${date}.pdf`,
+                  orientation: "l",
+                  minWidth: 1100,
+                });
+                const link = triggerBlobDownload(file.blob, file.filename);
+                setPdfDownload((previous) => {
+                  if (previous) URL.revokeObjectURL(previous.url);
+                  return link;
+                });
+                toast.success(
+                  locale === "ar"
+                    ? "تم تجهيز ملف PDF. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                    : "PDF file is ready. If it does not download, use the download link.",
+                );
+              } catch (err) {
+                console.error("PDF export failed", err);
+                toast.error(
+                  (locale === "ar" ? "تعذر تصدير PDF: " : "PDF export failed: ") +
+                    ((err as Error)?.message || String(err)),
+                );
+              }
+            }}
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
+          >
+            <Printer className="h-4 w-4" />
+            {locale === "ar" ? "تصدير PDF" : "Export PDF"}
+          </button>
+          {pdfDownload && (
+            <a
+              href={pdfDownload.url}
+              download={pdfDownload.filename}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+            >
+              <Printer className="h-4 w-4" />
+              {locale === "ar" ? "تحميل PDF" : "Download PDF"}
+            </a>
+          )}
+          <button
+            onClick={async () => {
+              try {
+                const file = await exportReadingsXlsx({
+                  locale,
+                  template,
+                  sections,
+                  fieldsBySection,
+                  values,
+                  date,
+                  stationId,
+                  operatorName,
+                  notes,
+                });
+                const link = triggerBlobDownload(file.blob, file.filename);
+                setExcelDownload((previous) => {
+                  if (previous) URL.revokeObjectURL(previous.url);
+                  return link;
+                });
+                toast.success(
+                  locale === "ar"
+                    ? "تم تجهيز ملف Excel. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                    : "Excel file is ready. If it does not download, use the download link.",
+                );
+              } catch (err) {
+                console.error("Excel export failed", err);
+                toast.error(
+                  (locale === "ar" ? "تعذر تصدير Excel: " : "Excel export failed: ") +
+                    ((err as Error)?.message || String(err)),
+                );
+              }
+            }}
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            {locale === "ar" ? "تصدير Excel" : "Export Excel"}
+          </button>
+          {excelDownload && (
+            <a
+              href={excelDownload.url}
+              download={excelDownload.filename}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {locale === "ar" ? "تحميل Excel" : "Download Excel"}
+            </a>
+          )}
+          <button
+            onClick={() => save.mutate()}
+            disabled={!canWrite || save.isPending}
+            className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
+          >
+            <Save className="h-4 w-4" />
+            {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : t("common.save")}
+          </button>
+        </div>
       </div>
 
       {!canWrite && (
@@ -499,32 +613,40 @@ function EntryView({
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">
-            {locale === "ar" ? "اسم المشغل" : "Operator name"}
-          </label>
-          <input
-            value={operatorName}
-            onChange={(e) => setOperatorName(e.target.value)}
-            disabled={!canWrite}
-            className="h-10 px-3 rounded-lg border bg-background text-sm"
-          />
+      <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
+        <div className="text-center">
+          <h2 className="text-xl font-bold">{locale === "ar" ? template.name_ar : template.name_en}</h2>
+          <p className="text-sm text-muted-foreground" dir="ltr">
+            {template.code} · {date} · {stationId ?? "—"}
+          </p>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">
-            {locale === "ar" ? "ملاحظات" : "Notes"}
-          </label>
-          <input
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={!canWrite}
-            className="h-10 px-3 rounded-lg border bg-background text-sm"
-          />
-        </div>
-      </div>
 
-      {sections.map((sec) => {
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">
+              {locale === "ar" ? "اسم المشغل" : "Operator name"}
+            </label>
+            <input
+              value={operatorName}
+              onChange={(e) => setOperatorName(e.target.value)}
+              disabled={!canWrite}
+              className="h-10 px-3 rounded-lg border bg-background text-sm"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">
+              {locale === "ar" ? "ملاحظات" : "Notes"}
+            </label>
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={!canWrite}
+              className="h-10 px-3 rounded-lg border bg-background text-sm"
+            />
+          </div>
+        </div>
+
+        {sections.map((sec) => {
         const fs = fieldsBySection[sec.id] ?? [];
         if (fs.length === 0) return null;
         return (
@@ -603,6 +725,100 @@ function EntryView({
           </div>
         );
       })}
+      </div>
     </div>
   );
+}
+
+async function exportReadingsXlsx(opts: {
+  locale: "ar" | "en";
+  template: Template;
+  sections: Section[];
+  fieldsBySection: Record<string, Field[]>;
+  values: Record<string, string>;
+  date: string;
+  stationId: string | undefined;
+  operatorName: string;
+  notes: string;
+}) {
+  const { locale, template, sections, fieldsBySection, values, date, stationId, operatorName, notes } = opts;
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+  const ws = wb.addWorksheet(template.code || "Readings", {
+    views: [{ state: "frozen", ySplit: 5, xSplit: 1, rightToLeft: locale === "ar" }],
+    pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+  ws.columns = [{ width: 34 }, ...template.time_slots.map(() => ({ width: 12 }))];
+  const lastCol = template.time_slots.length + 1;
+  ws.mergeCells(1, 1, 1, lastCol);
+  ws.getCell(1, 1).value = locale === "ar" ? template.name_ar : template.name_en;
+  ws.getCell(1, 1).font = { bold: true, size: 15, color: { argb: "FF1F4E78" } };
+  ws.getCell(1, 1).alignment = { horizontal: "center" };
+  ws.getCell("A3").value = "Date";
+  ws.getCell("B3").value = date;
+  ws.getCell("A4").value = "Station";
+  ws.getCell("B4").value = stationId || "";
+  ws.getCell("D3").value = "Operator";
+  ws.getCell("E3").value = operatorName;
+  ws.getCell("D4").value = "Notes";
+  ws.getCell("E4").value = notes;
+
+  const header = ws.getRow(6);
+  header.getCell(1).value = locale === "ar" ? "الحقل" : "Field";
+  template.time_slots.forEach((slot, i) => (header.getCell(i + 2).value = slot));
+  header.eachCell({ includeEmpty: true }, (cell: any) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.border = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  let rowNumber = 7;
+  for (const section of sections) {
+    const fields = fieldsBySection[section.id] ?? [];
+    if (fields.length === 0) continue;
+    const sectionRow = ws.getRow(rowNumber++);
+    sectionRow.getCell(1).value = locale === "ar" ? section.name_ar : section.name_en;
+    ws.mergeCells(sectionRow.number, 1, sectionRow.number, lastCol);
+    sectionRow.getCell(1).font = { bold: true, color: { argb: "FF1F4E78" } };
+    sectionRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF4FB" } };
+
+    for (const field of fields) {
+      const row = ws.getRow(rowNumber++);
+      row.getCell(1).value = `${locale === "ar" ? field.label_ar : field.label_en}${field.unit ? ` (${field.unit})` : ""}`;
+      if (!field.unit) {
+        ws.mergeCells(row.number, 1, row.number, lastCol);
+        row.getCell(1).font = { bold: true };
+        row.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
+      } else {
+        template.time_slots.forEach((slot, i) => {
+          row.getCell(i + 2).value = values[`${field.id}|${slot}`] ?? "";
+        });
+      }
+      row.eachCell({ includeEmpty: true }, (cell: any) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFBFBFBF" } },
+          bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+          left: { style: "thin", color: { argb: "FFBFBFBF" } },
+          right: { style: "thin", color: { argb: "FFBFBFBF" } },
+        };
+        cell.alignment = { vertical: "middle", wrapText: true, horizontal: cell.col === 1 ? "left" : "center" };
+      });
+    }
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return { blob, filename: `Readings_${safeFilePart(template.code)}_${date}.xlsx` };
 }

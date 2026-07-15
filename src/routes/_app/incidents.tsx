@@ -19,8 +19,10 @@ import {
   X,
   Image as ImageIcon,
   FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
+import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({ id: z.string().optional() });
 
@@ -308,6 +310,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [equipment, setEquipment] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [report, setReport] = useState<ReportData>(() => emptyReport());
+  const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
+  const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const stationMap = useMemo(() => {
@@ -341,6 +345,13 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setReport(merged);
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
+
+  useEffect(() => {
+    return () => {
+      if (excelDownload) URL.revokeObjectURL(excelDownload.url);
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
+    };
+  }, [excelDownload, pdfDownload]);
 
   /* ---------- Attachments ---------- */
   const { data: attachments } = useQuery({
@@ -513,10 +524,88 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <Back className="h-4 w-4" /> {locale === "ar" ? "رجوع" : "Back"}
         </button>
         <div className="flex-1" />
-        <button onClick={() => window.print()} className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent">
+        <button
+          onClick={async () => {
+            try {
+              const file = await buildElementPdf({
+                elementId: "incident-print-sheet",
+                filename: `Incident_Report_${safeFilePart(report.incident_no || station?.code)}_${report.incident_date}.pdf`,
+                minWidth: 900,
+              });
+              const link = triggerBlobDownload(file.blob, file.filename);
+              setPdfDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return link;
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف PDF. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "PDF file is ready. If it does not download, use the download link.",
+              );
+            } catch (err) {
+              console.error("PDF export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير PDF: " : "PDF export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
+          className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
+        >
           <Printer className="h-4 w-4" />
-          {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
+          {locale === "ar" ? "تصدير PDF" : "Export PDF"}
         </button>
+        {pdfDownload && (
+          <a
+            href={pdfDownload.url}
+            download={pdfDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <Printer className="h-4 w-4" />
+            {locale === "ar" ? "تحميل PDF" : "Download PDF"}
+          </a>
+        )}
+        <button
+          onClick={async () => {
+            try {
+              const file = await exportIncidentXlsx({ station: station ?? null, equipment, reporterName, report });
+              const link = triggerBlobDownload(file.blob, file.filename);
+              setExcelDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return link;
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف Excel. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "Excel file is ready. If it does not download, use the download link.",
+              );
+            } catch (err) {
+              console.error("Excel export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير Excel: " : "Excel export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
+          className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
+        >
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          {locale === "ar" ? "تصدير Excel" : "Export Excel"}
+        </button>
+        {excelDownload && (
+          <a
+            href={excelDownload.url}
+            download={excelDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {locale === "ar" ? "تحميل Excel" : "Download Excel"}
+          </a>
+        )}
         <button onClick={emailReport} className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent">
           <Mail className="h-4 w-4" />
           {locale === "ar" ? "إرسال بالإيميل" : "Email"}
@@ -560,7 +649,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       </div>
 
       {/* Printable sheet with fixed structure */}
-      <div id="print-sheet" className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0" dir="ltr">
+      <div id="incident-print-sheet" className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0" dir="ltr">
         <div className="text-center mb-6">
           <div className="text-xs text-muted-foreground">Water Transmission Company</div>
           <h1 className="text-2xl font-bold mt-1">Operations Incident Report</h1>
@@ -810,13 +899,77 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       <style>{`
         @media print {
           body * { visibility: hidden; }
-          #print-sheet, #print-sheet * { visibility: visible; }
-          #print-sheet { position: absolute; inset: 0; padding: 16mm; }
+          #incident-print-sheet, #incident-print-sheet * { visibility: visible; }
+          #incident-print-sheet { position: absolute; inset: 0; padding: 16mm; }
           @page { size: A4; margin: 10mm; }
         }
       `}</style>
     </div>
   );
+}
+
+async function exportIncidentXlsx(opts: {
+  station: Station | null;
+  equipment: string;
+  reporterName: string;
+  report: ReportData;
+}) {
+  const { station, equipment, reporterName, report } = opts;
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("Incident Report", {
+    pageSetup: { orientation: "portrait", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+  ws.columns = [{ width: 24 }, { width: 74 }];
+  ws.mergeCells("A1:B1");
+  ws.getCell("A1").value = "OPERATIONS INCIDENT REPORT";
+  ws.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF1F4E78" } };
+  ws.getCell("A1").alignment = { horizontal: "center" };
+
+  const rows: Array<[string, string]> = [
+    ["Station", station ? `${station.code} - ${station.name_en}` : ""],
+    ["Equipment", equipment],
+    ["Reported by", reporterName],
+    ["Date of Incident", report.incident_date],
+    ["Time of Incident", report.incident_time],
+    ["No. Incident", report.incident_no],
+    ["Location", report.location],
+    ["Subject", report.subject],
+    ["Executive Summary", report.executive_summary],
+    ["Timeline of Events", report.timeline.map((t) => `${t.time || "—"} - ${t.event || "—"}`).join("\n")],
+    ["Probable Causes", report.causes.map((c) => `${c.label || "—"}: ${c.text || "—"}`).join("\n")],
+    ["Impact & Observations", report.impact.map((c) => `${c.label || "—"}: ${c.text || "—"}`).join("\n")],
+    ["Prepared by", `${report.prepared_name} (${report.prepared_role}) - ${report.prepared_date}`],
+  ];
+
+  rows.forEach((row, index) => {
+    const r = ws.getRow(index + 3);
+    r.values = row;
+    r.getCell(1).font = { bold: true, color: { argb: "FF1F4E78" } };
+    r.eachCell({ includeEmpty: true }, (cell: any) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFBFBFBF" } },
+        bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+        left: { style: "thin", color: { argb: "FFBFBFBF" } },
+        right: { style: "thin", color: { argb: "FFBFBFBF" } },
+      };
+      cell.alignment = { vertical: "top", wrapText: true };
+    });
+    if (row[1].length > 120) r.height = Math.min(160, 24 + Math.ceil(row[1].length / 80) * 15);
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return {
+    blob,
+    filename: `Incident_Report_${safeFilePart(report.incident_no || station?.code)}_${report.incident_date}.xlsx`,
+  };
 }
 
 function LabeledList({

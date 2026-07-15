@@ -109,19 +109,31 @@ export async function buildElementPdf(opts: {
   replaceFormControls(clone);
   forceCanvasSafeColors(clone);
 
-  const host = document.createElement("div");
-  host.style.cssText = [
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = [
     "position:fixed",
     "left:-10000px",
     "top:0",
     `width:${width}px`,
+    "height:1400px",
     "background:#ffffff",
-    "z-index:-1",
+    "border:0",
+    "visibility:hidden",
     "pointer-events:none",
   ].join(";");
+  document.body.appendChild(frame);
+  const frameDoc = frame.contentDocument;
+  if (!frameDoc) throw new Error("PDF frame not available");
+  frameDoc.open();
+  frameDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>`);
+  frameDoc.close();
 
-  const style = document.createElement("style");
+  const style = frameDoc.createElement("style");
   style.textContent = `
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: Arial, sans-serif; }
+    table { border-collapse: collapse; }
+    th, td { border-color: #9ca3af !important; }
     .pdf-export-root, .pdf-export-root * {
       color: #111827 !important;
       background-color: #ffffff !important;
@@ -140,18 +152,15 @@ export async function buildElementPdf(opts: {
       fill: none !important;
     }
   `;
-  host.append(style, clone);
-  document.body.appendChild(host);
-  const htmlStyle = document.documentElement.getAttribute("style");
-  const bodyStyle = document.body.getAttribute("style");
-  document.documentElement.style.setProperty("background-color", "#ffffff", "important");
-  document.documentElement.style.setProperty("color", "#111827", "important");
-  document.body.style.setProperty("background-color", "#ffffff", "important");
-  document.body.style.setProperty("color", "#111827", "important");
+  frameDoc.head.appendChild(style);
+  frameDoc.body.appendChild(frameDoc.importNode(clone, true));
+  const frameClone = frameDoc.getElementById(clone.id) as HTMLElement | null;
+  if (!frameClone) throw new Error("PDF clone not available");
 
   try {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-    const canvas = await html2canvas(clone, {
+    frame.style.height = `${Math.max(frameClone.scrollHeight + 40, 1400)}px`;
+    const canvas = await html2canvas(frameClone, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
@@ -181,10 +190,6 @@ export async function buildElementPdf(opts: {
 
     return { blob: pdf.output("blob"), filename: opts.filename };
   } finally {
-    if (htmlStyle === null) document.documentElement.removeAttribute("style");
-    else document.documentElement.setAttribute("style", htmlStyle);
-    if (bodyStyle === null) document.body.removeAttribute("style");
-    else document.body.setAttribute("style", bodyStyle);
-    host.remove();
+    frame.remove();
   }
 }

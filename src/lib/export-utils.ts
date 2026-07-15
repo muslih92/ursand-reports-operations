@@ -67,6 +67,8 @@ function replaceFormControls(root: HTMLElement) {
 function forceCanvasSafeColors(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const element of elements) {
+    const isRoot = element === root;
+    element.removeAttribute("style");
     const tag = element.tagName.toLowerCase();
     const isTableHead = Boolean(element.closest("thead"));
     const isSectionHeader = element.className.toString().includes("pdf-title-band");
@@ -77,8 +79,21 @@ function forceCanvasSafeColors(root: HTMLElement) {
     element.style.setProperty("box-shadow", "none", "important");
     element.style.setProperty("text-shadow", "none", "important");
     element.style.setProperty("caret-color", "transparent", "important");
-    element.style.removeProperty("background-image");
-    element.style.removeProperty("background");
+    if (isRoot) {
+      element.style.setProperty("box-sizing", "border-box", "important");
+      element.style.setProperty("width", "100%", "important");
+      element.style.setProperty("padding", "24px", "important");
+      element.style.setProperty("border", "1px solid #d1d5db", "important");
+      element.style.setProperty("border-radius", "8px", "important");
+    }
+    if (tag === "table") {
+      element.style.setProperty("width", "100%", "important");
+      element.style.setProperty("border-collapse", "collapse", "important");
+    }
+    if (tag === "th" || tag === "td") {
+      element.style.setProperty("padding", "6px", "important");
+      element.style.setProperty("border", "1px solid #9ca3af", "important");
+    }
   }
 }
 

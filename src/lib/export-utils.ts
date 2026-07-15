@@ -64,6 +64,24 @@ function replaceFormControls(root: HTMLElement) {
   }
 }
 
+function forceCanvasSafeColors(root: HTMLElement) {
+  const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  for (const element of elements) {
+    const tag = element.tagName.toLowerCase();
+    const isTableHead = Boolean(element.closest("thead"));
+    const isSectionHeader = element.className.toString().includes("pdf-title-band");
+    const isCell = tag === "td" || tag === "th" || tag === "table";
+    element.style.setProperty("color", isTableHead || isSectionHeader ? "#0f4c75" : "#111827", "important");
+    element.style.setProperty("background-color", isTableHead || isSectionHeader ? "#eaf4fb" : "#ffffff", "important");
+    element.style.setProperty("border-color", isCell ? "#9ca3af" : "#d1d5db", "important");
+    element.style.setProperty("box-shadow", "none", "important");
+    element.style.setProperty("text-shadow", "none", "important");
+    element.style.setProperty("caret-color", "transparent", "important");
+    element.style.removeProperty("background-image");
+    element.style.removeProperty("background");
+  }
+}
+
 export async function buildElementPdf(opts: {
   elementId: string;
   filename: string;
@@ -89,6 +107,7 @@ export async function buildElementPdf(opts: {
   clone.style.color = "#111827";
   clone.style.borderColor = "#d1d5db";
   replaceFormControls(clone);
+  forceCanvasSafeColors(clone);
 
   const host = document.createElement("div");
   host.style.cssText = [

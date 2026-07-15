@@ -16,8 +16,10 @@ import {
   Trash2,
   Sun,
   Moon,
+  FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
+import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({
   id: z.string().optional(),
@@ -300,6 +302,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     body: "",
     reported_by: "",
   }));
+  const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
+  const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const stationMap = useMemo(() => {
@@ -328,6 +332,13 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     });
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
+
+  useEffect(() => {
+    return () => {
+      if (excelDownload) URL.revokeObjectURL(excelDownload.url);
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
+    };
+  }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -410,12 +421,86 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </button>
         <div className="flex-1" />
         <button
-          onClick={() => window.print()}
+          onClick={async () => {
+            try {
+              const file = await buildElementPdf({
+                elementId: "shift-report-print-sheet",
+                filename: `Shift_Report_${safeFilePart(station?.code)}_${form.report_date}.pdf`,
+              });
+              const link = triggerBlobDownload(file.blob, file.filename);
+              setPdfDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return link;
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف PDF. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "PDF file is ready. If it does not download, use the download link.",
+              );
+            } catch (err) {
+              console.error("PDF export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير PDF: " : "PDF export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
         >
           <Printer className="h-4 w-4" />
-          {locale === "ar" ? "طباعة / PDF" : "Print / PDF"}
+          {locale === "ar" ? "تصدير PDF" : "Export PDF"}
         </button>
+        {pdfDownload && (
+          <a
+            href={pdfDownload.url}
+            download={pdfDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <Printer className="h-4 w-4" />
+            {locale === "ar" ? "تحميل PDF" : "Download PDF"}
+          </a>
+        )}
+        <button
+          onClick={async () => {
+            try {
+              const file = await exportShiftReportXlsx({ station: station ?? null, form });
+              const link = triggerBlobDownload(file.blob, file.filename);
+              setExcelDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return link;
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف Excel. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "Excel file is ready. If it does not download, use the download link.",
+              );
+            } catch (err) {
+              console.error("Excel export failed", err);
+              toast.error(
+                (locale === "ar" ? "تعذر تصدير Excel: " : "Excel export failed: ") +
+                  ((err as Error)?.message || String(err)),
+              );
+            }
+          }}
+          className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
+        >
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          {locale === "ar" ? "تصدير Excel" : "Export Excel"}
+        </button>
+        {excelDownload && (
+          <a
+            href={excelDownload.url}
+            download={excelDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {locale === "ar" ? "تحميل Excel" : "Download Excel"}
+          </a>
+        )}
         <button
           onClick={emailReport}
           className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border hover:bg-accent"
@@ -491,7 +576,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Printable sheet */}
       <div
-        id="print-sheet"
+        id="shift-report-print-sheet"
         className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0"
         dir="ltr"
       >
@@ -536,8 +621,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           body { background: white !important; }
           aside, header, nav, .print\\:hidden { display: none !important; }
           main { padding: 0 !important; }
-          #print-sheet { color: black !important; }
-          #print-sheet textarea, #print-sheet input, #print-sheet select {
+          #shift-report-print-sheet { color: black !important; }
+          #shift-report-print-sheet textarea, #shift-report-print-sheet input, #shift-report-print-sheet select {
             border: none !important; background: transparent !important; color: black !important;
             padding: 0 !important; height: auto !important; resize: none !important;
             -webkit-appearance: none; appearance: none;
@@ -546,4 +631,52 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       `}</style>
     </div>
   );
+}
+
+async function exportShiftReportXlsx(opts: { station: Station | null; form: FormState }) {
+  const { station, form } = opts;
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+  const ws = wb.addWorksheet(station?.code || "Shift Report", {
+    pageSetup: { orientation: "portrait", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+  ws.columns = [{ width: 18 }, { width: 70 }];
+  ws.mergeCells("A1:B1");
+  ws.getCell("A1").value = "SHIFT REPORT";
+  ws.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF1F4E78" } };
+  ws.getCell("A1").alignment = { horizontal: "center" };
+  const rows = [
+    ["Station", station ? `${station.code} - ${station.name_en}` : ""],
+    ["Date", form.report_date],
+    ["Shift", shiftLabel(form.shift, "en")],
+    ["Reported by", form.reported_by],
+    ["Report", form.body || "—"],
+  ];
+  rows.forEach((row, index) => {
+    const r = ws.getRow(index + 3);
+    r.values = row;
+    r.getCell(1).font = { bold: true, color: { argb: "FF1F4E78" } };
+    r.eachCell({ includeEmpty: true }, (cell: any) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFBFBFBF" } },
+        bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+        left: { style: "thin", color: { argb: "FFBFBFBF" } },
+        right: { style: "thin", color: { argb: "FFBFBFBF" } },
+      };
+      cell.alignment = { vertical: "top", wrapText: true };
+    });
+  });
+  ws.getRow(7).height = 180;
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return {
+    blob,
+    filename: `Shift_Report_${safeFilePart(station?.code)}_${form.report_date}.xlsx`,
+  };
 }

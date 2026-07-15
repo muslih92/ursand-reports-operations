@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 import {
   ArrowLeft,
   ArrowRight,
@@ -373,7 +374,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [operatorName, setOperatorName] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [values, setValues] = useState<Record<string, ValueDraft>>({});
-  const [excelDownload, setExcelDownload] = useState<{ url: string; filename: string } | null>(null);
+  const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
+  const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const { data: equipment } = useQuery({
@@ -446,8 +448,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   useEffect(() => {
     return () => {
       if (excelDownload) URL.revokeObjectURL(excelDownload.url);
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
     };
-  }, [excelDownload]);
+  }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -552,11 +555,22 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <button
           onClick={async () => {
             try {
-              await exportAvailabilityPdf({
-                locale,
-                station: station ?? null,
-                entryDate,
+              const file = await buildElementPdf({
+                elementId: "availability-print-sheet",
+                filename: `Daily_Availability_${safeFilePart(station?.code)}_${entryDate}.pdf`,
+                orientation: "l",
+                minWidth: 1100,
               });
+              const link = triggerBlobDownload(file.blob, file.filename);
+              setPdfDownload((previous) => {
+                if (previous) URL.revokeObjectURL(previous.url);
+                return link;
+              });
+              toast.success(
+                locale === "ar"
+                  ? "تم تجهيز ملف PDF. إذا لم يبدأ التحميل اضغط رابط التحميل."
+                  : "PDF file is ready. If it does not download, use the download link.",
+              );
             } catch (err) {
               console.error("PDF export failed", err);
               toast.error(
@@ -570,6 +584,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <Printer className="h-4 w-4" />
           {locale === "ar" ? "تصدير PDF" : "Export PDF"}
         </button>
+        {pdfDownload && (
+          <a
+            href={pdfDownload.url}
+            download={pdfDownload.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
+          >
+            <Printer className="h-4 w-4" />
+            {locale === "ar" ? "تحميل PDF" : "Download PDF"}
+          </a>
+        )}
         <button
           onClick={async () => {
             try {
@@ -582,10 +608,10 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 equipment: equipment ?? [],
                 values,
               });
-              const url = downloadBlob(file.blob, file.filename);
+              const link = triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
-                return { url, filename: file.filename };
+                return link;
               });
               toast.success(
                 locale === "ar"
@@ -672,7 +698,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Printable sheet */}
       <div
-        id="print-sheet"
+        id="availability-print-sheet"
         className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0"
       >
         <div className="text-center mb-6">
@@ -1322,57 +1348,6 @@ async function exportAvailabilityXlsx(opts: {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.xlsx`;
+  const fname = `Daily_Availability_${safeFilePart(station?.code)}_${entryDate}.xlsx`;
   return { blob, filename: fname };
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.target = "_blank";
-  link.rel = "noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  return url;
-}
-
-async function exportAvailabilityPdf(opts: {
-  locale: "ar" | "en";
-  station: Station | null;
-  entryDate: string;
-}) {
-  const { station, entryDate } = opts;
-  const el = document.getElementById("print-sheet");
-  if (!el) throw new Error("Report container not found");
-  const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-    import("html2canvas"),
-    import("jspdf"),
-  ]);
-  const canvas = await html2canvas(el, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-  });
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF("p", "mm", "a4");
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const imgW = pageW;
-  const imgH = (canvas.height * imgW) / canvas.width;
-  let heightLeft = imgH;
-  let position = 0;
-  pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
-  heightLeft -= pageH;
-  while (heightLeft > 0) {
-    position = heightLeft - imgH;
-    pdf.addPage();
-    pdf.addImage(imgData, "PNG", 0, position, imgW, imgH);
-    heightLeft -= pageH;
-  }
-  const fname = `Daily_Availability_${station?.code || "Report"}_${entryDate}.pdf`;
-  pdf.save(fname);
 }

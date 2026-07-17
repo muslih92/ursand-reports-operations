@@ -29,8 +29,9 @@ export function createTypedBlob(data: BlobPart | BlobPart[], mimeType: string) {
 export function createExcelBlob(buffer: unknown) {
   if (buffer instanceof ArrayBuffer) return createTypedBlob(buffer, EXCEL_MIME);
   if (ArrayBuffer.isView(buffer)) {
-    const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    return createTypedBlob(bytes, EXCEL_MIME);
+    const copy = new Uint8Array(buffer.byteLength);
+    copy.set(new Uint8Array(buffer.buffer as ArrayBuffer, buffer.byteOffset, buffer.byteLength));
+    return createTypedBlob(copy.buffer as ArrayBuffer, EXCEL_MIME);
   }
   if (buffer instanceof Blob) return createTypedBlob(buffer, EXCEL_MIME);
   throw new Error("Excel file buffer is invalid");
@@ -73,7 +74,7 @@ export async function triggerBlobDownload(blob: Blob, filename: string): Promise
   } catch {
     fallbackDownload(url, safeFilename);
   }
-  return { url, filename };
+  return { url, filename: safeFilename };
 }
 
 function formValue(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {

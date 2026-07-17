@@ -8,22 +8,73 @@ export interface DownloadLink {
   filename: string;
 }
 
+export const EXCEL_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const PDF_MIME = "application/pdf";
+
 export function safeFilePart(value: string | null | undefined, fallback = "Report") {
   const cleaned = (value || fallback).replace(/[^\p{L}\p{N}._-]+/gu, "_").replace(/^_+|_+$/g, "");
   return cleaned || fallback;
 }
 
-export function triggerBlobDownload(blob: Blob, filename: string): DownloadLink {
-  const url = URL.createObjectURL(blob);
+export function ensureFileExtension(filename: string, extension: string) {
+  const cleanExtension = extension.startsWith(".") ? extension : `.${extension}`;
+  return filename.toLowerCase().endsWith(cleanExtension.toLowerCase()) ? filename : `${filename}${cleanExtension}`;
+}
+
+export function createTypedBlob(data: BlobPart | BlobPart[], mimeType: string) {
+  const parts = Array.isArray(data) ? data : [data];
+  return new Blob(parts, { type: mimeType });
+}
+
+export function createExcelBlob(buffer: unknown) {
+  if (buffer instanceof ArrayBuffer) return createTypedBlob(buffer, EXCEL_MIME);
+  if (ArrayBuffer.isView(buffer)) {
+    const copy = new Uint8Array(buffer.byteLength);
+    copy.set(new Uint8Array(buffer.buffer as ArrayBuffer, buffer.byteOffset, buffer.byteLength));
+    return createTypedBlob(copy.buffer as ArrayBuffer, EXCEL_MIME);
+  }
+  if (buffer instanceof Blob) return createTypedBlob(buffer, EXCEL_MIME);
+  throw new Error("Excel file buffer is invalid");
+}
+
+function withMimeType(blob: Blob, mimeType: string) {
+  return blob.type === mimeType ? blob : createTypedBlob(blob, mimeType);
+}
+
+function fallbackDownload(url: string, filename: string) {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
-  link.target = "_blank";
   link.rel = "noreferrer";
+  link.style.display = "none";
   document.body.appendChild(link);
-  link.click();
+  link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   link.remove();
-  return { url, filename };
+}
+
+export async function triggerBlobDownload(blob: Blob, filename: string): Promise<DownloadLink> {
+  const lower = filename.toLowerCase();
+  const mimeType = lower.endsWith(".pdf") ? PDF_MIME : lower.endsWith(".xlsx") ? EXCEL_MIME : blob.type || "application/octet-stream";
+  const typedBlob = withMimeType(blob, mimeType);
+  const safeFilename = lower.endsWith(".pdf")
+    ? ensureFileExtension(filename, ".pdf")
+    : lower.endsWith(".xlsx")
+      ? ensureFileExtension(filename, ".xlsx")
+      : filename;
+  const url = URL.createObjectURL(typedBlob);
+  try {
+    const file = new File([typedBlob], safeFilename, { type: mimeType, lastModified: Date.now() });
+    const mod = await import("file-saver");
+    const saveAs = mod.saveAs ?? mod.default?.saveAs ?? mod.default;
+    if (typeof saveAs === "function") {
+      saveAs(file, safeFilename);
+    } else {
+      fallbackDownload(url, safeFilename);
+    }
+  } catch {
+    fallbackDownload(url, safeFilename);
+  }
+  return { url, filename: safeFilename };
 }
 
 function formValue(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) {
@@ -203,7 +254,7 @@ export async function buildElementPdf(opts: {
       heightLeft -= pageH - margin * 2;
     }
 
-    return { blob: pdf.output("blob"), filename: opts.filename };
+    return { blob: withMimeType(pdf.output("blob"), PDF_MIME), filename: ensureFileExtension(opts.filename, ".pdf") };
   } finally {
     frame.remove();
   }

@@ -16,7 +16,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({
   template: z.string().optional(),
@@ -512,7 +512,7 @@ function EntryView({
                   orientation: "l",
                   minWidth: 1100,
                 });
-                const link = triggerBlobDownload(file.blob, file.filename);
+                const link = await triggerBlobDownload(file.blob, file.filename);
                 setPdfDownload((previous) => {
                   if (previous) URL.revokeObjectURL(previous.url);
                   return link;
@@ -539,7 +539,6 @@ function EntryView({
             <a
               href={pdfDownload.url}
               download={pdfDownload.filename}
-              target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
             >
@@ -561,7 +560,7 @@ function EntryView({
                   operatorName,
                   notes,
                 });
-                const link = triggerBlobDownload(file.blob, file.filename);
+                const link = await triggerBlobDownload(file.blob, file.filename);
                 setExcelDownload((previous) => {
                   if (previous) URL.revokeObjectURL(previous.url);
                   return link;
@@ -588,7 +587,6 @@ function EntryView({
             <a
               href={excelDownload.url}
               download={excelDownload.filename}
-              target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
             >
@@ -817,8 +815,6 @@ async function exportReadingsXlsx(opts: {
   }
 
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const blob = createExcelBlob(buffer);
   return { blob, filename: `Readings_${safeFilePart(template.code)}_${date}.xlsx` };
 }

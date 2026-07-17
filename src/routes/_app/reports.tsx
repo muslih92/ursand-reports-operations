@@ -19,7 +19,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({
   id: z.string().optional(),
@@ -427,7 +427,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 elementId: "shift-report-print-sheet",
                 filename: `Shift_Report_${safeFilePart(station?.code)}_${form.report_date}.pdf`,
               });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setPdfDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -454,7 +454,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={pdfDownload.url}
             download={pdfDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -466,7 +465,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           onClick={async () => {
             try {
               const file = await exportShiftReportXlsx({ station: station ?? null, form });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -493,7 +492,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={excelDownload.url}
             download={excelDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -672,9 +670,7 @@ async function exportShiftReportXlsx(opts: { station: Station | null; form: Form
   });
   ws.getRow(7).height = 180;
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const blob = createExcelBlob(buffer);
   return {
     blob,
     filename: `Shift_Report_${safeFilePart(station?.code)}_${form.report_date}.xlsx`,

@@ -22,7 +22,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { z } from "zod";
-import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 
 const searchSchema = z.object({ id: z.string().optional() });
 
@@ -532,7 +532,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 filename: `Incident_Report_${safeFilePart(report.incident_no || station?.code)}_${report.incident_date}.pdf`,
                 minWidth: 900,
               });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setPdfDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -559,7 +559,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={pdfDownload.url}
             download={pdfDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -571,7 +570,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           onClick={async () => {
             try {
               const file = await exportIncidentXlsx({ station: station ?? null, equipment, reporterName, report });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -598,7 +597,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={excelDownload.url}
             download={excelDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -963,9 +961,7 @@ async function exportIncidentXlsx(opts: {
   });
 
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const blob = createExcelBlob(buffer);
   return {
     blob,
     filename: `Incident_Report_${safeFilePart(report.incident_no || station?.code)}_${report.incident_date}.xlsx`,

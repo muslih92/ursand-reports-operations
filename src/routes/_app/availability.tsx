@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
-import { buildElementPdf, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 import {
   ArrowLeft,
   ArrowRight,
@@ -561,7 +561,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 orientation: "l",
                 minWidth: 1100,
               });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setPdfDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -588,7 +588,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={pdfDownload.url}
             download={pdfDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -608,7 +607,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 equipment: equipment ?? [],
                 values,
               });
-              const link = triggerBlobDownload(file.blob, file.filename);
+              const link = await triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((previous) => {
                 if (previous) URL.revokeObjectURL(previous.url);
                 return link;
@@ -636,7 +635,6 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           <a
             href={excelDownload.url}
             download={excelDownload.filename}
-            target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm px-3 h-9 rounded-lg border border-primary text-primary hover:bg-accent"
           >
@@ -1345,9 +1343,7 @@ async function exportAvailabilityXlsx(opts: {
   });
 
   const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const blob = createExcelBlob(buffer);
   const fname = `Daily_Availability_${safeFilePart(station?.code)}_${entryDate}.xlsx`;
   return { blob, filename: fname };
 }

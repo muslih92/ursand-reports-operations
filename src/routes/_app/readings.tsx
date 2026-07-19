@@ -349,6 +349,8 @@ function EntryView({
 
   // key = `${fieldId}|${slot}` -> string value
   const [values, setValues] = useState<Record<string, string>>({});
+  // per-field status: fieldId -> status token (empty = numeric mode)
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [operatorName, setOperatorName] = useState("");
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
@@ -358,10 +360,13 @@ function EntryView({
   useEffect(() => {
     if (!data) return;
     const v: Record<string, string> = {};
+    const s: Record<string, string> = {};
     for (const rv of data.entry?.reading_values ?? []) {
       v[`${rv.field_id}|${rv.time_slot}`] = rv.value != null ? String(rv.value) : "";
+      if (rv.status) s[rv.field_id] = rv.status;
     }
     setValues(v);
+    setStatuses(s);
     setNotes(data.entry?.notes ?? "");
     setOperatorName(data.entry?.operator_name ?? profile?.full_name ?? "");
     setHydrated(true);

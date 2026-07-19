@@ -414,11 +414,26 @@ function EntryView({
       const existing = new Map<string, string>(
         (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv.id]),
       );
-      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number }[] = [];
+      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] = [];
       const toDelete: string[] = [];
 
+      const handledKeys = new Set<string>();
+
+      // 1) Fields with a row-level status: emit one row per slot with status token, value null.
+      for (const [fieldId, st] of Object.entries(statuses)) {
+        if (!st) continue;
+        for (const slot of data!.template.time_slots) {
+          const key = `${fieldId}|${slot}`;
+          handledKeys.add(key);
+          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st });
+        }
+      }
+
+      // 2) Numeric cells for fields without status.
       for (const [key, raw] of Object.entries(values)) {
+        if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
+        if (statuses[field_id]) continue;
         const trimmed = raw.trim();
         if (trimmed === "") {
           const id = existing.get(key);
@@ -427,7 +442,7 @@ function EntryView({
         }
         const num = Number(trimmed);
         if (Number.isNaN(num)) throw new Error(`Invalid number for ${key}`);
-        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num });
+        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
       }
 
       if (toDelete.length > 0) {

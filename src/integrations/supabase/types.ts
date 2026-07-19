@@ -452,6 +452,7 @@ export type Database = {
           entry_id: string
           field_id: string
           id: string
+          status: string | null
           time_slot: string
           updated_at: string
           value: number | null
@@ -461,6 +462,7 @@ export type Database = {
           entry_id: string
           field_id: string
           id?: string
+          status?: string | null
           time_slot: string
           updated_at?: string
           value?: number | null
@@ -470,6 +472,7 @@ export type Database = {
           entry_id?: string
           field_id?: string
           id?: string
+          status?: string | null
           time_slot?: string
           updated_at?: string
           value?: number | null
@@ -654,6 +657,7 @@ export type Database = {
         | "standby"
         | "out_of_service"
         | "fixed_speed"
+        | "maintenance"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
       reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
@@ -790,6 +794,7 @@ export const Constants = {
         "standby",
         "out_of_service",
         "fixed_speed",
+        "maintenance",
       ],
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],

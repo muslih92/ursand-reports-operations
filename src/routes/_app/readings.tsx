@@ -65,6 +65,37 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const STATUS_TOKENS = ["in_service", "standby", "maintenance", "fixed_speed"] as const;
+type StatusToken = (typeof STATUS_TOKENS)[number];
+
+function statusAbbr(token: string): string {
+  switch (token) {
+    case "in_service": return "IN";
+    case "standby": return "N/V";
+    case "maintenance": return "M";
+    case "fixed_speed": return "F/S";
+    default: return "";
+  }
+}
+function statusLabel(token: string, locale: "ar" | "en"): string {
+  const m: Record<string, { ar: string; en: string }> = {
+    in_service: { ar: "في الخدمة", en: "In Service" },
+    standby: { ar: "احتياطي (N/V)", en: "Standby (N/V)" },
+    maintenance: { ar: "تحت الصيانة", en: "Maintenance" },
+    fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
+  };
+  return m[token]?.[locale] ?? token;
+}
+function statusClass(token: string): string {
+  switch (token) {
+    case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";
+    case "standby": return "bg-yellow-100 text-yellow-900 border-yellow-300";
+    case "maintenance": return "bg-blue-100 text-blue-800 border-blue-300";
+    case "fixed_speed": return "bg-orange-100 text-orange-800 border-orange-300";
+    default: return "bg-muted";
+  }
+}
+
 function ReadingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/readings" });
@@ -326,7 +357,7 @@ function EntryView({
           .order("sort_order"),
         supabase
           .from("reading_entries")
-          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value)")
+          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status)")
           .eq("template_id", templateId)
           .eq("entry_date", date)
           .eq("station_id", stationId!)
@@ -341,7 +372,7 @@ function EntryView({
         sections: (sectionsRes.data ?? []) as Section[],
         fields: (fieldsRes.data ?? []) as Field[],
         entry: entryRes.data as
-          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number }[] }
+          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] }
           | null,
       };
     },
@@ -349,6 +380,8 @@ function EntryView({
 
   // key = `${fieldId}|${slot}` -> string value
   const [values, setValues] = useState<Record<string, string>>({});
+  // per-field status: fieldId -> status token (empty = numeric mode)
+  const [statuses, setStatuses] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [operatorName, setOperatorName] = useState("");
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
@@ -358,10 +391,13 @@ function EntryView({
   useEffect(() => {
     if (!data) return;
     const v: Record<string, string> = {};
+    const s: Record<string, string> = {};
     for (const rv of data.entry?.reading_values ?? []) {
       v[`${rv.field_id}|${rv.time_slot}`] = rv.value != null ? String(rv.value) : "";
+      if (rv.status) s[rv.field_id] = rv.status;
     }
     setValues(v);
+    setStatuses(s);
     setNotes(data.entry?.notes ?? "");
     setOperatorName(data.entry?.operator_name ?? profile?.full_name ?? "");
     setHydrated(true);
@@ -409,11 +445,26 @@ function EntryView({
       const existing = new Map<string, string>(
         (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv.id]),
       );
-      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number }[] = [];
+      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] = [];
       const toDelete: string[] = [];
 
+      const handledKeys = new Set<string>();
+
+      // 1) Fields with a row-level status: emit one row per slot with status token, value null.
+      for (const [fieldId, st] of Object.entries(statuses)) {
+        if (!st) continue;
+        for (const slot of data!.template.time_slots) {
+          const key = `${fieldId}|${slot}`;
+          handledKeys.add(key);
+          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st });
+        }
+      }
+
+      // 2) Numeric cells for fields without status.
       for (const [key, raw] of Object.entries(values)) {
+        if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
+        if (statuses[field_id]) continue;
         const trimmed = raw.trim();
         if (trimmed === "") {
           const id = existing.get(key);
@@ -422,7 +473,7 @@ function EntryView({
         }
         const num = Number(trimmed);
         if (Number.isNaN(num)) throw new Error(`Invalid number for ${key}`);
-        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num });
+        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
       }
 
       if (toDelete.length > 0) {
@@ -684,18 +735,40 @@ function EntryView({
                       );
                     }
 
+                    const rowStatus = statuses[f.id] ?? "";
                     return (
                       <tr key={f.id} className="border-t">
                         <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e w-[230px] min-w-[230px] max-w-[230px] align-top">
                           <div className="font-medium whitespace-normal break-words leading-snug">
                             {locale === "ar" ? f.label_ar : f.label_en}
                           </div>
-                          <div className="text-xs text-muted-foreground" dir="ltr">
-                            {f.unit}
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <span className="text-xs text-muted-foreground" dir="ltr">{f.unit}</span>
+                            <select
+                              value={rowStatus}
+                              onChange={(e) => setStatuses((s) => ({ ...s, [f.id]: e.target.value }))}
+                              disabled={!canWrite}
+                              className={`text-xs h-6 rounded border px-1 ${rowStatus ? statusClass(rowStatus) : "bg-background"}`}
+                              title={locale === "ar" ? "حالة المعدة" : "Equipment status"}
+                            >
+                              <option value="">{locale === "ar" ? "— قراءة —" : "— Reading —"}</option>
+                              {STATUS_TOKENS.map((tok) => (
+                                <option key={tok} value={tok}>{statusLabel(tok, locale)}</option>
+                              ))}
+                            </select>
                           </div>
                         </td>
                         {template.time_slots.map((slot) => {
                           const key = `${f.id}|${slot}`;
+                          if (rowStatus) {
+                            return (
+                              <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
+                                <div className={`w-full h-9 rounded-md border flex items-center justify-center text-xs font-bold ${statusClass(rowStatus)}`}>
+                                  {statusAbbr(rowStatus)}
+                                </div>
+                              </td>
+                            );
+                          }
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
                               <input

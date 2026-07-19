@@ -65,6 +65,37 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const STATUS_TOKENS = ["in_service", "standby", "maintenance", "fixed_speed"] as const;
+type StatusToken = (typeof STATUS_TOKENS)[number];
+
+function statusAbbr(token: string): string {
+  switch (token) {
+    case "in_service": return "IN";
+    case "standby": return "N/V";
+    case "maintenance": return "M";
+    case "fixed_speed": return "F/S";
+    default: return "";
+  }
+}
+function statusLabel(token: string, locale: "ar" | "en"): string {
+  const m: Record<string, { ar: string; en: string }> = {
+    in_service: { ar: "في الخدمة", en: "In Service" },
+    standby: { ar: "احتياطي (N/V)", en: "Standby (N/V)" },
+    maintenance: { ar: "تحت الصيانة", en: "Maintenance" },
+    fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
+  };
+  return m[token]?.[locale] ?? token;
+}
+function statusClass(token: string): string {
+  switch (token) {
+    case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";
+    case "standby": return "bg-yellow-100 text-yellow-900 border-yellow-300";
+    case "maintenance": return "bg-blue-100 text-blue-800 border-blue-300";
+    case "fixed_speed": return "bg-orange-100 text-orange-800 border-orange-300";
+    default: return "bg-muted";
+  }
+}
+
 function ReadingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/readings" });

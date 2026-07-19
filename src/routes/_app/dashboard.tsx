@@ -1,73 +1,322 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useAuth } from "@/lib/auth-context";
-import { useI18n } from "@/lib/i18n";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, ClipboardList, AlertTriangle, Activity } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
+import {
+  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge,
+} from "lucide-react";
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function daysAgoISO(n: number) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  in_service: "#10b981",
+  standby: "#eab308",
+  out_of_service: "#ef4444",
+  maintenance: "#3b82f6",
+  fixed_speed: "#f97316",
+};
+const STATUS_LABELS: Record<string, { ar: string; en: string }> = {
+  in_service: { ar: "في الخدمة", en: "In Service" },
+  standby: { ar: "احتياطي", en: "Standby" },
+  out_of_service: { ar: "غير متاحة", en: "N/V" },
+  maintenance: { ar: "صيانة", en: "Maintenance" },
+  fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
+};
+const SEV_COLORS: Record<string, string> = {
+  low: "#94a3b8", medium: "#eab308", high: "#f97316", critical: "#ef4444",
+};
+
 function Dashboard() {
   const { profile } = useAuth();
   const { t, locale } = useI18n();
-  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(daysAgoISO(6));
+  const [to, setTo] = useState(todayISO());
+  const [stationFilter, setStationFilter] = useState<string>("all");
 
-  const { data: stats } = useQuery({
-    queryKey: ["dash-stats", today],
+  const { data: stations } = useQuery({
+    queryKey: ["dash-stations"],
     queryFn: async () => {
-      const [stationsRes, entriesRes, incidentsRes] = await Promise.all([
+      const { data } = await supabase.from("stations").select("id, code, name_en, name_ar").eq("active", true).order("code");
+      return data ?? [];
+    },
+  });
+
+  const stationEq = stationFilter === "all" ? undefined : stationFilter;
+
+  const { data: kpis } = useQuery({
+    queryKey: ["dash-kpis", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      const readingsQ = supabase.from("reading_entries").select("id", { count: "exact", head: true })
+        .gte("entry_date", from).lte("entry_date", to);
+      const reportsQ = supabase.from("shift_reports").select("id", { count: "exact", head: true })
+        .gte("report_date", from).lte("report_date", to);
+      const incidentsOpenQ = supabase.from("incidents").select("id", { count: "exact", head: true }).eq("status", "open");
+      const incidentsAllQ = supabase.from("incidents").select("id", { count: "exact", head: true })
+        .gte("occurred_at", `${from}T00:00:00`).lte("occurred_at", `${to}T23:59:59`);
+      if (stationEq) {
+        readingsQ.eq("station_id", stationEq);
+        reportsQ.eq("station_id", stationEq);
+        incidentsOpenQ.eq("station_id", stationEq);
+        incidentsAllQ.eq("station_id", stationEq);
+      }
+      const [r, rep, incO, incA, st] = await Promise.all([
+        readingsQ, reportsQ, incidentsOpenQ, incidentsAllQ,
         supabase.from("stations").select("id", { count: "exact", head: true }).eq("active", true),
-        supabase.from("reading_entries").select("id", { count: "exact", head: true }).eq("entry_date", today),
-        supabase.from("incidents").select("id", { count: "exact", head: true }).eq("status", "open"),
       ]);
       return {
-        stations: stationsRes.count ?? 0,
-        readings: entriesRes.count ?? 0,
-        openIncidents: incidentsRes.count ?? 0,
+        readings: r.count ?? 0,
+        reports: rep.count ?? 0,
+        openIncidents: incO.count ?? 0,
+        totalIncidents: incA.count ?? 0,
+        stations: st.count ?? 0,
       };
     },
   });
 
-  const { data: recentIncidents } = useQuery({
-    queryKey: ["recent-incidents"],
+  const { data: readingsByDay } = useQuery({
+    queryKey: ["dash-readings-day", from, to, stationEq ?? "all"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("incidents")
+      let q = supabase.from("reading_entries").select("entry_date")
+        .gte("entry_date", from).lte("entry_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      const buckets: Record<string, number> = {};
+      for (const r of data ?? []) buckets[r.entry_date] = (buckets[r.entry_date] ?? 0) + 1;
+      return Object.entries(buckets).sort(([a],[b]) => a.localeCompare(b))
+        .map(([date, count]) => ({ date: date.slice(5), count }));
+    },
+  });
+
+  const { data: incidentsBySev } = useQuery({
+    queryKey: ["dash-inc-sev", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("incidents").select("severity")
+        .gte("occurred_at", `${from}T00:00:00`).lte("occurred_at", `${to}T23:59:59`);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      const buckets: Record<string, number> = {};
+      for (const i of data ?? []) buckets[i.severity] = (buckets[i.severity] ?? 0) + 1;
+      return Object.entries(buckets).map(([name, value]) => ({ name, value }));
+    },
+  });
+
+  // Availability status distribution — latest entry per station (within range).
+  const { data: availability } = useQuery({
+    queryKey: ["dash-availability", to, stationEq ?? "all"],
+    queryFn: async () => {
+      let entriesQ = supabase.from("equipment_availability_entries")
+        .select("id, station_id, entry_date").lte("entry_date", to)
+        .order("entry_date", { ascending: false }).limit(200);
+      if (stationEq) entriesQ = entriesQ.eq("station_id", stationEq);
+      const { data: entries } = await entriesQ;
+      // Pick latest entry per station
+      const latestByStation = new Map<string, string>();
+      for (const e of entries ?? []) {
+        if (!latestByStation.has(e.station_id)) latestByStation.set(e.station_id, e.id);
+      }
+      const ids = Array.from(latestByStation.values());
+      if (ids.length === 0) return { pie: [], mdr: [] };
+      const { data: values } = await supabase.from("equipment_availability_values")
+        .select("status, entry_id, equipment_id, remark, station_equipment!inner(station_id, code, kind)")
+        .in("entry_id", ids);
+      const buckets: Record<string, number> = {};
+      const perStation: Record<string, Record<string, number>> = {};
+      for (const v of values ?? []) {
+        buckets[v.status] = (buckets[v.status] ?? 0) + 1;
+        const sid = (v as any).station_equipment.station_id as string;
+        perStation[sid] ??= {};
+        perStation[sid][v.status] = (perStation[sid][v.status] ?? 0) + 1;
+      }
+      const pie = Object.entries(buckets).map(([name, value]) => ({ name, value }));
+      return { pie, perStation };
+    },
+  });
+
+  const mdrRows = useMemo(() => {
+    if (!stations || !availability?.perStation) return [];
+    return stations.map((s: any) => {
+      const p = availability.perStation[s.id] ?? {};
+      const total = Object.values(p).reduce((a: number, b) => a + (b as number), 0);
+      const inSvc = p.in_service ?? 0;
+      const avail = total ? (inSvc / total) * 100 : 0;
+      return { id: s.id, code: s.code, name: locale === "ar" ? s.name_ar : s.name_en, ...p, total, avail };
+    }).filter((r: any) => r.total > 0);
+  }, [stations, availability, locale]);
+
+  const { data: recentIncidents } = useQuery({
+    queryKey: ["recent-incidents", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("incidents")
         .select("id, title, severity, status, occurred_at, equipment, stations(name_ar, name_en)")
-        .order("occurred_at", { ascending: false })
-        .limit(5);
+        .order("occurred_at", { ascending: false }).limit(6);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
       return data ?? [];
     },
   });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("dash.welcome")} {profile?.full_name}</h1>
-        <p className="text-sm text-muted-foreground">{t("dash.title")} · {new Date().toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US")}</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{t("dash.welcome")} {profile?.full_name}</h1>
+          <p className="text-sm text-muted-foreground">{t("dash.title")}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-end">
+          <div>
+            <label className="text-xs text-muted-foreground block">{locale === "ar" ? "من" : "From"}</label>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+              className="h-9 px-2 rounded-md border bg-background text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block">{locale === "ar" ? "إلى" : "To"}</label>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+              className="h-9 px-2 rounded-md border bg-background text-sm" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block">{locale === "ar" ? "المحطة" : "Station"}</label>
+            <select value={stationFilter} onChange={(e) => setStationFilter(e.target.value)}
+              className="h-9 px-2 rounded-md border bg-background text-sm">
+              <option value="all">{locale === "ar" ? "الكل" : "All"}</option>
+              {stations?.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.code}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={ClipboardList} label={t("dash.today_readings")} value={stats?.readings ?? 0} color="primary" />
-        <StatCard icon={AlertTriangle} label={t("dash.open_incidents")} value={stats?.openIncidents ?? 0} color="destructive" />
-        <StatCard icon={Building2} label={t("dash.stations_active")} value={stats?.stations ?? 0} color="success" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <StatCard icon={ClipboardList} label={locale === "ar" ? "القراءات" : "Readings"} value={kpis?.readings ?? 0} color="text-primary bg-primary/10" />
+        <StatCard icon={FileText} label={locale === "ar" ? "التقارير" : "Reports"} value={kpis?.reports ?? 0} color="text-blue-600 bg-blue-100" />
+        <StatCard icon={AlertTriangle} label={locale === "ar" ? "حوادث مفتوحة" : "Open Incidents"} value={kpis?.openIncidents ?? 0} color="text-red-600 bg-red-100" />
+        <StatCard icon={Activity} label={locale === "ar" ? "إجمالي الحوادث" : "Total Incidents"} value={kpis?.totalIncidents ?? 0} color="text-orange-600 bg-orange-100" />
+        <StatCard icon={Building2} label={locale === "ar" ? "المحطات" : "Stations"} value={kpis?.stations ?? 0} color="text-emerald-600 bg-emerald-100" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title={locale === "ar" ? "القراءات المدخلة يومياً" : "Readings per day"}>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={readingsByDay ?? []}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="date" fontSize={11} />
+              <YAxis fontSize={11} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title={locale === "ar" ? "الحوادث حسب الخطورة" : "Incidents by severity"}>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={incidentsBySev ?? []} dataKey="value" nameKey="name" outerRadius={90} label>
+                {(incidentsBySev ?? []).map((e, i) => (
+                  <Cell key={i} fill={SEV_COLORS[e.name] ?? "#64748b"} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ChartCard title={locale === "ar" ? "توزيع حالة المعدات" : "Equipment status distribution"}>
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie data={availability?.pie ?? []} dataKey="value" nameKey="name" outerRadius={90}
+                label={(e: any) => `${STATUS_LABELS[e.name]?.[locale] ?? e.name}: ${e.value}`}>
+                {(availability?.pie ?? []).map((e, i) => (
+                  <Cell key={i} fill={STATUS_COLORS[e.name] ?? "#64748b"} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: any, n: any) => [v, STATUS_LABELS[n]?.[locale] ?? n]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <div className="lg:col-span-2 rounded-xl border bg-card p-4 overflow-hidden">
+          <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+            <Gauge className="h-5 w-5 text-primary" />
+            {locale === "ar" ? "تواجدية المعدات (MDR)" : "Equipment Availability (MDR)"}
+          </h3>
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="text-start px-2 py-2">{locale === "ar" ? "المحطة" : "Station"}</th>
+                  <th className="px-2 py-2" title="In Service">🟢</th>
+                  <th className="px-2 py-2" title="Standby">🟡</th>
+                  <th className="px-2 py-2" title="N/V">🔴</th>
+                  <th className="px-2 py-2" title="Maintenance">🔵</th>
+                  <th className="px-2 py-2" title="Fixed Speed">🟠</th>
+                  <th className="px-2 py-2">{locale === "ar" ? "الإجمالي" : "Total"}</th>
+                  <th className="px-2 py-2">{locale === "ar" ? "التواجدية %" : "Avail %"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mdrRows.length === 0 ? (
+                  <tr><td colSpan={8} className="text-center py-6 text-muted-foreground">
+                    {locale === "ar" ? "لا توجد بيانات" : "No data"}
+                  </td></tr>
+                ) : mdrRows.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-1.5 font-medium">{r.code}</td>
+                    <td className="text-center">{r.in_service ?? 0}</td>
+                    <td className="text-center">{r.standby ?? 0}</td>
+                    <td className="text-center">{r.out_of_service ?? 0}</td>
+                    <td className="text-center">{r.maintenance ?? 0}</td>
+                    <td className="text-center">{r.fixed_speed ?? 0}</td>
+                    <td className="text-center font-semibold">{r.total}</td>
+                    <td className="text-center">
+                      <span className={`px-2 py-0.5 rounded font-bold ${
+                        r.avail >= 80 ? "bg-emerald-100 text-emerald-800" :
+                        r.avail >= 50 ? "bg-yellow-100 text-yellow-800" :
+                        "bg-red-100 text-red-800"
+                      }`}>{r.avail.toFixed(0)}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> {t("dash.recent_incidents")}</h2>
-          <Link to="/incidents" className="text-sm text-primary hover:underline">{locale === "ar" ? "عرض الكل" : "View all"}</Link>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" /> {t("dash.recent_incidents")}
+          </h2>
+          <Link to="/incidents" className="text-sm text-primary hover:underline">
+            {locale === "ar" ? "عرض الكل" : "View all"}
+          </Link>
         </div>
         {!recentIncidents || recentIncidents.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">{locale === "ar" ? "لا توجد حوادث" : "No incidents"}</p>
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {locale === "ar" ? "لا توجد حوادث" : "No incidents"}
+          </p>
         ) : (
           <ul className="divide-y">
-            {recentIncidents.map((inc) => (
+            {recentIncidents.map((inc: any) => (
               <li key={inc.id} className="py-3 flex items-center gap-3">
-                <span className={`inline-block h-2 w-2 rounded-full ${severityColor(inc.severity)}`} />
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: SEV_COLORS[inc.severity] ?? "#64748b" }} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{inc.title}</div>
                   <div className="text-xs text-muted-foreground truncate">
@@ -84,23 +333,25 @@ function Dashboard() {
   );
 }
 
-function severityColor(s: string) {
-  if (s === "critical") return "bg-destructive";
-  if (s === "high") return "bg-orange-500";
-  if (s === "medium") return "bg-yellow-500";
-  return "bg-muted-foreground";
-}
-
 function StatCard({ icon: Icon, label, value, color }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number; color: string }) {
   return (
-    <div className="bg-card rounded-xl border p-5 flex items-center gap-4">
-      <div className={`h-12 w-12 rounded-lg flex items-center justify-center bg-${color}/10 text-${color}`}>
-        <Icon className="h-6 w-6" />
+    <div className="bg-card rounded-xl border p-4 flex items-center gap-3">
+      <div className={`h-11 w-11 rounded-lg flex items-center justify-center ${color}`}>
+        <Icon className="h-5 w-5" />
       </div>
       <div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className="text-2xl font-bold leading-tight">{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
       </div>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <h3 className="text-base font-semibold mb-3">{title}</h3>
+      {children}
     </div>
   );
 }

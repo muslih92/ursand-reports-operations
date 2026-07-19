@@ -326,7 +326,7 @@ function EntryView({
           .order("sort_order"),
         supabase
           .from("reading_entries")
-          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value)")
+          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status)")
           .eq("template_id", templateId)
           .eq("entry_date", date)
           .eq("station_id", stationId!)
@@ -341,7 +341,7 @@ function EntryView({
         sections: (sectionsRes.data ?? []) as Section[],
         fields: (fieldsRes.data ?? []) as Field[],
         entry: entryRes.data as
-          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number }[] }
+          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] }
           | null,
       };
     },

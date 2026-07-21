@@ -788,9 +788,8 @@ function EntryView({
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
                               <input
-                                type="number"
-                                step="any"
-                                inputMode="decimal"
+                                type="text"
+                                inputMode="text"
                                 value={values[key] ?? ""}
                                 onChange={(e) =>
                                   setValues((v) => ({ ...v, [key]: e.target.value }))
@@ -801,6 +800,7 @@ function EntryView({
                               />
                             </td>
                           );
+
                         })}
                       </tr>
                     );

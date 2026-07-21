@@ -392,9 +392,20 @@ function EntryView({
     if (!data) return;
     const v: Record<string, string> = {};
     const s: Record<string, string> = {};
+    const tokenSet = new Set<string>(STATUS_TOKENS as readonly string[]);
     for (const rv of data.entry?.reading_values ?? []) {
-      v[`${rv.field_id}|${rv.time_slot}`] = rv.value != null ? String(rv.value) : "";
-      if (rv.status) s[rv.field_id] = rv.status;
+      const key = `${rv.field_id}|${rv.time_slot}`;
+      if (rv.value != null) {
+        v[key] = String(rv.value);
+      } else if (rv.status) {
+        if (tokenSet.has(rv.status)) {
+          s[rv.field_id] = rv.status;
+        } else {
+          v[key] = rv.status;
+        }
+      } else {
+        v[key] = "";
+      }
     }
     setValues(v);
     setStatuses(s);
@@ -402,6 +413,7 @@ function EntryView({
     setOperatorName(data.entry?.operator_name ?? profile?.full_name ?? "");
     setHydrated(true);
   }, [data, profile?.full_name]);
+
 
   useEffect(() => {
     return () => {
@@ -460,7 +472,7 @@ function EntryView({
         }
       }
 
-      // 2) Numeric cells for fields without status.
+      // 2) Cells for fields without row status. Numeric → value; text → status.
       for (const [key, raw] of Object.entries(values)) {
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
@@ -472,9 +484,13 @@ function EntryView({
           continue;
         }
         const num = Number(trimmed);
-        if (Number.isNaN(num)) throw new Error(`Invalid number for ${key}`);
-        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+        if (!Number.isNaN(num) && trimmed !== "") {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+        } else {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed });
+        }
       }
+
 
       if (toDelete.length > 0) {
         const { error } = await supabase.from("reading_values").delete().in("id", toDelete);
@@ -772,9 +788,8 @@ function EntryView({
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
                               <input
-                                type="number"
-                                step="any"
-                                inputMode="decimal"
+                                type="text"
+                                inputMode="text"
                                 value={values[key] ?? ""}
                                 onChange={(e) =>
                                   setValues((v) => ({ ...v, [key]: e.target.value }))
@@ -785,6 +800,7 @@ function EntryView({
                               />
                             </td>
                           );
+
                         })}
                       </tr>
                     );

@@ -1,0 +1,1 @@
+UPDATE public.reading_fields SET unit = 'RPM' WHERE label_en = 'RPM' AND unit IS NULL;

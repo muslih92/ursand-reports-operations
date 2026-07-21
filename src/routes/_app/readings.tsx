@@ -472,7 +472,7 @@ function EntryView({
         }
       }
 
-      // 2) Numeric cells for fields without status.
+      // 2) Cells for fields without row status. Numeric → value; text → status.
       for (const [key, raw] of Object.entries(values)) {
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
@@ -484,9 +484,13 @@ function EntryView({
           continue;
         }
         const num = Number(trimmed);
-        if (Number.isNaN(num)) throw new Error(`Invalid number for ${key}`);
-        toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+        if (!Number.isNaN(num) && trimmed !== "") {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+        } else {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed });
+        }
       }
+
 
       if (toDelete.length > 0) {
         const { error } = await supabase.from("reading_values").delete().in("id", toDelete);

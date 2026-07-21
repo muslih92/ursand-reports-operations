@@ -751,40 +751,18 @@ function EntryView({
                       );
                     }
 
-                    const rowStatus = statuses[f.id] ?? "";
                     return (
                       <tr key={f.id} className="border-t">
                         <td className="px-3 py-1.5 sticky start-0 bg-card z-10 border-e w-[230px] min-w-[230px] max-w-[230px] align-top">
                           <div className="font-medium whitespace-normal break-words leading-snug">
                             {locale === "ar" ? f.label_ar : f.label_en}
                           </div>
-                          <div className="flex items-center justify-between gap-2 mt-1">
+                          <div className="mt-1">
                             <span className="text-xs text-muted-foreground" dir="ltr">{f.unit}</span>
-                            <select
-                              value={rowStatus}
-                              onChange={(e) => setStatuses((s) => ({ ...s, [f.id]: e.target.value }))}
-                              disabled={!canWrite}
-                              className={`text-xs h-6 rounded border px-1 ${rowStatus ? statusClass(rowStatus) : "bg-background"}`}
-                              title={locale === "ar" ? "حالة المعدة" : "Equipment status"}
-                            >
-                              <option value="">{locale === "ar" ? "— قراءة —" : "— Reading —"}</option>
-                              {STATUS_TOKENS.map((tok) => (
-                                <option key={tok} value={tok}>{statusLabel(tok, locale)}</option>
-                              ))}
-                            </select>
                           </div>
                         </td>
                         {template.time_slots.map((slot) => {
                           const key = `${f.id}|${slot}`;
-                          if (rowStatus) {
-                            return (
-                              <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
-                                <div className={`w-full h-9 rounded-md border flex items-center justify-center text-xs font-bold ${statusClass(rowStatus)}`}>
-                                  {statusAbbr(rowStatus)}
-                                </div>
-                              </td>
-                            );
-                          }
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
                               <input
@@ -800,11 +778,11 @@ function EntryView({
                               />
                             </td>
                           );
-
                         })}
                       </tr>
                     );
                   })}
+
 
                 </tbody>
               </table>

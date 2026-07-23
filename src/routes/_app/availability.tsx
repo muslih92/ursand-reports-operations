@@ -211,7 +211,7 @@ function ListView({
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            {locale === "ar" ? "تواجدية المعدات اليومية" : "Daily Equipment Availability"}
+            {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {locale === "ar"

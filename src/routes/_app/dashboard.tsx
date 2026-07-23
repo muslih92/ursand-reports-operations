@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import {
-  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge,
+  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,

@@ -14,7 +14,7 @@ const dict: Dict = {
   "nav.templates": { ar: "قوالب القراءات", en: "Reading Templates" },
   "nav.users": { ar: "المستخدمون", en: "Users" },
   "nav.reports": { ar: "التقارير", en: "Reports" },
-  "nav.availability": { ar: "تواجدية المعدات", en: "Equipment Availability" },
+  "nav.availability": { ar: "التقرير الصباحي اليومي", en: "Morning Daily Report (MDR)" },
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },

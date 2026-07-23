@@ -157,6 +157,36 @@ function Dashboard() {
     }).filter((r: any) => r.total > 0);
   }, [stations, availability, locale]);
 
+  const { data: reportsByDay } = useQuery({
+    queryKey: ["dash-reports-day", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("shift_reports").select("report_date, shift")
+        .gte("report_date", from).lte("report_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      const buckets: Record<string, { date: string; day: number; night: number }> = {};
+      for (const r of data ?? []) {
+        buckets[r.report_date] ??= { date: r.report_date, day: 0, night: 0 };
+        if (r.shift === "night") buckets[r.report_date].night += 1;
+        else buckets[r.report_date].day += 1;
+      }
+      return Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date))
+        .map((r) => ({ ...r, date: r.date.slice(5) }));
+    },
+  });
+
+  const { data: recentReports } = useQuery({
+    queryKey: ["recent-reports", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("shift_reports")
+        .select("id, report_date, shift, reported_by, created_at, stations(code, name_ar, name_en)")
+        .order("report_date", { ascending: false }).order("created_at", { ascending: false }).limit(6);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
   const { data: recentIncidents } = useQuery({
     queryKey: ["recent-incidents", stationEq ?? "all"],
     queryFn: async () => {

@@ -701,7 +701,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       >
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold">
-            {locale === "ar" ? "تقرير تواجدية المعدات اليومي" : "Daily Equipment Availability Report"}
+            {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {station

@@ -339,7 +339,7 @@ function Dashboard() {
         <div className="lg:col-span-2 rounded-xl border bg-card p-4 overflow-hidden">
           <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
             <Gauge className="h-5 w-5 text-primary" />
-            {locale === "ar" ? "تواجدية المعدات (MDR)" : "Equipment Availability (MDR)"}
+            {locale === "ar" ? "التقرير الصباحي اليومي (MDR)" : "Morning Daily Report (MDR)"}
           </h3>
           <div className="overflow-auto">
             <table className="w-full text-sm">

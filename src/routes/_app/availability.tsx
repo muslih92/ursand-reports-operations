@@ -211,7 +211,7 @@ function ListView({
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            {locale === "ar" ? "تواجدية المعدات اليومية" : "Daily Equipment Availability"}
+            {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {locale === "ar"
@@ -701,7 +701,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       >
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold">
-            {locale === "ar" ? "تقرير تواجدية المعدات اليومي" : "Daily Equipment Availability Report"}
+            {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             {station

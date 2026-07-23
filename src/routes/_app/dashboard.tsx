@@ -266,6 +266,61 @@ function Dashboard() {
         </ChartCard>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title={locale === "ar" ? "التقارير اليومية للمشغلين" : "Daily operator reports"}>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={reportsByDay ?? []}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="date" fontSize={11} />
+              <YAxis fontSize={11} allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="day" name={locale === "ar" ? "نهاري" : "Day"} stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="night" name={locale === "ar" ? "ليلي" : "Night"} stackId="a" fill="#6366f1" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              {locale === "ar" ? "أحدث تقارير المشغلين" : "Recent operator reports"}
+            </h3>
+            <Link to="/reports" className="text-sm text-primary hover:underline">
+              {locale === "ar" ? "عرض الكل" : "View all"}
+            </Link>
+          </div>
+          {!recentReports || recentReports.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {locale === "ar" ? "لا توجد تقارير" : "No reports"}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {recentReports.map((r: any) => (
+                <li key={r.id} className="py-2.5 flex items-center gap-3">
+                  {r.shift === "night"
+                    ? <Moon className="h-4 w-4 text-indigo-500 shrink-0" />
+                    : <Sun className="h-4 w-4 text-amber-500 shrink-0" />}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate text-sm">
+                      {r.stations ? (locale === "ar" ? r.stations.name_ar : r.stations.name_en) : ""}
+                      {r.stations?.code ? ` · ${r.stations.code}` : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {r.report_date} · {r.reported_by ?? (locale === "ar" ? "غير محدد" : "—")}
+                    </div>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded bg-muted">
+                    {r.shift === "night" ? (locale === "ar" ? "ليلي" : "Night") : (locale === "ar" ? "نهاري" : "Day")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
         <ChartCard title={locale === "ar" ? "توزيع حالة المعدات" : "Equipment status distribution"}>
           <ResponsiveContainer width="100%" height={260}>

@@ -736,7 +736,7 @@ function EntryView({
                   </tr>
                 </thead>
                 <tbody>
-                  {fs.map((f) => {
+                  {fs.map((f, idx) => {
                     const isSubHeader = !f.unit;
                     if (isSubHeader) {
                       return (
@@ -750,6 +750,9 @@ function EntryView({
                         </tr>
                       );
                     }
+
+                    const firstInputIdx = fs.findIndex((x) => x.unit);
+                    const isFirstInputRow = idx === firstInputIdx;
 
                     return (
                       <tr key={f.id} className="border-t">
@@ -769,9 +772,27 @@ function EntryView({
                                 type="text"
                                 inputMode="text"
                                 value={values[key] ?? ""}
-                                onChange={(e) =>
-                                  setValues((v) => ({ ...v, [key]: e.target.value }))
-                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setValues((v) => {
+                                    const next = { ...v, [key]: val };
+                                    if (isFirstInputRow) {
+                                      const norm = val.trim().toLowerCase();
+                                      const statusWords = ["standby", "stand by", "n/v", "nv", "maintenance", "m", "fixed speed", "f/s", "fs"];
+                                      if (statusWords.includes(norm)) {
+                                        for (const other of fs) {
+                                          if (other.id === f.id) continue;
+                                          if (!other.unit) continue;
+                                          const k = `${other.id}|${slot}`;
+                                          if (!next[k] || next[k].trim() === "") {
+                                            next[k] = val;
+                                          }
+                                        }
+                                      }
+                                    }
+                                    return next;
+                                  });
+                                }}
                                 disabled={!canWrite}
                                 className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 dir="ltr"
@@ -782,6 +803,7 @@ function EntryView({
                       </tr>
                     );
                   })}
+
 
 
                 </tbody>

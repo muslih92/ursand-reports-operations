@@ -158,6 +158,10 @@ function ListView({
   const canFilterStation = isAdmin || hasRole("supervisor") || hasRole("viewer");
   const canManage = isAdmin || hasRole("supervisor");
   const [stationFilter, setStationFilter] = useState<string>(profile?.station_id ?? "");
+  const [combinedDate, setCombinedDate] = useState<string>(todayISO());
+  const [combinedDownload, setCombinedDownload] = useState<DownloadLink | null>(null);
+  const [combinedBusy, setCombinedBusy] = useState(false);
+  useEffect(() => () => { if (combinedDownload) URL.revokeObjectURL(combinedDownload.url); }, [combinedDownload]);
 
   const { data: stations } = useQuery({
     queryKey: ["stations", "active"],

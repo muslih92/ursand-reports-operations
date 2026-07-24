@@ -6,7 +6,7 @@ type Dict = Record<string, { ar: string; en: string }>;
 
 const dict: Dict = {
   "app.name": { ar: "شركة نقل المياه", en: "Water Transmission Company" },
-  "app.short": { ar: "نظام إدارة القراءات والحوادث", en: "Readings & Incidents Management" },
+  "app.short": { ar: "نظام إدارة القراءات والتقارير", en: "Readings & Reports Management" },
   "nav.dashboard": { ar: "لوحة التحكم", en: "Dashboard" },
   "nav.readings": { ar: "القراءات", en: "Readings" },
   "nav.incidents": { ar: "الحوادث", en: "Incidents" },

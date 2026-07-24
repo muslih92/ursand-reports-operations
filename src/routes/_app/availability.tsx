@@ -1401,3 +1401,221 @@ async function exportAvailabilityXlsx(opts: {
   const fname = `Daily_Availability_${safeFilePart(station?.code)}_${entryDate}.xlsx`;
   return { blob, filename: fname };
 }
+
+/* ============================ COMBINED XLSX EXPORT ============================ */
+
+// Ordered station groups per WTCO ministerial report layout.
+// Each group renders a section header (label) followed by matched stations' equipment rows.
+const COMBINED_ORDER: { label: string; codes: string[] }[] = [
+  { label: "PS1 A+B", codes: ["PS1_AB"] },
+  { label: "PS2 A+B", codes: ["PS2_AB"] },
+  { label: "PS3 A+B", codes: ["PS3_AB"] },
+  { label: "PS4 A+B", codes: ["PS4_AB"] },
+  { label: "PS5 A+B", codes: ["PS5_AB"] },
+  { label: "PS6 A+B", codes: ["PS6_AB"] },
+  { label: "PS1 C", codes: ["PS1_C"] },
+  { label: "PS2 C", codes: ["PS2_C"] },
+  { label: "PS3 C", codes: ["PS3_C"] },
+  { label: "PS4 C", codes: ["PS4_C"] },
+  { label: "PS1 F+G", codes: ["PS1_FG"] },
+  { label: "PS2 F+G", codes: ["PS2_FG"] },
+  { label: "PS3 F+G", codes: ["PS3_FG"] },
+  { label: "PS1 - Al Hissi", codes: ["PS1_ALHISSI"] },
+  { label: "PS2 - Al-Majmaah", codes: ["PS2_MAJMAAH"] },
+  { label: "Buraydah Terminal - Lifting Pumps", codes: ["BURAIYDAH"] },
+  { label: "Al-Ghat Terminal", codes: ["AL_GHAT"] },
+  { label: "Ghanman Terminal", codes: ["GHANMAN"] },
+  { label: "Shaqra Terminal", codes: ["SHAQRA"] },
+  { label: "HPT AB", codes: ["HPT_AB"] },
+  { label: "HPT C", codes: ["HPT_C"] },
+];
+
+async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date: string }) {
+  const { locale, date } = opts;
+
+  const { data: stations, error: sErr } = await supabase
+    .from("stations")
+    .select("id, code, name_en, name_ar")
+    .eq("active", true);
+  if (sErr) throw sErr;
+  const stationList = (stations ?? []) as Station[];
+  const byCode: Record<string, Station> = {};
+  for (const s of stationList) byCode[s.code] = s;
+
+  const stationIds = stationList.map((s) => s.id);
+  const { data: eqRows, error: eErr } = await supabase
+    .from("station_equipment")
+    .select("*")
+    .in("station_id", stationIds)
+    .eq("active", true)
+    .order("sort_order")
+    .order("code");
+  if (eErr) throw eErr;
+  const equipmentByStation: Record<string, Equipment[]> = {};
+  for (const e of (eqRows ?? []) as unknown as Equipment[]) {
+    (equipmentByStation[e.station_id] ||= []).push(e);
+  }
+
+  // Latest entry per station on or before `date`
+  const { data: entries, error: enErr } = await supabase
+    .from("equipment_availability_entries")
+    .select("*")
+    .in("station_id", stationIds)
+    .lte("entry_date", date)
+    .order("entry_date", { ascending: false });
+  if (enErr) throw enErr;
+  const latestEntryByStation: Record<string, Entry> = {};
+  for (const e of (entries ?? []) as unknown as Entry[]) {
+    if (!latestEntryByStation[e.station_id]) latestEntryByStation[e.station_id] = e;
+  }
+  const entryIds = Object.values(latestEntryByStation).map((e) => e.id);
+  const valuesByEquipment: Record<string, ValueRow> = {};
+  if (entryIds.length) {
+    const { data: vals, error: vErr } = await supabase
+      .from("equipment_availability_values")
+      .select("*")
+      .in("entry_id", entryIds);
+    if (vErr) throw vErr;
+    for (const v of (vals ?? []) as unknown as ValueRow[]) {
+      valuesByEquipment[v.equipment_id] = v;
+    }
+  }
+
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("Combined MDR", {
+    views: [{ state: "frozen", ySplit: 5, rightToLeft: locale === "ar" }],
+    pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+  ws.columns = [
+    { width: 14 },
+    { width: 50 },
+    { width: 22 },
+    { width: 18 },
+    { width: 14 },
+    { width: 14 },
+    { width: 14 },
+  ];
+
+  ws.mergeCells("A1:G1");
+  const t1 = ws.getCell("A1");
+  t1.value = "JUBAIL WATER TRANSMISSION SYSTEM";
+  t1.font = { bold: true, size: 14, color: { argb: "FF1F4E78" } };
+  t1.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(1).height = 24;
+  ws.mergeCells("A2:G2");
+  const t2 = ws.getCell("A2");
+  t2.value = "DAILY REPORT OF PUMPING STATIONS STATUS - ALL STATIONS";
+  t2.font = { bold: true, size: 12, color: { argb: "FF1F4E78" } };
+  t2.alignment = { horizontal: "center", vertical: "middle" };
+  ws.mergeCells("A3:G3");
+  const t3 = ws.getCell("A3");
+  t3.value = `DATE: ${date}`;
+  t3.font = { bold: true, size: 11 };
+  t3.alignment = { horizontal: "center", vertical: "middle" };
+
+  const headers = ["Pump No.", "Problem Description", "Unit Status", "W. Notification", "Work Center", "Date", "ETS"];
+  let r = 5;
+
+  const writeHeaderRow = () => {
+    const hr = ws.getRow(r++);
+    headers.forEach((h, i) => {
+      const c = hr.getCell(i + 1);
+      c.value = h;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    hr.height = 22;
+  };
+
+  writeHeaderRow();
+
+  for (const group of COMBINED_ORDER) {
+    const matches = group.codes.map((c) => byCode[c]).filter(Boolean) as Station[];
+    if (matches.length === 0) continue;
+    const nameParts = matches.map((s) => (locale === "ar" ? s.name_ar : s.name_en));
+    const bandCell = `A${r}`;
+    ws.mergeCells(`A${r}:G${r}`);
+    const b = ws.getCell(bandCell);
+    b.value = `${group.label}  —  ${nameParts.join(" / ")}`;
+    b.font = { bold: true, size: 12, color: { argb: "FF1F4E78" } };
+    b.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF4FB" } };
+    b.alignment = { horizontal: "center", vertical: "middle" };
+    b.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
+    ws.getRow(r).height = 20;
+    r++;
+
+    let anyRows = false;
+    for (const station of matches) {
+      const eqs = equipmentByStation[station.id] ?? [];
+      for (const e of eqs) {
+        anyRows = true;
+        const v = valuesByEquipment[e.id];
+        const status = (v?.status ?? "in_service") as EqStatus;
+        const row = ws.getRow(r++);
+        row.values = [
+          e.code,
+          v?.problem_description ?? v?.remark ?? "",
+          xlsxStatusLabel(status),
+          v?.work_notification ?? "",
+          v?.work_center ?? "",
+          v?.notification_date ?? "",
+          v?.ets ?? "",
+        ];
+        row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFBFBFBF" } },
+            bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+            left: { style: "thin", color: { argb: "FFBFBFBF" } },
+            right: { style: "thin", color: { argb: "FFBFBFBF" } },
+          };
+          cell.alignment = { vertical: "middle", wrapText: true };
+          if (colNumber === 1) cell.font = { bold: true };
+          if (colNumber === 3) {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(status) } };
+            cell.alignment = { vertical: "middle", horizontal: "center" };
+            cell.font = { bold: true };
+          }
+        });
+      }
+    }
+    if (!anyRows) {
+      ws.mergeCells(`A${r}:G${r}`);
+      const noCell = ws.getCell(`A${r}`);
+      noCell.value = locale === "ar" ? "— لا توجد معدات مسجّلة —" : "— No equipment defined —";
+      noCell.alignment = { horizontal: "center" };
+      noCell.font = { italic: true, color: { argb: "FF808080" } };
+      r++;
+    }
+    r++; // blank spacer between groups
+  }
+
+  // Legend
+  r++;
+  const legendRow = r;
+  const legends: { label: string; s: EqStatus }[] = [
+    { label: "IN SERVICE", s: "in_service" },
+    { label: "ON STANDBY", s: "standby" },
+    { label: "OUT OF SERVICE", s: "out_of_service" },
+    { label: "STANDBY ON FIXED SPEED", s: "fixed_speed" },
+  ];
+  legends.forEach((l, i) => {
+    const c = ws.getCell(legendRow, i + 1);
+    c.value = l.label;
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(l.s) } };
+    c.font = { bold: true };
+    c.alignment = { horizontal: "center" };
+    c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = createExcelBlob(buffer);
+  const fname = `Combined_MDR_${date}.xlsx`;
+  return { blob, filename: fname };
+}

@@ -243,6 +243,56 @@ function ListView({
         </div>
       </div>
 
+      {/* Combined MDR export */}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">
+            {locale === "ar" ? "تاريخ التقرير الموحّد" : "Combined report date"}
+          </label>
+          <input
+            type="date"
+            value={combinedDate}
+            onChange={(e) => setCombinedDate(e.target.value)}
+            className="h-10 px-3 rounded-lg border bg-background text-sm"
+            dir="ltr"
+          />
+        </div>
+        <button
+          disabled={combinedBusy}
+          onClick={async () => {
+            try {
+              setCombinedBusy(true);
+              const file = await exportCombinedAvailabilityXlsx({ locale, date: combinedDate });
+              const link = await triggerBlobDownload(file.blob, file.filename);
+              setCombinedDownload((p) => { if (p) URL.revokeObjectURL(p.url); return link; });
+              toast.success(locale === "ar" ? "تم تجهيز الملف الموحّد" : "Combined file ready");
+            } catch (err) {
+              console.error(err);
+              toast.error((locale === "ar" ? "فشل التصدير: " : "Export failed: ") + ((err as Error)?.message || String(err)));
+            } finally {
+              setCombinedBusy(false);
+            }
+          }}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          {combinedBusy
+            ? (locale === "ar" ? "جارٍ التجهيز…" : "Preparing…")
+            : (locale === "ar" ? "تصدير Excel موحّد لكل المحطات" : "Export Combined MDR (All Stations)")}
+        </button>
+        {combinedDownload && (
+          <a
+            href={combinedDownload.url}
+            download={combinedDownload.filename}
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-primary text-primary text-sm hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {locale === "ar" ? "تحميل الملف" : "Download file"}
+          </a>
+        )}
+      </div>
+
       {canFilterStation && (
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex flex-col gap-1 min-w-[220px]">

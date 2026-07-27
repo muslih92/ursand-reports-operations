@@ -1263,27 +1263,27 @@ function EquipmentManager({ stationId, onBack }: { stationId: string; onBack: ()
 
 function xlsxStatusLabel(s: EqStatus): string {
   switch (s) {
-    case "in_service":
-      return "IN SERVICE";
-    case "standby":
-      return "ON STANDBY";
-    case "out_of_service":
-      return "OUT OF SERVICE";
-    case "fixed_speed":
-      return "STANDBY ON FIXED SPEED";
+    case "in_service": return "IN SERVICE";
+    case "standby": return "ON STANDBY (S/B)";
+    case "not_available": return "NOT AVAILABLE (N/V)";
+    case "out_of_service": return "OUT OF SERVICE";
+    case "maintenance": return "MAINTENANCE";
+    case "shutdown": return "SHUTDOWN";
+    case "testing": return "TESTING";
+    case "fixed_speed": return "STANDBY ON FIXED SPEED";
   }
 }
 
 function xlsxStatusFill(s: EqStatus): string {
   switch (s) {
-    case "in_service":
-      return "FFC6EFCE";
-    case "standby":
-      return "FFBDD7EE";
-    case "out_of_service":
-      return "FFFFC7CE";
-    case "fixed_speed":
-      return "FFFFEB9C";
+    case "in_service": return "FFC6EFCE";
+    case "standby": return "FFBDD7EE";
+    case "not_available": return "FFFFC7CE";
+    case "out_of_service": return "FFFFC7CE";
+    case "maintenance": return "FFD9E1F2";
+    case "shutdown": return "FFD9D9D9";
+    case "testing": return "FFE4D2F0";
+    case "fixed_speed": return "FFFFEB9C";
   }
 }
 

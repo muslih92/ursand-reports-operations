@@ -31,7 +31,15 @@ export const Route = createFileRoute("/_app/availability")({
   component: AvailabilityPage,
 });
 
-type EqStatus = "in_service" | "standby" | "out_of_service" | "fixed_speed";
+type EqStatus =
+  | "in_service"
+  | "standby"
+  | "not_available"
+  | "out_of_service"
+  | "maintenance"
+  | "shutdown"
+  | "testing"
+  | "fixed_speed";
 
 interface Station {
   id: string;
@@ -57,6 +65,10 @@ interface Entry {
   notes: string | null;
   operator_id: string | null;
   operator_name: string | null;
+  shift: string | null;
+  supervisor_name: string | null;
+  supervisor_id: string | null;
+  report_status: string | null;
   created_at: string;
 }
 
@@ -93,16 +105,45 @@ function emptyDraft(): ValueDraft {
   };
 }
 
-const STATUS_LIST: EqStatus[] = ["in_service", "standby", "out_of_service", "fixed_speed"];
+const STATUS_LIST: EqStatus[] = [
+  "in_service",
+  "standby",
+  "not_available",
+  "maintenance",
+  "shutdown",
+  "testing",
+  "fixed_speed",
+  "out_of_service",
+];
+
+// Statuses that should be auto-propagated across the same unit group
+const AUTOFILL_STATUSES: EqStatus[] = ["standby", "not_available", "shutdown", "maintenance"];
 
 function statusLabel(s: EqStatus, locale: "ar" | "en") {
   const map: Record<EqStatus, { ar: string; en: string }> = {
     in_service: { ar: "في الخدمة", en: "In Service" },
-    standby: { ar: "احتياطي", en: "Standby" },
+    standby: { ar: "احتياطي (S/B)", en: "Standby (S/B)" },
+    not_available: { ar: "غير متاح (N/V)", en: "Not Available (N/V)" },
     out_of_service: { ar: "خارج الخدمة", en: "Out of Service" },
+    maintenance: { ar: "صيانة", en: "Maintenance" },
+    shutdown: { ar: "متوقفة", en: "Shutdown" },
+    testing: { ar: "اختبار", en: "Testing" },
     fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
   };
   return map[s][locale];
+}
+
+function statusShort(s: EqStatus): string {
+  switch (s) {
+    case "in_service": return "IS";
+    case "standby": return "S/B";
+    case "not_available": return "N/V";
+    case "out_of_service": return "OOS";
+    case "maintenance": return "M";
+    case "shutdown": return "SD";
+    case "testing": return "T";
+    case "fixed_speed": return "F/S";
+  }
 }
 
 function statusColor(s: EqStatus): string {
@@ -111,12 +152,28 @@ function statusColor(s: EqStatus): string {
       return "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
     case "standby":
       return "bg-sky-500/15 text-sky-700 border-sky-500/30";
+    case "not_available":
     case "out_of_service":
       return "bg-red-500/15 text-red-700 border-red-500/30";
+    case "maintenance":
+      return "bg-blue-500/15 text-blue-700 border-blue-500/30";
+    case "shutdown":
+      return "bg-slate-500/15 text-slate-700 border-slate-500/30";
+    case "testing":
+      return "bg-purple-500/15 text-purple-700 border-purple-500/30";
     case "fixed_speed":
       return "bg-amber-500/15 text-amber-700 border-amber-500/30";
   }
 }
+
+// Determine the group prefix of an equipment code — used for auto-fill scope.
+// Example: "M.U-1A" -> "M.U-*A" (Main Unit line A); "B.P-5B" -> "B.P-*B"
+function unitGroupKey(code: string): string {
+  const m = code.match(/^([A-Za-z.]+)-\d+([A-Za-z]*)$/);
+  if (!m) return code.replace(/\d+/g, "");
+  return `${m[1]}-*${m[2]}`;
+}
+
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -426,6 +483,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [stationId, setStationId] = useState<string>(profile?.station_id ?? "");
   const [entryDate, setEntryDate] = useState<string>(todayISO());
   const [operatorName, setOperatorName] = useState<string>("");
+  const [supervisorName, setSupervisorName] = useState<string>("");
+  const [shift, setShift] = useState<string>("day");
   const [notes, setNotes] = useState<string>("");
   const [values, setValues] = useState<Record<string, ValueDraft>>({});
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
@@ -466,6 +525,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setStationId(existing.station_id);
     setEntryDate(existing.entry_date);
     setOperatorName(existing.operator_name ?? "");
+    setSupervisorName(existing.supervisor_name ?? "");
+    setShift(existing.shift ?? "day");
     setNotes(existing.notes ?? "");
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
@@ -522,6 +583,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         entry_date: entryDate,
         notes: notes || null,
         operator_name: operatorName || null,
+        supervisor_name: supervisorName || null,
+        shift: shift || null,
       };
       if (isNew) {
         const { data, error } = await supabase
@@ -587,7 +650,11 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const counts: Record<EqStatus, number> = {
     in_service: 0,
     standby: 0,
+    not_available: 0,
     out_of_service: 0,
+    maintenance: 0,
+    shutdown: 0,
+    testing: 0,
     fixed_speed: 0,
   };
   for (const e of equipment ?? []) {
@@ -737,11 +804,36 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">
-            {locale === "ar" ? "بواسطة" : "Reported by"}
+            {locale === "ar" ? "الشفت" : "Shift"}
+          </label>
+          <select
+            value={shift}
+            onChange={(e) => setShift(e.target.value)}
+            disabled={!canWrite}
+            className="h-10 px-3 rounded-lg border bg-background text-sm"
+          >
+            <option value="day">{locale === "ar" ? "نهاري (07:00 - 19:00)" : "Day (07:00 - 19:00)"}</option>
+            <option value="night">{locale === "ar" ? "ليلي (19:00 - 07:00)" : "Night (19:00 - 07:00)"}</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">
+            {locale === "ar" ? "المشغل" : "Operator"}
           </label>
           <input
             value={operatorName}
             onChange={(e) => setOperatorName(e.target.value)}
+            disabled={!canWrite}
+            className="h-10 px-3 rounded-lg border bg-background text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">
+            {locale === "ar" ? "المشرف" : "Supervisor"}
+          </label>
+          <input
+            value={supervisorName}
+            onChange={(e) => setSupervisorName(e.target.value)}
             disabled={!canWrite}
             className="h-10 px-3 rounded-lg border bg-background text-sm"
           />
@@ -813,10 +905,31 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 </tr>
               </thead>
               <tbody>
-                {(equipment ?? []).map((e) => {
+                {(equipment ?? []).map((e, idx) => {
                   const v = values[e.id] ?? emptyDraft();
+                  const group = unitGroupKey(e.code);
+                  // Find the first item of this group in the equipment array — auto-fill only fires from that row.
+                  const isGroupLeader =
+                    (equipment ?? []).findIndex((x) => unitGroupKey(x.code) === group) === idx;
                   const update = (patch: Partial<ValueDraft>) =>
-                    setValues((prev) => ({ ...prev, [e.id]: { ...v, ...patch } }));
+                    setValues((prev) => ({ ...prev, [e.id]: { ...(prev[e.id] ?? v), ...patch } }));
+                  const setStatus = (newStatus: EqStatus) => {
+                    setValues((prev) => {
+                      const next: Record<string, ValueDraft> = { ...prev, [e.id]: { ...(prev[e.id] ?? v), status: newStatus } };
+                      // Auto-fill sibling units in the same group when the group leader picks a propagating status.
+                      if (isGroupLeader && AUTOFILL_STATUSES.includes(newStatus)) {
+                        for (const other of equipment ?? []) {
+                          if (other.id === e.id) continue;
+                          if (unitGroupKey(other.code) !== group) continue;
+                          const cur = prev[other.id] ?? emptyDraft();
+                          if (cur.status === "in_service") {
+                            next[other.id] = { ...cur, status: newStatus };
+                          }
+                        }
+                      }
+                      return next;
+                    });
+                  };
                   return (
                     <tr key={e.id} className="border-t align-top">
                       <td className="px-2 py-2 font-semibold whitespace-nowrap">{e.code}</td>
@@ -833,21 +946,22 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                         <div className="print:hidden">
                           <select
                             value={v.status}
-                            onChange={(ev) => update({ status: ev.target.value as EqStatus })}
+                            onChange={(ev) => setStatus(ev.target.value as EqStatus)}
                             disabled={!canWrite}
+                            title={statusLabel(v.status, locale)}
                             className={`h-9 px-2 rounded-md border text-sm w-full ${statusColor(v.status)}`}
                           >
                             {STATUS_LIST.map((s) => (
                               <option key={s} value={s}>
-                                {statusLabel(s, locale)}
+                                {statusShort(s)} — {statusLabel(s, locale)}
                               </option>
                             ))}
                           </select>
                         </div>
                         <span
-                          className={`hidden print:inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${statusColor(v.status)}`}
+                          className={`hidden print:inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${statusColor(v.status)}`}
                         >
-                          {statusLabel(v.status, locale)}
+                          {statusShort(v.status)}
                         </span>
                       </td>
                       <td className="px-2 py-2">
@@ -1202,27 +1316,27 @@ function EquipmentManager({ stationId, onBack }: { stationId: string; onBack: ()
 
 function xlsxStatusLabel(s: EqStatus): string {
   switch (s) {
-    case "in_service":
-      return "IN SERVICE";
-    case "standby":
-      return "ON STANDBY";
-    case "out_of_service":
-      return "OUT OF SERVICE";
-    case "fixed_speed":
-      return "STANDBY ON FIXED SPEED";
+    case "in_service": return "IN SERVICE";
+    case "standby": return "ON STANDBY (S/B)";
+    case "not_available": return "NOT AVAILABLE (N/V)";
+    case "out_of_service": return "OUT OF SERVICE";
+    case "maintenance": return "MAINTENANCE";
+    case "shutdown": return "SHUTDOWN";
+    case "testing": return "TESTING";
+    case "fixed_speed": return "STANDBY ON FIXED SPEED";
   }
 }
 
 function xlsxStatusFill(s: EqStatus): string {
   switch (s) {
-    case "in_service":
-      return "FFC6EFCE";
-    case "standby":
-      return "FFBDD7EE";
-    case "out_of_service":
-      return "FFFFC7CE";
-    case "fixed_speed":
-      return "FFFFEB9C";
+    case "in_service": return "FFC6EFCE";
+    case "standby": return "FFBDD7EE";
+    case "not_available": return "FFFFC7CE";
+    case "out_of_service": return "FFFFC7CE";
+    case "maintenance": return "FFD9E1F2";
+    case "shutdown": return "FFD9D9D9";
+    case "testing": return "FFE4D2F0";
+    case "fixed_speed": return "FFFFEB9C";
   }
 }
 

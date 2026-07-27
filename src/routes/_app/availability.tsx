@@ -583,6 +583,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         entry_date: entryDate,
         notes: notes || null,
         operator_name: operatorName || null,
+        supervisor_name: supervisorName || null,
+        shift: shift || null,
       };
       if (isNew) {
         const { data, error } = await supabase

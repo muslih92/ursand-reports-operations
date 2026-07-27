@@ -525,6 +525,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setStationId(existing.station_id);
     setEntryDate(existing.entry_date);
     setOperatorName(existing.operator_name ?? "");
+    setSupervisorName(existing.supervisor_name ?? "");
+    setShift(existing.shift ?? "day");
     setNotes(existing.notes ?? "");
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);

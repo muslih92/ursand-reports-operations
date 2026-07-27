@@ -804,11 +804,36 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">
-            {locale === "ar" ? "بواسطة" : "Reported by"}
+            {locale === "ar" ? "الشفت" : "Shift"}
+          </label>
+          <select
+            value={shift}
+            onChange={(e) => setShift(e.target.value)}
+            disabled={!canWrite}
+            className="h-10 px-3 rounded-lg border bg-background text-sm"
+          >
+            <option value="day">{locale === "ar" ? "نهاري (07:00 - 19:00)" : "Day (07:00 - 19:00)"}</option>
+            <option value="night">{locale === "ar" ? "ليلي (19:00 - 07:00)" : "Night (19:00 - 07:00)"}</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">
+            {locale === "ar" ? "المشغل" : "Operator"}
           </label>
           <input
             value={operatorName}
             onChange={(e) => setOperatorName(e.target.value)}
+            disabled={!canWrite}
+            className="h-10 px-3 rounded-lg border bg-background text-sm"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">
+            {locale === "ar" ? "المشرف" : "Supervisor"}
+          </label>
+          <input
+            value={supervisorName}
+            onChange={(e) => setSupervisorName(e.target.value)}
             disabled={!canWrite}
             className="h-10 px-3 rounded-lg border bg-background text-sm"
           />

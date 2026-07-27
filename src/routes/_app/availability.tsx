@@ -31,7 +31,15 @@ export const Route = createFileRoute("/_app/availability")({
   component: AvailabilityPage,
 });
 
-type EqStatus = "in_service" | "standby" | "out_of_service" | "fixed_speed";
+type EqStatus =
+  | "in_service"
+  | "standby"
+  | "not_available"
+  | "out_of_service"
+  | "maintenance"
+  | "shutdown"
+  | "testing"
+  | "fixed_speed";
 
 interface Station {
   id: string;
@@ -57,6 +65,10 @@ interface Entry {
   notes: string | null;
   operator_id: string | null;
   operator_name: string | null;
+  shift: string | null;
+  supervisor_name: string | null;
+  supervisor_id: string | null;
+  report_status: string | null;
   created_at: string;
 }
 
@@ -93,16 +105,45 @@ function emptyDraft(): ValueDraft {
   };
 }
 
-const STATUS_LIST: EqStatus[] = ["in_service", "standby", "out_of_service", "fixed_speed"];
+const STATUS_LIST: EqStatus[] = [
+  "in_service",
+  "standby",
+  "not_available",
+  "maintenance",
+  "shutdown",
+  "testing",
+  "fixed_speed",
+  "out_of_service",
+];
+
+// Statuses that should be auto-propagated across the same unit group
+const AUTOFILL_STATUSES: EqStatus[] = ["standby", "not_available", "shutdown", "maintenance"];
 
 function statusLabel(s: EqStatus, locale: "ar" | "en") {
   const map: Record<EqStatus, { ar: string; en: string }> = {
     in_service: { ar: "في الخدمة", en: "In Service" },
-    standby: { ar: "احتياطي", en: "Standby" },
+    standby: { ar: "احتياطي (S/B)", en: "Standby (S/B)" },
+    not_available: { ar: "غير متاح (N/V)", en: "Not Available (N/V)" },
     out_of_service: { ar: "خارج الخدمة", en: "Out of Service" },
+    maintenance: { ar: "صيانة", en: "Maintenance" },
+    shutdown: { ar: "متوقفة", en: "Shutdown" },
+    testing: { ar: "اختبار", en: "Testing" },
     fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
   };
   return map[s][locale];
+}
+
+function statusShort(s: EqStatus): string {
+  switch (s) {
+    case "in_service": return "IS";
+    case "standby": return "S/B";
+    case "not_available": return "N/V";
+    case "out_of_service": return "OOS";
+    case "maintenance": return "M";
+    case "shutdown": return "SD";
+    case "testing": return "T";
+    case "fixed_speed": return "F/S";
+  }
 }
 
 function statusColor(s: EqStatus): string {
@@ -111,12 +152,28 @@ function statusColor(s: EqStatus): string {
       return "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
     case "standby":
       return "bg-sky-500/15 text-sky-700 border-sky-500/30";
+    case "not_available":
     case "out_of_service":
       return "bg-red-500/15 text-red-700 border-red-500/30";
+    case "maintenance":
+      return "bg-blue-500/15 text-blue-700 border-blue-500/30";
+    case "shutdown":
+      return "bg-slate-500/15 text-slate-700 border-slate-500/30";
+    case "testing":
+      return "bg-purple-500/15 text-purple-700 border-purple-500/30";
     case "fixed_speed":
       return "bg-amber-500/15 text-amber-700 border-amber-500/30";
   }
 }
+
+// Determine the group prefix of an equipment code — used for auto-fill scope.
+// Example: "M.U-1A" -> "M.U-*A" (Main Unit line A); "B.P-5B" -> "B.P-*B"
+function unitGroupKey(code: string): string {
+  const m = code.match(/^([A-Za-z.]+)-\d+([A-Za-z]*)$/);
+  if (!m) return code.replace(/\d+/g, "");
+  return `${m[1]}-*${m[2]}`;
+}
+
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);

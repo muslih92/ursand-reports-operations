@@ -644,7 +644,11 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const counts: Record<EqStatus, number> = {
     in_service: 0,
     standby: 0,
+    not_available: 0,
     out_of_service: 0,
+    maintenance: 0,
+    shutdown: 0,
+    testing: 0,
     fixed_speed: 0,
   };
   for (const e of equipment ?? []) {

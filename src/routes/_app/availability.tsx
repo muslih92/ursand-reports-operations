@@ -905,10 +905,31 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 </tr>
               </thead>
               <tbody>
-                {(equipment ?? []).map((e) => {
+                {(equipment ?? []).map((e, idx) => {
                   const v = values[e.id] ?? emptyDraft();
+                  const group = unitGroupKey(e.code);
+                  // Find the first item of this group in the equipment array — auto-fill only fires from that row.
+                  const isGroupLeader =
+                    (equipment ?? []).findIndex((x) => unitGroupKey(x.code) === group) === idx;
                   const update = (patch: Partial<ValueDraft>) =>
-                    setValues((prev) => ({ ...prev, [e.id]: { ...v, ...patch } }));
+                    setValues((prev) => ({ ...prev, [e.id]: { ...(prev[e.id] ?? v), ...patch } }));
+                  const setStatus = (newStatus: EqStatus) => {
+                    setValues((prev) => {
+                      const next: Record<string, ValueDraft> = { ...prev, [e.id]: { ...(prev[e.id] ?? v), status: newStatus } };
+                      // Auto-fill sibling units in the same group when the group leader picks a propagating status.
+                      if (isGroupLeader && AUTOFILL_STATUSES.includes(newStatus)) {
+                        for (const other of equipment ?? []) {
+                          if (other.id === e.id) continue;
+                          if (unitGroupKey(other.code) !== group) continue;
+                          const cur = prev[other.id] ?? emptyDraft();
+                          if (cur.status === "in_service") {
+                            next[other.id] = { ...cur, status: newStatus };
+                          }
+                        }
+                      }
+                      return next;
+                    });
+                  };
                   return (
                     <tr key={e.id} className="border-t align-top">
                       <td className="px-2 py-2 font-semibold whitespace-nowrap">{e.code}</td>
@@ -925,21 +946,22 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                         <div className="print:hidden">
                           <select
                             value={v.status}
-                            onChange={(ev) => update({ status: ev.target.value as EqStatus })}
+                            onChange={(ev) => setStatus(ev.target.value as EqStatus)}
                             disabled={!canWrite}
+                            title={statusLabel(v.status, locale)}
                             className={`h-9 px-2 rounded-md border text-sm w-full ${statusColor(v.status)}`}
                           >
                             {STATUS_LIST.map((s) => (
                               <option key={s} value={s}>
-                                {statusLabel(s, locale)}
+                                {statusShort(s)} — {statusLabel(s, locale)}
                               </option>
                             ))}
                           </select>
                         </div>
                         <span
-                          className={`hidden print:inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${statusColor(v.status)}`}
+                          className={`hidden print:inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${statusColor(v.status)}`}
                         >
-                          {statusLabel(v.status, locale)}
+                          {statusShort(v.status)}
                         </span>
                       </td>
                       <td className="px-2 py-2">

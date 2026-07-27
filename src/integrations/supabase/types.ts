@@ -22,7 +22,11 @@ export type Database = {
           notes: string | null
           operator_id: string | null
           operator_name: string | null
+          report_status: string
+          shift: string | null
           station_id: string
+          supervisor_id: string | null
+          supervisor_name: string | null
           updated_at: string
         }
         Insert: {
@@ -32,7 +36,11 @@ export type Database = {
           notes?: string | null
           operator_id?: string | null
           operator_name?: string | null
+          report_status?: string
+          shift?: string | null
           station_id: string
+          supervisor_id?: string | null
+          supervisor_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -42,7 +50,11 @@ export type Database = {
           notes?: string | null
           operator_id?: string | null
           operator_name?: string | null
+          report_status?: string
+          shift?: string | null
           station_id?: string
+          supervisor_id?: string | null
+          supervisor_name?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -651,13 +663,16 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "supervisor" | "operator" | "viewer"
+      app_role: "admin" | "supervisor" | "operator" | "viewer" | "management"
       equipment_status:
         | "in_service"
         | "standby"
         | "out_of_service"
         | "fixed_speed"
         | "maintenance"
+        | "not_available"
+        | "shutdown"
+        | "testing"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
       reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
@@ -788,13 +803,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "supervisor", "operator", "viewer"],
+      app_role: ["admin", "supervisor", "operator", "viewer", "management"],
       equipment_status: [
         "in_service",
         "standby",
         "out_of_service",
         "fixed_speed",
         "maintenance",
+        "not_available",
+        "shutdown",
+        "testing",
       ],
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],

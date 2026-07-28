@@ -673,6 +673,10 @@ export type Database = {
         | "not_available"
         | "shutdown"
         | "testing"
+        | "emergency_standby"
+        | "standby_fixed_speed"
+        | "in_service_fixed_speed"
+        | "running_on_emergency"
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
       reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
@@ -813,6 +817,10 @@ export const Constants = {
         "not_available",
         "shutdown",
         "testing",
+        "emergency_standby",
+        "standby_fixed_speed",
+        "in_service_fixed_speed",
+        "running_on_emergency",
       ],
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],

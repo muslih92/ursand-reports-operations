@@ -1492,7 +1492,10 @@ async function exportAvailabilityXlsx(opts: {
     { label: "IN SERVICE", s: "in_service" },
     { label: "ON STANDBY", s: "standby" },
     { label: "OUT OF SERVICE", s: "out_of_service" },
-    { label: "STANDBY ON FIXED SPEED", s: "fixed_speed" },
+    { label: "EMERGENCY STANDBY", s: "emergency_standby" },
+    { label: "STANDBY ON FIXED SPEED", s: "standby_fixed_speed" },
+    { label: "IN SERVICE ON FIXED SPEED", s: "in_service_fixed_speed" },
+    { label: "RUNNING ON EMERGENCY", s: "running_on_emergency" },
   ];
   legends.forEach((l, i) => {
     const c = ws.getCell(legendRow, i + 1);
@@ -1715,7 +1718,10 @@ async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date:
     { label: "IN SERVICE", s: "in_service" },
     { label: "ON STANDBY", s: "standby" },
     { label: "OUT OF SERVICE", s: "out_of_service" },
-    { label: "STANDBY ON FIXED SPEED", s: "fixed_speed" },
+    { label: "EMERGENCY STANDBY", s: "emergency_standby" },
+    { label: "STANDBY ON FIXED SPEED", s: "standby_fixed_speed" },
+    { label: "IN SERVICE ON FIXED SPEED", s: "in_service_fixed_speed" },
+    { label: "RUNNING ON EMERGENCY", s: "running_on_emergency" },
   ];
   legends.forEach((l, i) => {
     const c = ws.getCell(legendRow, i + 1);

@@ -159,8 +159,7 @@ function statusColor(s: EqStatus): string {
   }
 }
 
-  }
-}
+
 
 // Determine the group prefix of an equipment code — used for auto-fill scope.
 // Example: "M.U-1A" -> "M.U-*A" (Main Unit line A); "B.P-5B" -> "B.P-*B"

@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background flex" dir={dir}>
-      <aside className="hidden md:flex w-64 flex-col border-e bg-sidebar text-sidebar-foreground">
+      <aside className="hidden md:flex w-64 flex-col border-e bg-sidebar text-sidebar-foreground sticky top-0 h-screen self-start">
         <div className="p-5 flex items-center gap-3 border-b">
           <img src={logo.url} alt="WTCO" className="h-10 w-10 object-contain" />
           <div className="flex-1 min-w-0">

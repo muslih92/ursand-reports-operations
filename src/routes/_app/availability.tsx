@@ -108,27 +108,25 @@ function emptyDraft(): ValueDraft {
 const STATUS_LIST: EqStatus[] = [
   "in_service",
   "standby",
-  "not_available",
-  "maintenance",
-  "shutdown",
-  "testing",
-  "fixed_speed",
   "out_of_service",
+  "emergency_standby",
+  "standby_fixed_speed",
+  "in_service_fixed_speed",
+  "running_on_emergency",
 ];
 
 // Statuses that should be auto-propagated across the same unit group
-const AUTOFILL_STATUSES: EqStatus[] = ["standby", "not_available", "shutdown", "maintenance"];
+const AUTOFILL_STATUSES: EqStatus[] = ["standby", "out_of_service", "emergency_standby"];
 
 function statusLabel(s: EqStatus, locale: "ar" | "en") {
   const map: Record<EqStatus, { ar: string; en: string }> = {
-    in_service: { ar: "في الخدمة", en: "In Service" },
-    standby: { ar: "احتياطي (S/B)", en: "Standby (S/B)" },
-    not_available: { ar: "غير متاح (N/V)", en: "Not Available (N/V)" },
-    out_of_service: { ar: "خارج الخدمة", en: "Out of Service" },
-    maintenance: { ar: "صيانة", en: "Maintenance" },
-    shutdown: { ar: "متوقفة", en: "Shutdown" },
-    testing: { ar: "اختبار", en: "Testing" },
-    fixed_speed: { ar: "سرعة ثابتة", en: "Fixed Speed" },
+    in_service: { ar: "في الخدمة", en: "IN SERVICE" },
+    standby: { ar: "احتياطي", en: "ON STANDBY" },
+    out_of_service: { ar: "خارج الخدمة", en: "OUT OF SERVICE" },
+    emergency_standby: { ar: "احتياطي طوارئ", en: "EMERGENCY STANDBY" },
+    standby_fixed_speed: { ar: "احتياطي - سرعة ثابتة", en: "STANDBY ON FIXED SPEED" },
+    in_service_fixed_speed: { ar: "في الخدمة - سرعة ثابتة", en: "IN SERVICE ON FIXED SPEED" },
+    running_on_emergency: { ar: "يعمل على الطوارئ", en: "RUNNING ON EMERGENCY" },
   };
   return map[s][locale];
 }
@@ -137,32 +135,30 @@ function statusShort(s: EqStatus): string {
   switch (s) {
     case "in_service": return "IS";
     case "standby": return "S/B";
-    case "not_available": return "N/V";
     case "out_of_service": return "OOS";
-    case "maintenance": return "M";
-    case "shutdown": return "SD";
-    case "testing": return "T";
-    case "fixed_speed": return "F/S";
+    case "emergency_standby": return "E/SB";
+    case "standby_fixed_speed": return "SB/FS";
+    case "in_service_fixed_speed": return "IS/FS";
+    case "running_on_emergency": return "R/EM";
   }
 }
 
 function statusColor(s: EqStatus): string {
   switch (s) {
     case "in_service":
-      return "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
     case "standby":
-      return "bg-sky-500/15 text-sky-700 border-sky-500/30";
-    case "not_available":
+      return "bg-white text-slate-800 border-slate-300";
     case "out_of_service":
-      return "bg-red-500/15 text-red-700 border-red-500/30";
-    case "maintenance":
-      return "bg-blue-500/15 text-blue-700 border-blue-500/30";
-    case "shutdown":
-      return "bg-slate-500/15 text-slate-700 border-slate-500/30";
-    case "testing":
-      return "bg-purple-500/15 text-purple-700 border-purple-500/30";
-    case "fixed_speed":
-      return "bg-amber-500/15 text-amber-700 border-amber-500/30";
+      return "bg-yellow-300 text-yellow-900 border-yellow-500";
+    case "emergency_standby":
+    case "running_on_emergency":
+      return "bg-red-200 text-red-900 border-red-400";
+    case "standby_fixed_speed":
+    case "in_service_fixed_speed":
+      return "bg-amber-200 text-amber-900 border-amber-400";
+  }
+}
+
   }
 }
 

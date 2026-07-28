@@ -34,12 +34,12 @@ export const Route = createFileRoute("/_app/availability")({
 type EqStatus =
   | "in_service"
   | "standby"
-  | "not_available"
   | "out_of_service"
-  | "maintenance"
-  | "shutdown"
-  | "testing"
-  | "fixed_speed";
+  | "emergency_standby"
+  | "standby_fixed_speed"
+  | "in_service_fixed_speed"
+  | "running_on_emergency";
+
 
 interface Station {
   id: string;

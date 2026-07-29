@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_app/firepump")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: FirePumpPage;
+  component: FirePumpPage,
 });
 
 /* ============================ FORM MODEL ============================ */

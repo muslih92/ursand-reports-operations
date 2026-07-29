@@ -18,6 +18,7 @@ import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
+import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 
@@ -65,6 +66,11 @@ const AppIncidentsRoute = AppIncidentsRouteImport.update({
   path: '/incidents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFirepumpRoute = AppFirepumpRouteImport.update({
+  id: '/firepump',
+  path: '/firepump',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/firepump': typeof AppFirepumpRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
+  '/firepump': typeof AppFirepumpRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/availability': typeof AppAvailabilityRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/firepump': typeof AppFirepumpRoute
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/availability'
     | '/dashboard'
+    | '/firepump'
     | '/incidents'
     | '/readings'
     | '/reports'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/availability'
     | '/dashboard'
+    | '/firepump'
     | '/incidents'
     | '/readings'
     | '/reports'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/availability'
     | '/_app/dashboard'
+    | '/_app/firepump'
     | '/_app/incidents'
     | '/_app/readings'
     | '/_app/reports'
@@ -225,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncidentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/firepump': {
+      id: '/_app/firepump'
+      path: '/firepump'
+      fullPath: '/firepump'
+      preLoaderRoute: typeof AppFirepumpRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -245,6 +264,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAvailabilityRoute: typeof AppAvailabilityRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppFirepumpRoute: typeof AppFirepumpRoute
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -256,6 +276,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAvailabilityRoute: AppAvailabilityRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppFirepumpRoute: AppFirepumpRoute,
   AppIncidentsRoute: AppIncidentsRoute,
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,

@@ -432,7 +432,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         station_id: stationId,
         test_date: testDate,
         pump_tag: pumpTag || null,
-        data: data as unknown as Record<string, unknown>,
+        data: JSON.parse(JSON.stringify(data)),
         supervisor_notes: notes || null,
         supervisor_name: supervisorName || null,
         operator_name: operatorName || null,

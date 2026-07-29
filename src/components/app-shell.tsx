@@ -13,6 +13,7 @@ const NAV: NavItem[] = [
   { to: "/availability", icon: Activity, key: "nav.availability" },
   { to: "/incidents", icon: AlertTriangle, key: "nav.incidents" },
   { to: "/reports", icon: FileText, key: "nav.reports" },
+  { to: "/firepump", icon: Flame, key: "nav.firepump" },
   { to: "/stations", icon: Building2, key: "nav.stations", adminOnly: true },
   { to: "/templates", icon: FileSpreadsheet, key: "nav.templates", adminOnly: true },
   { to: "/users", icon: Users, key: "nav.users", adminOnly: true },

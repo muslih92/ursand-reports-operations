@@ -92,15 +92,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
         <main className="flex-1 p-4 md:p-8 overflow-auto pb-24 md:pb-8">{children}</main>
-        <nav className="md:hidden sticky bottom-0 z-40 flex justify-around border-t bg-card p-2">
-
-          {items.slice(0, 5).map((n) => {
+        <nav className="md:hidden sticky bottom-0 z-40 flex gap-1 overflow-x-auto border-t bg-card p-2">
+          {items.map((n) => {
             const Icon = n.icon;
             const active = pathname === n.to || pathname.startsWith(n.to + "/");
             return (
-              <Link key={n.to} to={n.to} className={cn("flex flex-col items-center gap-1 p-2 rounded text-xs", active ? "text-primary" : "text-muted-foreground")}>
+              <Link key={n.to} to={n.to} className={cn("flex shrink-0 min-w-[4.5rem] flex-col items-center gap-1 p-2 rounded text-[11px] text-center", active ? "text-primary" : "text-muted-foreground")}>
                 <Icon className="h-5 w-5" />
-                <span>{t(n.key)}</span>
+                <span className="leading-tight">{t(n.key)}</span>
               </Link>
             );
           })}

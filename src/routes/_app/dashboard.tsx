@@ -131,7 +131,7 @@ function Dashboard() {
       const ids = Array.from(latestByStation.values());
       if (ids.length === 0) return { pie: [], mdr: [] };
       const { data: values } = await supabase.from("equipment_availability_values")
-        .select("status, entry_id, equipment_id, remark, station_equipment!inner(station_id, code, kind)")
+        .select("status, entry_id, equipment_id, remark, station_equipment!inner(station_id, code)")
         .in("entry_id", ids);
       const buckets: Record<string, number> = {};
       const perStation: Record<string, Record<string, number>> = {};

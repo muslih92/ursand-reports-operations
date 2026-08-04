@@ -180,6 +180,59 @@ export type Database = {
           },
         ]
       }
+      generator_tests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          genset_tag: string | null
+          id: string
+          operator_id: string | null
+          operator_name: string | null
+          station_id: string
+          supervisor_name: string | null
+          supervisor_notes: string | null
+          test_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          genset_tag?: string | null
+          id?: string
+          operator_id?: string | null
+          operator_name?: string | null
+          station_id: string
+          supervisor_name?: string | null
+          supervisor_notes?: string | null
+          test_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          genset_tag?: string | null
+          id?: string
+          operator_id?: string | null
+          operator_name?: string | null
+          station_id?: string
+          supervisor_name?: string | null
+          supervisor_notes?: string | null
+          test_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generator_tests_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_attachments: {
         Row: {
           content_type: string | null

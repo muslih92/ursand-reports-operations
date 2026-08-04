@@ -18,6 +18,7 @@ import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
+import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
 import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
@@ -66,6 +67,11 @@ const AppIncidentsRoute = AppIncidentsRouteImport.update({
   path: '/incidents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGeneratorRoute = AppGeneratorRouteImport.update({
+  id: '/generator',
+  path: '/generator',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFirepumpRoute = AppFirepumpRouteImport.update({
   id: '/firepump',
   path: '/firepump',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
   '/firepump': typeof AppFirepumpRoute
+  '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/availability': typeof AppAvailabilityRoute
   '/dashboard': typeof AppDashboardRoute
   '/firepump': typeof AppFirepumpRoute
+  '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/_app/availability': typeof AppAvailabilityRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/firepump': typeof AppFirepumpRoute
+  '/_app/generator': typeof AppGeneratorRoute
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/availability'
     | '/dashboard'
     | '/firepump'
+    | '/generator'
     | '/incidents'
     | '/readings'
     | '/reports'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/availability'
     | '/dashboard'
     | '/firepump'
+    | '/generator'
     | '/incidents'
     | '/readings'
     | '/reports'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/_app/availability'
     | '/_app/dashboard'
     | '/_app/firepump'
+    | '/_app/generator'
     | '/_app/incidents'
     | '/_app/readings'
     | '/_app/reports'
@@ -237,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIncidentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/generator': {
+      id: '/_app/generator'
+      path: '/generator'
+      fullPath: '/generator'
+      preLoaderRoute: typeof AppGeneratorRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/firepump': {
       id: '/_app/firepump'
       path: '/firepump'
@@ -265,6 +284,7 @@ interface AppRouteChildren {
   AppAvailabilityRoute: typeof AppAvailabilityRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFirepumpRoute: typeof AppFirepumpRoute
+  AppGeneratorRoute: typeof AppGeneratorRoute
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -277,6 +297,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAvailabilityRoute: AppAvailabilityRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFirepumpRoute: AppFirepumpRoute,
+  AppGeneratorRoute: AppGeneratorRoute,
   AppIncidentsRoute: AppIncidentsRoute,
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,
@@ -295,13 +316,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

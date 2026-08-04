@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_app/generator")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: GeneratorPage;
+  component: GeneratorPage,
 });
 
 /* ============================ FORM MODEL ============================ */

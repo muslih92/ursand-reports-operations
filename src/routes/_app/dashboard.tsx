@@ -199,6 +199,44 @@ function Dashboard() {
     },
   });
 
+  const { data: testsKpis } = useQuery({
+    queryKey: ["dash-tests", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      const fpQ = supabase.from("fire_pump_tests").select("id", { count: "exact", head: true })
+        .gte("test_date", from).lte("test_date", to);
+      const gnQ = supabase.from("generator_tests").select("id", { count: "exact", head: true })
+        .gte("test_date", from).lte("test_date", to);
+      if (stationEq) { fpQ.eq("station_id", stationEq); gnQ.eq("station_id", stationEq); }
+      const [fp, gn] = await Promise.all([fpQ, gnQ]);
+      return { firePump: fp.count ?? 0, generator: gn.count ?? 0 };
+    },
+  });
+
+  const { data: recentFirePump } = useQuery({
+    queryKey: ["recent-firepump", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("fire_pump_tests")
+        .select("id, test_date, pump_tag, operator_name, stations(code, name_ar, name_en)")
+        .order("test_date", { ascending: false }).limit(5);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
+  const { data: recentGenerator } = useQuery({
+    queryKey: ["recent-generator", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("generator_tests")
+        .select("id, test_date, genset_tag, operator_name, stations(code, name_ar, name_en)")
+        .order("test_date", { ascending: false }).limit(5);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">

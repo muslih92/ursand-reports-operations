@@ -426,7 +426,41 @@ function Dashboard() {
         </div>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TestListCard
+          icon={Flame}
+          iconClass="text-rose-600"
+          title={locale === "ar" ? "أحدث اختبارات مضخات الحريق" : "Recent fire pump tests"}
+          linkTo="/firepump"
+          viewAll={locale === "ar" ? "عرض الكل" : "View all"}
+          empty={locale === "ar" ? "لا توجد اختبارات" : "No tests"}
+          rows={(recentFirePump ?? []).map((r: any) => ({
+            id: r.id,
+            date: r.test_date,
+            tag: r.pump_tag,
+            who: r.operator_name,
+            station: r.stations ? `${r.stations.code} · ${locale === "ar" ? r.stations.name_ar : r.stations.name_en}` : "",
+          }))}
+        />
+        <TestListCard
+          icon={Zap}
+          iconClass="text-amber-600"
+          title={locale === "ar" ? "أحدث اختبارات مولد الطوارئ" : "Recent generator tests"}
+          linkTo="/generator"
+          viewAll={locale === "ar" ? "عرض الكل" : "View all"}
+          empty={locale === "ar" ? "لا توجد اختبارات" : "No tests"}
+          rows={(recentGenerator ?? []).map((r: any) => ({
+            id: r.id,
+            date: r.test_date,
+            tag: r.genset_tag,
+            who: r.operator_name,
+            station: r.stations ? `${r.stations.code} · ${locale === "ar" ? r.stations.name_ar : r.stations.name_en}` : "",
+          }))}
+        />
+      </div>
+
       <div className="bg-card rounded-xl border p-5">
+
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" /> {t("dash.recent_incidents")}

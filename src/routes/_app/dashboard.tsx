@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import {
-  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon,
+  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
 } from "lucide-react";
+
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -199,6 +200,44 @@ function Dashboard() {
     },
   });
 
+  const { data: testsKpis } = useQuery({
+    queryKey: ["dash-tests", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      const fpQ = supabase.from("fire_pump_tests").select("id", { count: "exact", head: true })
+        .gte("test_date", from).lte("test_date", to);
+      const gnQ = supabase.from("generator_tests").select("id", { count: "exact", head: true })
+        .gte("test_date", from).lte("test_date", to);
+      if (stationEq) { fpQ.eq("station_id", stationEq); gnQ.eq("station_id", stationEq); }
+      const [fp, gn] = await Promise.all([fpQ, gnQ]);
+      return { firePump: fp.count ?? 0, generator: gn.count ?? 0 };
+    },
+  });
+
+  const { data: recentFirePump } = useQuery({
+    queryKey: ["recent-firepump", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("fire_pump_tests")
+        .select("id, test_date, pump_tag, operator_name, stations(code, name_ar, name_en)")
+        .order("test_date", { ascending: false }).limit(5);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
+  const { data: recentGenerator } = useQuery({
+    queryKey: ["recent-generator", stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("generator_tests")
+        .select("id, test_date, genset_tag, operator_name, stations(code, name_ar, name_en)")
+        .order("test_date", { ascending: false }).limit(5);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      return data ?? [];
+    },
+  });
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -236,7 +275,10 @@ function Dashboard() {
         <StatCard icon={AlertTriangle} label={locale === "ar" ? "حوادث مفتوحة" : "Open Incidents"} value={kpis?.openIncidents ?? 0} color="text-red-600 bg-red-100" />
         <StatCard icon={Activity} label={locale === "ar" ? "إجمالي الحوادث" : "Total Incidents"} value={kpis?.totalIncidents ?? 0} color="text-orange-600 bg-orange-100" />
         <StatCard icon={Building2} label={locale === "ar" ? "المحطات" : "Stations"} value={kpis?.stations ?? 0} color="text-emerald-600 bg-emerald-100" />
+        <StatCard icon={Flame} label={locale === "ar" ? "اختبارات مضخات الحريق" : "Fire Pump Tests"} value={testsKpis?.firePump ?? 0} color="text-rose-600 bg-rose-100" />
+        <StatCard icon={Zap} label={locale === "ar" ? "اختبارات مولد الطوارئ" : "Generator Tests"} value={testsKpis?.generator ?? 0} color="text-amber-600 bg-amber-100" />
       </div>
+
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title={locale === "ar" ? "القراءات المدخلة يومياً" : "Readings per day"}>
@@ -384,7 +426,41 @@ function Dashboard() {
         </div>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TestListCard
+          icon={Flame}
+          iconClass="text-rose-600"
+          title={locale === "ar" ? "أحدث اختبارات مضخات الحريق" : "Recent fire pump tests"}
+          linkTo="/firepump"
+          viewAll={locale === "ar" ? "عرض الكل" : "View all"}
+          empty={locale === "ar" ? "لا توجد اختبارات" : "No tests"}
+          rows={(recentFirePump ?? []).map((r: any) => ({
+            id: r.id,
+            date: r.test_date,
+            tag: r.pump_tag,
+            who: r.operator_name,
+            station: r.stations ? `${r.stations.code} · ${locale === "ar" ? r.stations.name_ar : r.stations.name_en}` : "",
+          }))}
+        />
+        <TestListCard
+          icon={Zap}
+          iconClass="text-amber-600"
+          title={locale === "ar" ? "أحدث اختبارات مولد الطوارئ" : "Recent generator tests"}
+          linkTo="/generator"
+          viewAll={locale === "ar" ? "عرض الكل" : "View all"}
+          empty={locale === "ar" ? "لا توجد اختبارات" : "No tests"}
+          rows={(recentGenerator ?? []).map((r: any) => ({
+            id: r.id,
+            date: r.test_date,
+            tag: r.genset_tag,
+            who: r.operator_name,
+            station: r.stations ? `${r.stations.code} · ${locale === "ar" ? r.stations.name_ar : r.stations.name_en}` : "",
+          }))}
+        />
+      </div>
+
       <div className="bg-card rounded-xl border p-5">
+
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" /> {t("dash.recent_incidents")}
@@ -437,6 +513,47 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
     <div className="rounded-xl border bg-card p-4">
       <h3 className="text-base font-semibold mb-3">{title}</h3>
       {children}
+    </div>
+  );
+}
+
+function TestListCard({
+  icon: Icon, iconClass, title, linkTo, viewAll, empty, rows,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  iconClass: string;
+  title: string;
+  linkTo: string;
+  viewAll: string;
+  empty: string;
+  rows: { id: string; date: string; tag?: string | null; who?: string | null; station: string }[];
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <Icon className={`h-5 w-5 ${iconClass}`} />
+          {title}
+        </h3>
+        <Link to={linkTo} className="text-sm text-primary hover:underline">{viewAll}</Link>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">{empty}</p>
+      ) : (
+        <ul className="divide-y">
+          {rows.map((r) => (
+            <li key={r.id} className="py-2.5 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate text-sm">{r.station || "—"}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.date}{r.who ? ` · ${r.who}` : ""}
+                </div>
+              </div>
+              {r.tag ? <span className="text-xs px-2 py-1 rounded bg-muted shrink-0">{r.tag}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

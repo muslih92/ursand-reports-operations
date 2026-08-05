@@ -274,7 +274,10 @@ function Dashboard() {
         <StatCard icon={AlertTriangle} label={locale === "ar" ? "حوادث مفتوحة" : "Open Incidents"} value={kpis?.openIncidents ?? 0} color="text-red-600 bg-red-100" />
         <StatCard icon={Activity} label={locale === "ar" ? "إجمالي الحوادث" : "Total Incidents"} value={kpis?.totalIncidents ?? 0} color="text-orange-600 bg-orange-100" />
         <StatCard icon={Building2} label={locale === "ar" ? "المحطات" : "Stations"} value={kpis?.stations ?? 0} color="text-emerald-600 bg-emerald-100" />
+        <StatCard icon={Flame} label={locale === "ar" ? "اختبارات مضخات الحريق" : "Fire Pump Tests"} value={testsKpis?.firePump ?? 0} color="text-rose-600 bg-rose-100" />
+        <StatCard icon={Zap} label={locale === "ar" ? "اختبارات مولد الطوارئ" : "Generator Tests"} value={testsKpis?.generator ?? 0} color="text-amber-600 bg-amber-100" />
       </div>
+
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title={locale === "ar" ? "القراءات المدخلة يومياً" : "Readings per day"}>

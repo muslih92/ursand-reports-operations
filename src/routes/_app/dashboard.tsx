@@ -516,3 +516,44 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
     </div>
   );
 }
+
+function TestListCard({
+  icon: Icon, iconClass, title, linkTo, viewAll, empty, rows,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  iconClass: string;
+  title: string;
+  linkTo: string;
+  viewAll: string;
+  empty: string;
+  rows: { id: string; date: string; tag?: string | null; who?: string | null; station: string }[];
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <Icon className={`h-5 w-5 ${iconClass}`} />
+          {title}
+        </h3>
+        <Link to={linkTo} className="text-sm text-primary hover:underline">{viewAll}</Link>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">{empty}</p>
+      ) : (
+        <ul className="divide-y">
+          {rows.map((r) => (
+            <li key={r.id} className="py-2.5 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate text-sm">{r.station || "—"}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.date}{r.who ? ` · ${r.who}` : ""}
+                </div>
+              </div>
+              {r.tag ? <span className="text-xs px-2 py-1 rounded bg-muted shrink-0">{r.tag}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

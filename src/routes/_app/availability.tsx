@@ -1519,31 +1519,66 @@ async function exportAvailabilityXlsx(opts: {
 
 /* ============================ COMBINED XLSX EXPORT ============================ */
 
-// Ordered station groups per WTCO ministerial report layout.
-// Each group renders a section header (label) followed by matched stations' equipment rows.
-const COMBINED_ORDER: { label: string; codes: string[] }[] = [
-  { label: "PS1 A+B", codes: ["PS1_AB"] },
-  { label: "PS2 A+B", codes: ["PS2_AB"] },
-  { label: "PS3 A+B", codes: ["PS3_AB"] },
-  { label: "PS4 A+B", codes: ["PS4_AB"] },
-  { label: "PS5 A+B", codes: ["PS5_AB"] },
-  { label: "PS6 A+B", codes: ["PS6_AB"] },
-  { label: "PS1 C", codes: ["PS1_C"] },
-  { label: "PS2 C", codes: ["PS2_C"] },
-  { label: "PS3 C", codes: ["PS3_C"] },
-  { label: "PS4 C", codes: ["PS4_C"] },
-  { label: "PS1 F+G", codes: ["PS1_FG"] },
-  { label: "PS2 F+G", codes: ["PS2_FG"] },
-  { label: "PS3 F+G", codes: ["PS3_FG"] },
-  { label: "PS1 - Al Hissi", codes: ["PS1_ALHISSI"] },
-  { label: "PS2 - Al-Majmaah", codes: ["PS2_MAJMAAH"] },
-  { label: "Buraydah Terminal - Lifting Pumps", codes: ["BURAIYDAH"] },
-  { label: "Al-Ghat Terminal", codes: ["AL_GHAT"] },
-  { label: "Ghanman Terminal", codes: ["GHANMAN"] },
-  { label: "Shaqra Terminal", codes: ["SHAQRA"] },
-  { label: "HPT AB", codes: ["HPT_AB"] },
-  { label: "HPT C", codes: ["HPT_C"] },
+// Exact layout of the ministerial workbook "DAILY REPORT OF PUMPING STATIONS STATUS - ALL LINES".
+// Each LINE band holds ordered station blocks; a block may be a filtered subset of a station's units.
+type MdrBlock = { title: string; station: string; suffix?: "A" | "B" | "F" | "G" };
+type MdrLine = { label: string; blocks: MdrBlock[] };
+
+const MDR_LAYOUT: MdrLine[] = [
+  {
+    label: "LINE ( A + B )",
+    blocks: [
+      { title: "PS1-A", station: "PS1_AB", suffix: "A" },
+      { title: "PS1-B", station: "PS1_AB", suffix: "B" },
+      { title: "PS2-A", station: "PS2_AB", suffix: "A" },
+      { title: "PS2-B", station: "PS2_AB", suffix: "B" },
+      { title: "PS3-A", station: "PS3_AB", suffix: "A" },
+      { title: "PS3-B", station: "PS3_AB", suffix: "B" },
+      { title: "PS4-A", station: "PS4_AB", suffix: "A" },
+      { title: "PS4-B", station: "PS4_AB", suffix: "B" },
+      { title: "PS5-A", station: "PS5_AB", suffix: "A" },
+      { title: "PS5-B", station: "PS5_AB", suffix: "B" },
+      { title: "PS6-A", station: "PS6_AB", suffix: "A" },
+      { title: "PS6-B", station: "PS6_AB", suffix: "B" },
+    ],
+  },
+  {
+    label: "LINE ( C )",
+    blocks: [
+      { title: "PS-1 C", station: "PS1_C" },
+      { title: "PS2-C", station: "PS2_C" },
+      { title: "PS3-C", station: "PS3_C" },
+      { title: "PS4-C", station: "PS4_C" },
+    ],
+  },
+  {
+    label: "LINE ( F + G )",
+    blocks: [
+      { title: "PS1-F", station: "PS1_FG", suffix: "F" },
+      { title: "PS2-F", station: "PS2_FG", suffix: "F" },
+      { title: "PS3-F", station: "PS3_FG", suffix: "F" },
+      { title: "PS1-G", station: "PS1_FG", suffix: "G" },
+      { title: "PS2-G", station: "PS2_FG", suffix: "G" },
+      { title: "PS3-G", station: "PS3_FG", suffix: "G" },
+    ],
+  },
+  {
+    label: "RQWTS",
+    blocks: [
+      { title: "PS1 - Al Hissi - Line A", station: "PS1_ALHISSI", suffix: "A" },
+      { title: "PS1 - Al Hissi - Line B", station: "PS1_ALHISSI", suffix: "B" },
+      { title: "PS2 - Al-Majmah Line A", station: "PS2_MAJMAAH", suffix: "A" },
+      { title: "PS2 - Al-Majmah Line B", station: "PS2_MAJMAAH", suffix: "B" },
+      { title: "PS2 - SLT", station: "SLT" },
+      { title: "BUT Lifting Pumps", station: "BURAIYDAH" },
+    ],
+  },
 ];
+
+function matchesSuffix(code: string, suffix?: "A" | "B" | "F" | "G") {
+  if (!suffix) return true;
+  return code.trim().toUpperCase().endsWith(suffix);
+}
 
 async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date: string }) {
   const { locale, date } = opts;
@@ -1602,118 +1637,157 @@ async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date:
   const wb = new Workbook();
   wb.creator = "WTCO";
   wb.created = new Date();
-  const ws = wb.addWorksheet("Combined MDR", {
-    views: [{ state: "frozen", ySplit: 5, rightToLeft: locale === "ar" }],
+  const ws = wb.addWorksheet("ALL LINES", {
     pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1 },
   });
+
+  // Column widths mirror the source workbook (A spacer, B..M report body)
   ws.columns = [
-    { width: 14 },
-    { width: 50 },
-    { width: 22 },
-    { width: 18 },
-    { width: 14 },
-    { width: 14 },
-    { width: 14 },
+    { width: 3 },   // A
+    { width: 3 },   // B
+    { width: 9 },   // C  Pump No. (C:D)
+    { width: 14 },  // D
+    { width: 35 },  // E  Problem Description (E:G)
+    { width: 2 },   // F
+    { width: 36 },  // G
+    { width: 14 },  // H  Unit Status (H:I)
+    { width: 26 },  // I
+    { width: 29 },  // J  W. Notification
+    { width: 19 },  // K  Work Center
+    { width: 17 },  // L  Date
+    { width: 15 },  // M  ETS
   ];
 
-  ws.mergeCells("A1:G1");
-  const t1 = ws.getCell("A1");
+  const thin = { style: "thin" as const, color: { argb: "FF808080" } };
+  const allBorders = { top: thin, bottom: thin, left: thin, right: thin };
+
+  // Titles
+  ws.mergeCells("B2:M2");
+  const t1 = ws.getCell("B2");
   t1.value = "JUBAIL WATER TRANSMISSION SYSTEM";
-  t1.font = { bold: true, size: 14, color: { argb: "FF1F4E78" } };
+  t1.font = { bold: true, size: 20 };
   t1.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 24;
-  ws.mergeCells("A2:G2");
-  const t2 = ws.getCell("A2");
-  t2.value = "DAILY REPORT OF PUMPING STATIONS STATUS - ALL STATIONS";
-  t2.font = { bold: true, size: 12, color: { argb: "FF1F4E78" } };
+  ws.getRow(2).height = 28;
+
+  ws.mergeCells("B4:M4");
+  const t2 = ws.getCell("B4");
+  t2.value = "DAILY REPORT OF PUMPING STATIONS STATUS - ALL LINES";
+  t2.font = { bold: true, size: 20 };
   t2.alignment = { horizontal: "center", vertical: "middle" };
-  ws.mergeCells("A3:G3");
-  const t3 = ws.getCell("A3");
-  t3.value = `DATE: ${date}`;
-  t3.font = { bold: true, size: 11 };
-  t3.alignment = { horizontal: "center", vertical: "middle" };
+  ws.getRow(4).height = 28;
 
-  const headers = ["Pump No.", "Problem Description", "Unit Status", "W. Notification", "Work Center", "Date", "ETS"];
-  let r = 5;
+  const dLabel = ws.getCell("C7");
+  dLabel.value = "DATE";
+  dLabel.font = { bold: true, size: 14 };
+  dLabel.alignment = { horizontal: "center", vertical: "middle" };
+  dLabel.border = allBorders;
+  ws.mergeCells("D7:E8");
+  const dVal = ws.getCell("D7");
+  dVal.value = date;
+  dVal.font = { bold: true, size: 14 };
+  dVal.alignment = { horizontal: "center", vertical: "middle" };
+  dVal.border = allBorders;
 
-  const writeHeaderRow = () => {
-    const hr = ws.getRow(r++);
-    headers.forEach((h, i) => {
-      const c = hr.getCell(i + 1);
-      c.value = h;
-      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
-      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-      c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-    });
-    hr.height = 22;
-  };
+  const headers: [string, string][] = [
+    ["C", "Pump No."],
+    ["E", "Problem Description"],
+    ["H", "Unit Status"],
+    ["J", "W. Notification "],
+    ["K", "Work Center"],
+    ["L", "Date"],
+    ["M", "ETS"],
+  ];
 
-  writeHeaderRow();
+  let r = 10;
 
-  for (const group of COMBINED_ORDER) {
-    const matches = group.codes.map((c) => byCode[c]).filter(Boolean) as Station[];
-    if (matches.length === 0) continue;
-    const nameParts = matches.map((s) => (locale === "ar" ? s.name_ar : s.name_en));
-    const bandCell = `A${r}`;
-    ws.mergeCells(`A${r}:G${r}`);
-    const b = ws.getCell(bandCell);
-    b.value = `${group.label}  —  ${nameParts.join(" / ")}`;
-    b.font = { bold: true, size: 12, color: { argb: "FF1F4E78" } };
-    b.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF4FB" } };
-    b.alignment = { horizontal: "center", vertical: "middle" };
-    b.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
-    ws.getRow(r).height = 20;
-    r++;
+  for (const line of MDR_LAYOUT) {
+    // Line band
+    ws.mergeCells(`C${r}:M${r}`);
+    const band = ws.getCell(`C${r}`);
+    band.value = line.label;
+    band.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+    band.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
+    band.alignment = { horizontal: "center", vertical: "middle" };
+    band.border = allBorders;
+    ws.getRow(r).height = 22;
+    r += 2;
 
-    let anyRows = false;
-    for (const station of matches) {
-      const eqs = equipmentByStation[station.id] ?? [];
-      for (const e of eqs) {
-        anyRows = true;
+    for (const block of line.blocks) {
+      const station = byCode[block.station];
+      if (!station) continue;
+      const units = (equipmentByStation[station.id] ?? []).filter((e) => matchesSuffix(e.code, block.suffix));
+      if (units.length === 0) continue;
+
+      // STATION row
+      ws.mergeCells(`C${r}:D${r}`);
+      const stLabel = ws.getCell(`C${r}`);
+      stLabel.value = "STATION";
+      stLabel.font = { bold: true, size: 16 };
+      stLabel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF00B0F0" } };
+      stLabel.alignment = { horizontal: "center", vertical: "middle" };
+      stLabel.border = allBorders;
+      ws.mergeCells(`E${r}:G${r}`);
+      const stName = ws.getCell(`E${r}`);
+      stName.value = block.title;
+      stName.font = { bold: true, size: 16 };
+      stName.alignment = { horizontal: "center", vertical: "middle" };
+      stName.border = allBorders;
+      ws.getRow(r).height = 22;
+      r++;
+
+      // Header row
+      ws.mergeCells(`C${r}:D${r}`);
+      ws.mergeCells(`E${r}:G${r}`);
+      ws.mergeCells(`H${r}:I${r}`);
+      for (const [col, label] of headers) {
+        const c = ws.getCell(`${col}${r}`);
+        c.value = label;
+        c.font = { bold: true, size: 11 };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD6DCE4" } };
+        c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        c.border = allBorders;
+      }
+      ws.getRow(r).height = 20;
+      r++;
+
+      // Unit rows
+      for (const e of units) {
         const v = valuesByEquipment[e.id];
         const status = (v?.status ?? "in_service") as EqStatus;
-        const row = ws.getRow(r++);
-        row.values = [
-          e.code,
-          v?.problem_description ?? v?.remark ?? "",
-          xlsxStatusLabel(status),
-          v?.work_notification ?? "",
-          v?.work_center ?? "",
-          v?.notification_date ?? "",
-          v?.ets ?? "",
+        ws.mergeCells(`C${r}:D${r}`);
+        ws.mergeCells(`E${r}:G${r}`);
+        ws.mergeCells(`H${r}:I${r}`);
+
+        const cells: [string, string][] = [
+          ["C", e.code],
+          ["E", v?.problem_description ?? v?.remark ?? ""],
+          ["H", xlsxStatusLabel(status)],
+          ["J", v?.work_notification ?? ""],
+          ["K", v?.work_center ?? ""],
+          ["L", v?.notification_date ?? ""],
+          ["M", v?.ets ?? ""],
         ];
-        row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
-          cell.border = {
-            top: { style: "thin", color: { argb: "FFBFBFBF" } },
-            bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
-            left: { style: "thin", color: { argb: "FFBFBFBF" } },
-            right: { style: "thin", color: { argb: "FFBFBFBF" } },
-          };
-          cell.alignment = { vertical: "middle", wrapText: true };
-          if (colNumber === 1) cell.font = { bold: true };
-          if (colNumber === 3) {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(status) } };
-            cell.alignment = { vertical: "middle", horizontal: "center" };
-            cell.font = { bold: true };
-          }
-        });
+        for (const [col, val] of cells) {
+          const c = ws.getCell(`${col}${r}`);
+          c.value = val;
+          c.font = { bold: true, size: 11 };
+          c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          c.border = allBorders;
+        }
+        const statusCell = ws.getCell(`H${r}`);
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(status) } };
+        ws.getRow(r).height = 18;
+        r++;
       }
+
+      r++; // spacer between station blocks
     }
-    if (!anyRows) {
-      ws.mergeCells(`A${r}:G${r}`);
-      const noCell = ws.getCell(`A${r}`);
-      noCell.value = locale === "ar" ? "— لا توجد معدات مسجّلة —" : "— No equipment defined —";
-      noCell.alignment = { horizontal: "center" };
-      noCell.font = { italic: true, color: { argb: "FF808080" } };
-      r++;
-    }
-    r++; // blank spacer between groups
+
+    r++; // extra spacer between lines
   }
 
   // Legend
   r++;
-  const legendRow = r;
   const legends: { label: string; s: EqStatus }[] = [
     { label: "IN SERVICE", s: "in_service" },
     { label: "ON STANDBY", s: "standby" },
@@ -1724,16 +1798,17 @@ async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date:
     { label: "RUNNING ON EMERGENCY", s: "running_on_emergency" },
   ];
   legends.forEach((l, i) => {
-    const c = ws.getCell(legendRow, i + 1);
+    const c = ws.getCell(r, i + 3);
     c.value = l.label;
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: xlsxStatusFill(l.s) } };
     c.font = { bold: true };
-    c.alignment = { horizontal: "center" };
-    c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+    c.alignment = { horizontal: "center", wrapText: true };
+    c.border = allBorders;
   });
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = createExcelBlob(buffer);
-  const fname = `Combined_MDR_${date}.xlsx`;
+  const fname = `DAILY_REPORT_ALL_LINES_${date}.xlsx`;
   return { blob, filename: fname };
 }
+

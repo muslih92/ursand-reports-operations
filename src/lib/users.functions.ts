@@ -167,9 +167,12 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
 
 export const hasAnyAdmin = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { count } = await supabaseAdmin
+  const { count, error } = await supabaseAdmin
     .from("user_roles")
     .select("*", { count: "exact", head: true })
     .eq("role", "admin");
+  // If the check fails (e.g. database unreachable), never show the initial-setup
+  // screen — assume the system is already initialized.
+  if (error) return { exists: true };
   return { exists: (count ?? 0) > 0 };
 });

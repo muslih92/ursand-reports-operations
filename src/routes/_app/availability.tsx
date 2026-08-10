@@ -28,6 +28,16 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_app/availability")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: "Unified MDR Daily Report | URSAND" },
+      { name: "description", content: "Create, update, and export the unified daily pumping stations status report." },
+      { property: "og:title", content: "Unified MDR Daily Report | URSAND" },
+      { property: "og:description", content: "Unified daily pumping stations status report for all lines and stations." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AvailabilityPage,
 });
 
@@ -181,6 +191,9 @@ function AvailabilityPage() {
   if (search.manage) {
     return <EquipmentManager stationId={search.manage} onBack={() => navigate({ search: {}, replace: false })} />;
   }
+  if (search.id === "unified") {
+    return <UnifiedMdrEditor onBack={() => navigate({ search: {}, replace: false })} />;
+  }
   if (search.id) {
     return <EditorView id={search.id} onBack={() => navigate({ search: {}, replace: false })} />;
   }
@@ -267,12 +280,12 @@ function ListView({
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
+            {locale === "ar" ? "تقرير MDR اليومي الموحّد" : "Unified Daily MDR"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {locale === "ar"
-              ? "حالة الوحدات: في الخدمة / احتياطي / خارج الخدمة / سرعة ثابتة"
-              : "Unit status: in service / standby / out of service / fixed speed"}
+              ? "ملف واحد يضم جميع الخطوط والمحطات والوحدات بالترتيب الرسمي"
+              : "One report containing every line, station, and unit in the official order"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -290,7 +303,7 @@ function ListView({
             className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
-            {locale === "ar" ? "تقرير جديد" : "New Report"}
+            {locale === "ar" ? "إنشاء MDR موحّد" : "Create Unified MDR"}
           </button>
         </div>
       </div>

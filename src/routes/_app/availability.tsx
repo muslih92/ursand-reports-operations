@@ -197,13 +197,7 @@ function AvailabilityPage() {
   if (search.id) {
     return <EditorView id={search.id} onBack={() => navigate({ search: {}, replace: false })} />;
   }
-  return (
-    <ListView
-      onNew={() => navigate({ search: { id: "new" }, replace: false })}
-      onOpen={(id) => navigate({ search: { id }, replace: false })}
-      onManage={(stationId) => navigate({ search: { manage: stationId }, replace: false })}
-    />
-  );
+  return <UnifiedMdrEditor onBack={() => navigate({ to: "/dashboard" })} />;
 }
 
 /* ============================ LIST ============================ */

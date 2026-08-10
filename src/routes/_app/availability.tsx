@@ -1530,6 +1530,239 @@ async function exportAvailabilityXlsx(opts: {
   return { blob, filename: fname };
 }
 
+/* ============================ UNIFIED MDR EDITOR ============================ */
+
+function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
+  const { locale, dir } = useI18n();
+  const { profile } = useAuth();
+  const qc = useQueryClient();
+  const [reportDate, setReportDate] = useState(todayISO());
+  const [values, setValues] = useState<Record<string, ValueDraft>>({});
+  const [download, setDownload] = useState<DownloadLink | null>(null);
+  const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["unified-mdr", reportDate],
+    queryFn: async () => {
+      const { data: stations, error: stationError } = await supabase
+        .from("stations")
+        .select("id, code, name_en, name_ar")
+        .eq("active", true);
+      if (stationError) throw stationError;
+      const stationList = (stations ?? []) as Station[];
+      const stationIds = stationList.map((station) => station.id);
+      if (stationIds.length === 0) return { stations: stationList, equipment: [] as Equipment[], entries: [] as Entry[], values: [] as ValueRow[] };
+
+      const [equipmentResult, entryResult] = await Promise.all([
+        supabase
+          .from("station_equipment")
+          .select("*")
+          .in("station_id", stationIds)
+          .eq("active", true)
+          .order("sort_order")
+          .order("code"),
+        supabase
+          .from("equipment_availability_entries")
+          .select("*")
+          .in("station_id", stationIds)
+          .eq("entry_date", reportDate),
+      ]);
+      if (equipmentResult.error) throw equipmentResult.error;
+      if (entryResult.error) throw entryResult.error;
+      const entries = (entryResult.data ?? []) as unknown as Entry[];
+      const entryIds = entries.map((entry) => entry.id);
+      let savedValues: ValueRow[] = [];
+      if (entryIds.length > 0) {
+        const valueResult = await supabase
+          .from("equipment_availability_values")
+          .select("*")
+          .in("entry_id", entryIds);
+        if (valueResult.error) throw valueResult.error;
+        savedValues = (valueResult.data ?? []) as unknown as ValueRow[];
+      }
+      return {
+        stations: stationList,
+        equipment: (equipmentResult.data ?? []) as unknown as Equipment[],
+        entries,
+        values: savedValues,
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    const next: Record<string, ValueDraft> = {};
+    for (const equipment of data.equipment) next[equipment.id] = emptyDraft();
+    for (const value of data.values) {
+      next[value.equipment_id] = {
+        status: value.status,
+        problem_description: value.problem_description ?? value.remark ?? "",
+        work_notification: value.work_notification ?? "",
+        work_center: value.work_center ?? "",
+        notification_date: value.notification_date ?? "",
+        ets: value.ets ?? "",
+      };
+    }
+    setValues(next);
+  }, [data]);
+
+  useEffect(() => () => {
+    if (download) URL.revokeObjectURL(download.url);
+  }, [download]);
+
+  const stationByCode = useMemo(() => {
+    const result: Record<string, Station> = {};
+    for (const station of data?.stations ?? []) result[station.code] = station;
+    return result;
+  }, [data?.stations]);
+
+  const equipmentByStation = useMemo(() => {
+    const result: Record<string, Equipment[]> = {};
+    for (const equipment of data?.equipment ?? []) (result[equipment.station_id] ||= []).push(equipment);
+    return result;
+  }, [data?.equipment]);
+
+  function updateValue(equipmentId: string, field: keyof ValueDraft, value: string) {
+    setValues((current) => ({
+      ...current,
+      [equipmentId]: { ...(current[equipmentId] ?? emptyDraft()), [field]: value },
+    }));
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!data || data.stations.length === 0) throw new Error(locale === "ar" ? "لا توجد محطات" : "No stations found");
+      const stationIds = Array.from(new Set(data.equipment.map((equipment) => equipment.station_id)));
+      const existingByStation = Object.fromEntries(data.entries.map((entry) => [entry.station_id, entry.id]));
+      const entryIdByStation: Record<string, string> = { ...existingByStation };
+
+      for (const stationId of stationIds) {
+        if (entryIdByStation[stationId]) continue;
+        const { data: entry, error } = await supabase
+          .from("equipment_availability_entries")
+          .insert({
+            station_id: stationId,
+            entry_date: reportDate,
+            operator_id: profile?.id ?? null,
+            operator_name: profile?.full_name ?? null,
+            report_status: "draft",
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        entryIdByStation[stationId] = entry.id as string;
+      }
+
+      const rows = data.equipment.map((equipment) => {
+        const value = values[equipment.id] ?? emptyDraft();
+        return {
+          entry_id: entryIdByStation[equipment.station_id],
+          equipment_id: equipment.id,
+          status: value.status,
+          remark: value.problem_description || null,
+          problem_description: value.problem_description || null,
+          work_notification: value.work_notification || null,
+          work_center: value.work_center || null,
+          notification_date: value.notification_date || null,
+          ets: value.ets || null,
+        };
+      });
+      const { error } = await supabase
+        .from("equipment_availability_values")
+        .upsert(rows, { onConflict: "entry_id,equipment_id" });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["unified-mdr", reportDate] });
+      toast.success(locale === "ar" ? "تم حفظ تقرير MDR الموحّد" : "Unified MDR saved");
+    },
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : String(error)),
+  });
+
+  return (
+    <div className="space-y-5" dir={dir}>
+      <div className="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
+        <button onClick={onBack} className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-accent">
+          <Back className="h-4 w-4" /> {locale === "ar" ? "رجوع" : "Back"}
+        </button>
+        <div className="min-w-[190px] flex-1">
+          <h1 className="text-xl font-bold">{locale === "ar" ? "تقرير MDR اليومي الموحّد" : "Unified Daily MDR"}</h1>
+          <p className="text-xs text-muted-foreground">{locale === "ar" ? "جميع الخطوط والمحطات في تقرير واحد" : "All lines and stations in one report"}</p>
+        </div>
+        <input type="date" value={reportDate} onChange={(event) => setReportDate(event.target.value)} className="h-9 rounded-lg border bg-background px-3 text-sm" dir="ltr" />
+        <button disabled={save.isPending || isLoading} onClick={() => save.mutate()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          <Save className="h-4 w-4" /> {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : (locale === "ar" ? "حفظ الكل" : "Save all")}
+        </button>
+        <button
+          disabled={isLoading}
+          onClick={async () => {
+            try {
+              if (save.isPending) return;
+              await save.mutateAsync();
+              const file = await exportCombinedAvailabilityXlsx({ locale, date: reportDate });
+              const link = await triggerBlobDownload(file.blob, file.filename);
+              setDownload((previous) => { if (previous) URL.revokeObjectURL(previous.url); return link; });
+              toast.success(locale === "ar" ? "تم تصدير ملف MDR الموحّد" : "Unified MDR exported");
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : String(error));
+            }
+          }}
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary px-4 text-sm font-medium text-primary disabled:opacity-50"
+        >
+          <FileSpreadsheet className="h-4 w-4" /> {locale === "ar" ? "حفظ وتصدير Excel" : "Save & export Excel"}
+        </button>
+      </div>
+
+      {download && <a href={download.url} download={download.filename} rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary underline"><FileSpreadsheet className="h-4 w-4" />{locale === "ar" ? "تحميل الملف مرة أخرى" : "Download file again"}</a>}
+      {isLoading ? <div className="py-12 text-center text-muted-foreground">{locale === "ar" ? "جارٍ تحميل جميع المحطات…" : "Loading all stations…"}</div> : (
+        <div className="space-y-8" dir="ltr">
+          {MDR_LAYOUT.map((line) => (
+            <section key={line.label} className="space-y-3">
+              <h2 className="bg-primary px-4 py-2 text-center text-lg font-bold text-primary-foreground">{line.label}</h2>
+              {line.blocks.map((block) => {
+                const station = stationByCode[block.station];
+                if (!station) return null;
+                const units = (equipmentByStation[station.id] ?? []).filter((equipment) => matchesSuffix(equipment.code, block.suffix));
+                if (units.length === 0) return null;
+                return (
+                  <div key={`${block.station}-${block.title}`} className="overflow-x-auto border">
+                    <div className="flex items-center bg-sky-100 px-3 py-2 text-foreground">
+                      <span className="w-28 font-bold">STATION</span><strong className="text-base">{block.title}</strong>
+                    </div>
+                    <table className="w-full min-w-[1050px] table-fixed text-xs">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="w-28 border p-2">Pump No.</th><th className="w-64 border p-2">Problem Description</th><th className="w-48 border p-2">Unit Status</th><th className="w-44 border p-2">W. Notification</th><th className="w-32 border p-2">Work Center</th><th className="w-36 border p-2">Date</th><th className="w-32 border p-2">ETS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {units.map((equipment) => {
+                          const value = values[equipment.id] ?? emptyDraft();
+                          return (
+                            <tr key={equipment.id}>
+                              <td className="border p-2 text-center font-bold">{equipment.code}</td>
+                              <td className="border p-1"><textarea value={value.problem_description} onChange={(event) => updateValue(equipment.id, "problem_description", event.target.value)} className="min-h-10 w-full resize-y bg-transparent p-1" /></td>
+                              <td className="border p-1"><select value={value.status} onChange={(event) => updateValue(equipment.id, "status", event.target.value)} className={`h-10 w-full border px-2 font-bold ${statusColor(value.status)}`}>{STATUS_LIST.map((status) => <option key={status} value={status}>{statusLabel(status, locale)}</option>)}</select></td>
+                              <td className="border p-1"><input value={value.work_notification} onChange={(event) => updateValue(equipment.id, "work_notification", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
+                              <td className="border p-1"><input value={value.work_center} onChange={(event) => updateValue(equipment.id, "work_center", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
+                              <td className="border p-1"><input type="date" value={value.notification_date} onChange={(event) => updateValue(equipment.id, "notification_date", event.target.value)} className="h-10 w-full bg-transparent px-1" /></td>
+                              <td className="border p-1"><input value={value.ets} onChange={(event) => updateValue(equipment.id, "ets", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================ COMBINED XLSX EXPORT ============================ */
 
 // Exact layout of the ministerial workbook "DAILY REPORT OF PUMPING STATIONS STATUS - ALL LINES".
@@ -1619,13 +1852,12 @@ async function exportCombinedAvailabilityXlsx(opts: { locale: "ar" | "en"; date:
     (equipmentByStation[e.station_id] ||= []).push(e);
   }
 
-  // Latest entry per station on or before `date`
+  // Use only the selected report date so older station data is never mixed into a new MDR.
   const { data: entries, error: enErr } = await supabase
     .from("equipment_availability_entries")
     .select("*")
     .in("station_id", stationIds)
-    .lte("entry_date", date)
-    .order("entry_date", { ascending: false });
+    .eq("entry_date", date);
   if (enErr) throw enErr;
   const latestEntryByStation: Record<string, Entry> = {};
   for (const e of (entries ?? []) as unknown as Entry[]) {

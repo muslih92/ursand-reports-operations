@@ -89,7 +89,7 @@ function emptyReport(): ReportData {
     subject: "",
     incident_no: "",
     incident_date: todayISO(),
-    incident_time: nowHM(),
+    incident_time: "",
     location: "",
     executive_summary: "",
     timeline: [{ time: "", event: "" }],
@@ -682,7 +682,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               value={report.incident_no}
               onChange={(e) => setReport({ ...report, incident_no: e.target.value })}
               disabled={!canWrite}
-              placeholder="e.g. 10026163"
+              placeholder=""
               className="h-8 px-2 border rounded bg-background flex-1 min-w-[140px] print:border-0"
             />
           </div>
@@ -702,7 +702,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               value={report.subject}
               onChange={(e) => setReport({ ...report, subject: e.target.value })}
               disabled={!canWrite}
-              placeholder="UNIT 2G FLASHOVER UNIT STAND BY"
+              placeholder=""
               className="h-8 px-2 border rounded bg-background flex-1 min-w-[200px] print:border-0"
             />
           </div>
@@ -716,7 +716,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           disabled={!canWrite}
           rows={5}
           className={taCls + " print:border-0"}
-          placeholder="Brief description of what happened…"
+          placeholder=""
         />
 
         {/* 2. Timeline */}
@@ -730,7 +730,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                   const arr = [...report.timeline]; arr[i] = { ...row, time: e.target.value }; setReport({ ...report, timeline: arr });
                 }}
                 disabled={!canWrite}
-                placeholder="17:24"
+                placeholder=""
                 className="h-9 w-24 px-2 border rounded bg-background text-sm print:border-0"
               />
               <input
@@ -739,7 +739,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                   const arr = [...report.timeline]; arr[i] = { ...row, event: e.target.value }; setReport({ ...report, timeline: arr });
                 }}
                 disabled={!canWrite}
-                placeholder="Event description"
+                placeholder=""
                 className="h-9 flex-1 px-2 border rounded bg-background text-sm print:border-0"
               />
               {canWrite && (
@@ -769,7 +769,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           items={report.causes}
           onChange={(items) => setReport({ ...report, causes: items })}
           canWrite={canWrite}
-          labelPlaceholder="Degraded IGBT Component"
+          labelPlaceholder=""
           textPlaceholder="Explanation…"
         />
 
@@ -790,14 +790,14 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             value={report.prepared_name}
             onChange={(e) => setReport({ ...report, prepared_name: e.target.value })}
             disabled={!canWrite}
-            placeholder="Name"
+            placeholder=""
             className="h-9 px-2 border rounded bg-background text-sm print:border-0"
           />
           <input
             value={report.prepared_role}
             onChange={(e) => setReport({ ...report, prepared_role: e.target.value })}
             disabled={!canWrite}
-            placeholder="Role (e.g. SUPERVISOR)"
+            placeholder=""
             className="h-9 px-2 border rounded bg-background text-sm print:border-0"
           />
           <input

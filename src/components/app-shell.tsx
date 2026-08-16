@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import logo from "@/assets/wtco-logo.png.asset.json";
 import type { ReactNode } from "react";
 
-interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; }
+interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }
 const NAV: NavItem[] = [
   { to: "/dashboard", icon: LayoutDashboard, key: "nav.dashboard" },
   { to: "/readings", icon: ClipboardList, key: "nav.readings" },
@@ -17,7 +17,7 @@ const NAV: NavItem[] = [
   { to: "/generator", icon: Zap, key: "nav.generator" },
   { to: "/stations", icon: Building2, key: "nav.stations", adminOnly: true },
   { to: "/templates", icon: FileSpreadsheet, key: "nav.templates", adminOnly: true },
-  { to: "/users", icon: Users, key: "nav.users", adminOnly: true },
+  { to: "/users", icon: Users, key: "nav.users", adminOnly: true, hideForManagement: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -25,9 +25,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t, locale, setLocale, dir } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const isOperator = !isAdmin && roles.includes("operator");
-  const items = NAV.filter((n) => (!n.adminOnly || isAdmin) && !(isOperator && n.hideForOperator));
+  const isManagement = !isAdmin && roles.includes("management");
+  const isOperator = !isAdmin && !isManagement && roles.includes("operator");
+  const items = NAV.filter((n) =>
+    (!n.adminOnly || isAdmin || isManagement) &&
+    !(isOperator && n.hideForOperator) &&
+    !(isManagement && n.hideForManagement),
+  );
   const roleLabel = roles[0] ? t(`role.${roles[0]}`) : "";
+
 
 
   return (

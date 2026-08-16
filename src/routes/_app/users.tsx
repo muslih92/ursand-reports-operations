@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Modal, Input } from "./stations";
 
-type Role = "admin" | "supervisor" | "operator" | "viewer";
+type Role = "admin" | "supervisor" | "operator" | "management" | "viewer";
 interface EditUser {
   id?: string; employee_no?: string; full_name?: string; password?: string;
   role?: Role; station_id?: string | null; phone?: string | null; active?: boolean;

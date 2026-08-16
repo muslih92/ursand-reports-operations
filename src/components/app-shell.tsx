@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 import logo from "@/assets/wtco-logo.png.asset.json";
 import type { ReactNode } from "react";
 
-interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; }
+interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; }
 const NAV: NavItem[] = [
   { to: "/dashboard", icon: LayoutDashboard, key: "nav.dashboard" },
   { to: "/readings", icon: ClipboardList, key: "nav.readings" },
   { to: "/availability", icon: Activity, key: "nav.availability" },
-  { to: "/incidents", icon: AlertTriangle, key: "nav.incidents" },
+  { to: "/incidents", icon: AlertTriangle, key: "nav.incidents", hideForOperator: true },
   { to: "/reports", icon: FileText, key: "nav.reports" },
   { to: "/firepump", icon: Flame, key: "nav.firepump" },
   { to: "/generator", icon: Zap, key: "nav.generator" },
@@ -25,8 +25,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t, locale, setLocale, dir } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const items = NAV.filter((n) => !n.adminOnly || isAdmin);
+  const isOperator = !isAdmin && roles.includes("operator");
+  const items = NAV.filter((n) => (!n.adminOnly || isAdmin) && !(isOperator && n.hideForOperator));
   const roleLabel = roles[0] ? t(`role.${roles[0]}`) : "";
+
 
   return (
     <div className="min-h-screen bg-background flex" dir={dir}>

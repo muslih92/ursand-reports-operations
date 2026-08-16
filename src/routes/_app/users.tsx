@@ -127,7 +127,9 @@ function UsersPage() {
                 <option value="admin">{t("role.admin")}</option>
                 <option value="supervisor">{t("role.supervisor")}</option>
                 <option value="operator">{t("role.operator")}</option>
+                <option value="management">{t("role.management")}</option>
                 <option value="viewer">{t("role.viewer")}</option>
+
               </select>
             </label>
             <label className="block">

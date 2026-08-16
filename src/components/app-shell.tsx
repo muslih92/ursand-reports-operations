@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { t, locale, setLocale, dir } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const isManagement = !isAdmin && roles.includes("management");
+  const isManagement = !isAdmin && (roles.includes("management") || roles.includes("supervisor"));
   const isOperator = !isAdmin && !isManagement && roles.includes("operator");
   const items = NAV.filter((n) =>
     (!n.adminOnly || isAdmin || isManagement) &&

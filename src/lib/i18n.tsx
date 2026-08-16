@@ -31,7 +31,9 @@ const dict: Dict = {
   "role.admin": { ar: "مسؤول", en: "Admin" },
   "role.supervisor": { ar: "مشرف", en: "Supervisor" },
   "role.operator": { ar: "مشغّل", en: "Operator" },
+  "role.management": { ar: "إدارة", en: "Management" },
   "role.viewer": { ar: "مشاهد", en: "Viewer" },
+
 
   "common.save": { ar: "حفظ", en: "Save" },
   "common.cancel": { ar: "إلغاء", en: "Cancel" },

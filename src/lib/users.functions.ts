@@ -16,7 +16,7 @@ export const createUser = createServerFn({ method: "POST" })
       employee_no: z.string().min(1).max(32),
       full_name: z.string().min(1).max(120),
       password: z.string().min(6).max(72),
-      role: z.enum(["admin", "supervisor", "operator", "viewer"]),
+      role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]),
       station_id: z.string().uuid().nullable().optional(),
       phone: z.string().max(32).optional().nullable(),
     }).parse(input),
@@ -62,7 +62,7 @@ export const updateUser = createServerFn({ method: "POST" })
       station_id: z.string().uuid().nullable().optional(),
       phone: z.string().max(32).nullable().optional(),
       active: z.boolean().optional(),
-      role: z.enum(["admin", "supervisor", "operator", "viewer"]).optional(),
+      role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]).optional(),
       new_password: z.string().min(6).max(72).optional().nullable(),
     }).parse(input),
   )

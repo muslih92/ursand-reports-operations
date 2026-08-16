@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Modal, Input } from "./stations";
 
-type Role = "admin" | "supervisor" | "operator" | "viewer";
+type Role = "admin" | "supervisor" | "operator" | "management" | "viewer";
 interface EditUser {
   id?: string; employee_no?: string; full_name?: string; password?: string;
   role?: Role; station_id?: string | null; phone?: string | null; active?: boolean;
@@ -127,7 +127,9 @@ function UsersPage() {
                 <option value="admin">{t("role.admin")}</option>
                 <option value="supervisor">{t("role.supervisor")}</option>
                 <option value="operator">{t("role.operator")}</option>
+                <option value="management">{t("role.management")}</option>
                 <option value="viewer">{t("role.viewer")}</option>
+
               </select>
             </label>
             <label className="block">

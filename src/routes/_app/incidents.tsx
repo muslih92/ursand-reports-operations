@@ -82,7 +82,6 @@ interface Attachment {
 const BUCKET = "incident-attachments";
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
-function nowHM() { return new Date().toTimeString().slice(0, 5); }
 
 function emptyReport(): ReportData {
   return {
@@ -770,7 +769,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           onChange={(items) => setReport({ ...report, causes: items })}
           canWrite={canWrite}
           labelPlaceholder=""
-          textPlaceholder="Explanation…"
+          textPlaceholder=""
         />
 
         {/* 4. Impact & Observations */}
@@ -779,8 +778,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           items={report.impact}
           onChange={(items) => setReport({ ...report, impact: items })}
           canWrite={canWrite}
-          labelPlaceholder="Operational Impact"
-          textPlaceholder="Details…"
+          labelPlaceholder=""
+          textPlaceholder=""
         />
 
         {/* 5. Prepared by */}

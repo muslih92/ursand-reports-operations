@@ -3,7 +3,7 @@ import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Use
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/wtco-logo.png.asset.json";
+const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
 
 interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }

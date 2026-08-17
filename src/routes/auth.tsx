@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { empEmail } from "@/lib/utils";
 import { toast } from "sonner";
 import { Languages, Loader2 } from "lucide-react";
-import logo from "@/assets/wtco-logo.png.asset.json";
+const logo = { url: "/wtco-logo.png" };
 import { hasAnyAdmin, ensureFirstAdmin } from "@/lib/users.functions";
 import { useServerFn } from "@tanstack/react-start";
 

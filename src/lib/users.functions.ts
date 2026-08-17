@@ -112,8 +112,10 @@ export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: profiles, error } = await supabaseAdmin
+    // Read through the caller's RLS-scoped client so listing works even when
+    // the service-role key is not configured on a self-hosted deployment.
+    const db = context.supabase;
+    const { data: profiles, error } = await db
       .from("profiles")
       .select("id, employee_no, full_name, station_id, phone, active, created_at")
       .order("created_at", { ascending: false });
@@ -121,7 +123,7 @@ export const listUsers = createServerFn({ method: "GET" })
     const ids = (profiles ?? []).map((p) => p.id);
     let roles: { user_id: string; role: string }[] = [];
     if (ids.length > 0) {
-      const { data: r } = await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", ids);
+      const { data: r } = await db.from("user_roles").select("user_id, role").in("user_id", ids);
       roles = r ?? [];
     }
     return (profiles ?? []).map((p) => ({

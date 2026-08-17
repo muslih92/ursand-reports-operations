@@ -29,7 +29,7 @@ function UsersPage() {
   const update = useServerFn(updateUser);
   const del = useServerFn(deleteUser);
 
-  const { data: users, isLoading } = useQuery({ queryKey: ["users"], queryFn: () => list() });
+  const { data: users, isLoading, error } = useQuery({ queryKey: ["users"], queryFn: () => list(), retry: false });
   const { data: stations } = useQuery({
     queryKey: ["stations-lookup"],
     queryFn: async () => (await supabase.from("stations").select("id, code, name_ar, name_en").order("code")).data ?? [],
@@ -84,6 +84,8 @@ function UsersPage() {
           <tbody className="divide-y">
             {isLoading ? (
               <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{t("common.loading")}</td></tr>
+            ) : error ? (
+              <tr><td colSpan={6} className="text-center py-8 text-destructive">{(error as Error).message}</td></tr>
             ) : !users?.length ? (
               <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{locale === "ar" ? "لا يوجد" : "None"}</td></tr>
             ) : users.map((u) => {

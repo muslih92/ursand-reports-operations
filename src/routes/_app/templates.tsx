@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
+import { AdminOnly } from "@/components/admin-only";
 
 export const Route = createFileRoute("/_app/templates")({
   component: () => {

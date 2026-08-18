@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Modal, Input } from "./stations";
+import { AdminOnly } from "@/components/admin-only";
 
 type Role = "admin" | "supervisor" | "operator" | "management" | "viewer";
 interface EditUser {

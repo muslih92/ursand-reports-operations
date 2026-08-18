@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isManagement = !isAdmin && (roles.includes("management") || roles.includes("supervisor"));
   const isOperator = !isAdmin && !isManagement && roles.includes("operator");
   const items = NAV.filter((n) =>
-    (!n.adminOnly || isAdmin || isManagement) &&
+    (!n.adminOnly || isAdmin) &&
     !(isOperator && n.hideForOperator) &&
     !(isManagement && n.hideForManagement),
   );

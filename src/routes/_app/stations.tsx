@@ -6,9 +6,10 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { AdminOnly } from "@/components/admin-only";
 
 export const Route = createFileRoute("/_app/stations")({
-  component: StationsPage,
+  component: () => <AdminOnly><StationsPage /></AdminOnly>,
 });
 
 interface Station {

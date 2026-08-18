@@ -261,10 +261,11 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
           <label className="text-xs text-muted-foreground block mb-1">{t("common.station")}</label>
           <select
             value={stationFilter}
+            disabled={!!scopedStationId}
             onChange={(e) => setStationFilter(e.target.value)}
             className="h-9 rounded-lg border bg-background px-3 text-sm min-w-48"
           >
-            <option value="">{locale === "ar" ? "كل المحطات" : "All stations"}</option>
+            {!scopedStationId && <option value="">{locale === "ar" ? "كل المحطات" : "All stations"}</option>}
             {(stations ?? []).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.code} — {locale === "ar" ? s.name_ar : s.name_en}

@@ -783,10 +783,23 @@ function EntryView({
                                     return next;
                                   });
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key !== "Enter") return;
+                                  e.preventDefault();
+                                  const all = Array.from(
+                                    document.querySelectorAll<HTMLInputElement>(`input[data-slot="${slot}"]:not([disabled])`),
+                                  );
+                                  const i = all.indexOf(e.currentTarget);
+                                  const next = all[i + (e.shiftKey ? -1 : 1)];
+                                  if (next) { next.focus(); next.select(); }
+                                  else e.currentTarget.blur();
+                                }}
+                                data-slot={slot}
                                 disabled={!canWrite}
                                 className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 dir="ltr"
                               />
+
                             </td>
                           );
                         })}

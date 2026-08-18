@@ -162,7 +162,7 @@ function ListView({
         .from("reading_templates")
         .select("id, code, name_en, name_ar, frequency, time_slots, active")
         .eq("active", true);
-      if (stationId) q = q.or(`station_id.eq.${stationId},station_id.is.null`);
+      if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q.order("code");
       if (error) throw error;
       return data as Template[];

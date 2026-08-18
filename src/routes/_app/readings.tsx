@@ -101,10 +101,11 @@ function ReadingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/readings" });
   const { profile, isAdmin, hasRole } = useAuth();
-  const canPickStation = isAdmin || hasRole("supervisor") || hasRole("viewer");
+  const { scopedStationId, canPickStation: canPick } = useStationScope();
+  const canPickStation = (isAdmin || hasRole("supervisor") || hasRole("viewer")) && canPick;
 
   const date = search.date ?? todayISO();
-  const stationId = search.station ?? profile?.station_id ?? undefined;
+  const stationId = scopedStationId ?? search.station ?? profile?.station_id ?? undefined;
   const templateId = search.template;
 
   const setSearch = (patch: Partial<z.infer<typeof searchSchema>>) => {

@@ -121,8 +121,9 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
   const { locale, t } = useI18n();
   const { profile, isAdmin, hasRole } = useAuth();
   const qc = useQueryClient();
-  const canFilter = isAdmin || hasRole("supervisor") || hasRole("viewer");
-  const [stationFilter, setStationFilter] = useState<string>(profile?.station_id ?? "");
+  const { scopedStationId, canPickStation } = useStationScope();
+  const canFilter = (isAdmin || hasRole("supervisor") || hasRole("viewer")) && canPickStation;
+  const [stationFilter, setStationFilter] = useState<string>(scopedStationId ?? profile?.station_id ?? "");
 
   const { data: stations } = useScopedStations();
 

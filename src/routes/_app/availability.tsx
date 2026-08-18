@@ -215,9 +215,10 @@ function ListView({
   const { locale, t } = useI18n();
   const { profile, isAdmin, hasRole } = useAuth();
   const qc = useQueryClient();
-  const canFilterStation = isAdmin || hasRole("supervisor") || hasRole("viewer");
+  const { scopedStationId, canPickStation } = useStationScope();
+  const canFilterStation = (isAdmin || hasRole("supervisor") || hasRole("viewer")) && canPickStation;
   const canManage = isAdmin || hasRole("supervisor");
-  const [stationFilter, setStationFilter] = useState<string>(profile?.station_id ?? "");
+  const [stationFilter, setStationFilter] = useState<string>(scopedStationId ?? profile?.station_id ?? "");
   const [combinedDate, setCombinedDate] = useState<string>(todayISO());
   const [combinedDownload, setCombinedDownload] = useState<DownloadLink | null>(null);
   const [combinedBusy, setCombinedBusy] = useState(false);

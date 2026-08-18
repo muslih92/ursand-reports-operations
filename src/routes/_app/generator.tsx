@@ -177,7 +177,8 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
   const { locale, t } = useI18n();
   const { profile, isAdmin } = useAuth();
   const qc = useQueryClient();
-  const [stationFilter, setStationFilter] = useState<string>("");
+  const { scopedStationId } = useStationScope();
+  const [stationFilter, setStationFilter] = useState<string>(scopedStationId ?? "");
 
   const { data: stations } = useScopedStations();
 

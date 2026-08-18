@@ -784,17 +784,33 @@ function EntryView({
                                   });
                                 }}
                                 onKeyDown={(e) => {
-                                  if (e.key !== "Enter") return;
-                                  e.preventDefault();
-                                  const all = Array.from(
-                                    document.querySelectorAll<HTMLInputElement>(`input[data-slot="${slot}"]:not([disabled])`),
-                                  );
-                                  const i = all.indexOf(e.currentTarget);
-                                  const next = all[i + (e.shiftKey ? -1 : 1)];
-                                  if (next) { next.focus(); next.select(); }
-                                  else e.currentTarget.blur();
+                                  const el = e.currentTarget;
+                                  const move = (sel: string, step: number) => {
+                                    const all = Array.from(
+                                      document.querySelectorAll<HTMLInputElement>(`${sel}:not([disabled])`),
+                                    );
+                                    const i = all.indexOf(el);
+                                    const nx = all[i + step];
+                                    if (nx) { e.preventDefault(); nx.focus(); nx.select(); }
+                                  };
+                                  const colSel = `input[data-slot="${slot}"]`;
+                                  const rowSel = `input[data-row="${f.id}"]`;
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    move(colSel, e.shiftKey ? -1 : 1);
+                                  } else if (e.key === "ArrowDown") {
+                                    move(colSel, 1);
+                                  } else if (e.key === "ArrowUp") {
+                                    move(colSel, -1);
+                                  } else if (e.key === "ArrowRight") {
+                                    if (el.selectionStart === el.value.length) move(rowSel, 1);
+                                  } else if (e.key === "ArrowLeft") {
+                                    if (el.selectionStart === 0) move(rowSel, -1);
+                                  }
                                 }}
                                 data-slot={slot}
+                                data-row={f.id}
+
                                 disabled={!canWrite}
                                 className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 dir="ltr"

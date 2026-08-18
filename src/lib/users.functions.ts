@@ -23,6 +23,9 @@ export const createUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if ((data.role === "operator" || data.role === "supervisor") && !data.station_id) {
+      throw new Error("Station is required for operator/supervisor users");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const email = empEmail(data.employee_no);
@@ -68,6 +71,9 @@ export const updateUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if ((data.role === "operator" || data.role === "supervisor") && data.station_id === null) {
+      throw new Error("Station is required for operator/supervisor users");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: {
       full_name?: string; station_id?: string | null; phone?: string | null; active?: boolean;

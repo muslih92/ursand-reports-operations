@@ -38,6 +38,7 @@ export const createUser = createServerFn({ method: "POST" })
       employee_no: z.string().min(1).max(32),
       full_name: z.string().min(1).max(120),
       password: z.string().min(6).max(72),
+      password_confirmation: z.string().min(6).max(72),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]),
       station_id: z.string().uuid().nullable().optional(),
       phone: z.string().max(32).optional().nullable(),
@@ -45,6 +46,12 @@ export const createUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if (data.password !== data.password_confirmation) {
+      throw new Error("كلمتا المرور غير متطابقتين");
+    }
+    if (data.password !== data.password.trim()) {
+      throw new Error("كلمة المرور تحتوي مسافة في البداية أو النهاية");
+    }
     if ((data.role === "operator" || data.role === "supervisor") && !data.station_id) {
       throw new Error("Station is required for operator/supervisor users");
     }
@@ -102,10 +109,19 @@ export const updateUser = createServerFn({ method: "POST" })
       active: z.boolean().optional(),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]).optional(),
       new_password: z.string().min(6).max(72).optional().nullable(),
+      new_password_confirmation: z.string().min(6).max(72).optional().nullable(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if (data.new_password || data.new_password_confirmation) {
+      if (data.new_password !== data.new_password_confirmation) {
+        throw new Error("كلمتا المرور غير متطابقتين");
+      }
+      if (data.new_password !== data.new_password?.trim()) {
+        throw new Error("كلمة المرور تحتوي مسافة في البداية أو النهاية");
+      }
+    }
     if ((data.role === "operator" || data.role === "supervisor") && data.station_id === null) {
       throw new Error("Station is required for operator/supervisor users");
     }

@@ -13,6 +13,7 @@ import { AdminOnly } from "@/components/admin-only";
 type Role = "admin" | "supervisor" | "operator" | "management" | "viewer";
 interface EditUser {
   id?: string; employee_no?: string; full_name?: string; password?: string;
+  password_confirmation?: string;
   role?: Role; station_id?: string | null; phone?: string | null; active?: boolean;
 }
 
@@ -43,10 +44,12 @@ function UsersPage() {
           id: u.id, full_name: u.full_name, station_id: u.station_id ?? null,
           phone: u.phone ?? null, active: u.active, role: u.role,
           new_password: u.password || null,
+          new_password_confirmation: u.password_confirmation || null,
         } });
       } else {
         await create({ data: {
           employee_no: u.employee_no!, full_name: u.full_name!, password: u.password!,
+          password_confirmation: u.password_confirmation!,
           role: u.role ?? "operator", station_id: u.station_id ?? null, phone: u.phone ?? null,
         } });
       }
@@ -106,7 +109,7 @@ function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-end">
                     <div className="inline-flex gap-1">
-                      <button onClick={() => setEditing({ ...u, role: u.role as Role, password: "" })} className="p-1.5 hover:bg-accent rounded"><Pencil className="h-4 w-4" /></button>
+                      <button onClick={() => setEditing({ ...u, role: u.role as Role, password: "", password_confirmation: "" })} className="p-1.5 hover:bg-accent rounded"><Pencil className="h-4 w-4" /></button>
                       <button onClick={() => confirm(locale === "ar" ? "حذف؟" : "Delete?") && remove.mutate(u.id)} className="p-1.5 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
@@ -125,7 +128,29 @@ function UsersPage() {
               <Input label={t("auth.employee_no")} value={editing.employee_no ?? ""} onChange={(v) => setEditing({ ...editing, employee_no: v })} required />
             )}
             <Input label={locale === "ar" ? "الاسم الكامل" : "Full Name"} value={editing.full_name ?? ""} onChange={(v) => setEditing({ ...editing, full_name: v })} required />
-            <Input label={editing.id ? (locale === "ar" ? "كلمة سر جديدة (اختياري)" : "New password (optional)") : t("auth.password")} value={editing.password ?? ""} onChange={(v) => setEditing({ ...editing, password: v })} type="password" required={!editing.id} />
+            <Input
+              label={editing.id ? (locale === "ar" ? "كلمة سر جديدة (اختياري)" : "New password (optional)") : t("auth.password")}
+              value={editing.password ?? ""}
+              onChange={(v) => setEditing({ ...editing, password: v })}
+              type="password"
+              required={!editing.id}
+              name="new-user-password"
+              autoComplete="new-password"
+            />
+            <Input
+              label={locale === "ar" ? "تأكيد كلمة السر" : "Confirm password"}
+              value={editing.password_confirmation ?? ""}
+              onChange={(v) => setEditing({ ...editing, password_confirmation: v })}
+              type="password"
+              required={!editing.id || !!editing.password}
+              name="confirm-user-password"
+              autoComplete="new-password"
+            />
+            {!!editing.password && !!editing.password_confirmation && editing.password !== editing.password_confirmation && (
+              <p className="text-sm text-destructive">
+                {locale === "ar" ? "كلمتا المرور غير متطابقتين" : "Passwords do not match"}
+              </p>
+            )}
             <label className="block">
               <span className="text-sm font-medium">{locale === "ar" ? "الدور" : "Role"}</span>
               <select value={editing.role ?? "operator"} onChange={(e) => setEditing({ ...editing, role: e.target.value as Role })} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
@@ -168,7 +193,7 @@ function UsersPage() {
             )}
             <div className="flex gap-2 justify-end pt-2">
               <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border hover:bg-accent">{t("common.cancel")}</button>
-              <button type="submit" disabled={save.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">{t("common.save")}</button>
+              <button type="submit" disabled={save.isPending || editing.password !== editing.password_confirmation} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{t("common.save")}</button>
             </div>
           </form>
         </Modal>

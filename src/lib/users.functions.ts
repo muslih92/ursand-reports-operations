@@ -128,10 +128,27 @@ export const updateUser = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
     if (data.new_password) {
-      if (!admin) throw new Error("Password reset is unavailable on this server (service key not configured)");
-      const { error } = await admin.auth.admin.updateUserById(data.id, { password: data.new_password });
-      if (error) throw new Error(error.message);
+      if (admin) {
+        const { error } = await admin.auth.admin.updateUserById(data.id, { password: data.new_password });
+        if (error) throw new Error(error.message);
+      } else {
+        // Self-hosted (no service key): relay the reset to the managed deployment,
+        // forwarding the admin's own bearer token so it can re-verify the caller.
+        const { getRequest } = await import("@tanstack/react-start/server");
+        const authHeader = getRequest()?.headers.get("authorization") ?? "";
+        const base =
+          process.env["ADMIN_API_BASE"] || "https://ursand-reports-operations.lovable.app";
+        const res = await fetch(`${base}/api/public/admin-set-password`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: authHeader },
+          body: JSON.stringify({ user_id: data.id, password: data.new_password }),
+        });
+        if (!res.ok) {
+          throw new Error(`Password reset failed (${res.status}): ${await res.text()}`);
+        }
+      }
     }
+
     if (admin && data.active === false) {
       await admin.auth.admin.updateUserById(data.id, { ban_duration: "876000h" });
     } else if (admin && data.active === true) {

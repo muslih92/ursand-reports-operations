@@ -147,13 +147,14 @@ export function Modal({ children, onClose }: { children: React.ReactNode; onClos
   );
 }
 
-export function Input({ label, value, onChange, type = "text", required }: {
+export function Input({ label, value, onChange, type = "text", required, name, autoComplete }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean;
+  name?: string; autoComplete?: React.HTMLInputAutoCompleteAttribute;
 }) {
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required}
+      <input type={type} name={name} autoComplete={autoComplete} value={value} onChange={(e) => onChange(e.target.value)} required={required}
         className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
     </label>
   );

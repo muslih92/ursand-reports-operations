@@ -46,7 +46,7 @@ function AuthPage() {
     setSubmitting(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: empEmail(empNo),
+        email: empEmail(empNo.trim()),
         password,
       });
       if (error) {
@@ -120,8 +120,8 @@ function AuthPage() {
                 <h2 className="text-xl font-bold">{t("auth.title")}</h2>
                 <p className="text-sm text-muted-foreground">{t("auth.subtitle")}</p>
               </div>
-              <Field label={t("auth.employee_no")} value={empNo} onChange={setEmpNo} inputMode="numeric" autoFocus />
-              <Field label={t("auth.password")} value={password} onChange={setPassword} type="password" />
+              <Field label={t("auth.employee_no")} value={empNo} onChange={setEmpNo} inputMode="numeric" autoFocus name="employee-number" autoComplete="username" />
+              <Field label={t("auth.password")} value={password} onChange={setPassword} type="password" name="password" autoComplete="current-password" />
               <button disabled={submitting} className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg" style={{ background: "var(--gradient-brand)" }}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("auth.signin")}
@@ -135,15 +135,18 @@ function AuthPage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", inputMode, autoFocus }: {
+function Field({ label, value, onChange, type = "text", inputMode, autoFocus, name, autoComplete }: {
   label: string; value: string; onChange: (v: string) => void; type?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]; autoFocus?: boolean;
+  name?: string; autoComplete?: React.HTMLInputAutoCompleteAttribute;
 }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-foreground">{label}</span>
       <input
         type={type}
+        name={name}
+        autoComplete={autoComplete}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         inputMode={inputMode}

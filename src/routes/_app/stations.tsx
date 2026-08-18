@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/stations")({
-  component: StationsPage,
+  component: () => <AdminOnly><StationsPage /></AdminOnly>,
 });
 
 interface Station {

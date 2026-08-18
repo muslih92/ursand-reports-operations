@@ -672,7 +672,7 @@ function EntryView({
         <div className="text-center">
           <h2 className="text-xl font-bold">{locale === "ar" ? template.name_ar : template.name_en}</h2>
           <p className="text-sm text-muted-foreground" dir="ltr">
-            {template.code} · {date} · {stationId ?? "—"}
+            {template.code} · {date}
           </p>
         </div>
 

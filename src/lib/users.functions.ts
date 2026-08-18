@@ -4,6 +4,28 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { empEmail } from "@/lib/utils";
 
+/** Service-role client, or null when the key is not configured (self-hosted). */
+async function tryAdmin(): Promise<any | null> {
+  if (!process.env["SUPABASE_SERVICE_ROLE_KEY"] || !process.env["SUPABASE_URL"]) return null;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    return supabaseAdmin;
+  } catch {
+    return null;
+  }
+}
+
+/** Public (anon) client used as a fallback to sign up new accounts. */
+async function publicClient() {
+  const { createClient } = await import("@supabase/supabase-js");
+  const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
+  const key = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !key) throw new Error("Backend is not configured on this server");
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+  });
+}
+
 async function assertAdmin(ctx: { supabase: SupabaseClient; userId: string }) {
   const { data, error } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
   if (error || !data) throw new Error("Forbidden: admin only");
@@ -26,19 +48,32 @@ export const createUser = createServerFn({ method: "POST" })
     if ((data.role === "operator" || data.role === "supervisor") && !data.station_id) {
       throw new Error("Station is required for operator/supervisor users");
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
+    const admin = await tryAdmin();
     const email = empEmail(data.employee_no);
-    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { employee_no: data.employee_no, full_name: data.full_name },
-    });
-    if (createErr || !created?.user) throw new Error(createErr?.message || "Failed to create user");
+    let userId: string;
 
-    const userId = created.user.id;
-    const { error: pErr } = await supabaseAdmin.from("profiles").insert({
+    if (admin) {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password: data.password,
+        email_confirm: true,
+        user_metadata: { employee_no: data.employee_no, full_name: data.full_name },
+      });
+      if (createErr || !created?.user) throw new Error(createErr?.message || "Failed to create user");
+      userId = created.user.id;
+    } else {
+      const pub = await publicClient();
+      const { data: signed, error: signErr } = await pub.auth.signUp({
+        email,
+        password: data.password,
+        options: { data: { employee_no: data.employee_no, full_name: data.full_name } },
+      });
+      if (signErr || !signed?.user) throw new Error(signErr?.message || "Failed to create user");
+      userId = signed.user.id;
+    }
+
+    const db = admin ?? context.supabase;
+    const { error: pErr } = await db.from("profiles").insert({
       id: userId,
       employee_no: data.employee_no,
       full_name: data.full_name,
@@ -47,10 +82,10 @@ export const createUser = createServerFn({ method: "POST" })
       active: true,
     });
     if (pErr) {
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (admin) await admin.auth.admin.deleteUser(userId);
       throw new Error(pErr.message);
     }
-    const { error: rErr } = await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: data.role });
+    const { error: rErr } = await db.from("user_roles").insert({ user_id: userId, role: data.role });
     if (rErr) throw new Error(rErr.message);
 
     return { id: userId };
@@ -74,7 +109,8 @@ export const updateUser = createServerFn({ method: "POST" })
     if ((data.role === "operator" || data.role === "supervisor") && data.station_id === null) {
       throw new Error("Station is required for operator/supervisor users");
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = await tryAdmin();
+    const db = admin ?? context.supabase;
     const patch: {
       full_name?: string; station_id?: string | null; phone?: string | null; active?: boolean;
     } = {};
@@ -83,22 +119,23 @@ export const updateUser = createServerFn({ method: "POST" })
     if (data.phone !== undefined) patch.phone = data.phone;
     if (data.active !== undefined) patch.active = data.active;
     if (Object.keys(patch).length > 0) {
-      const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.id);
+      const { error } = await db.from("profiles").update(patch).eq("id", data.id);
       if (error) throw new Error(error.message);
     }
     if (data.role) {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.id);
-      const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.id, role: data.role });
+      await db.from("user_roles").delete().eq("user_id", data.id);
+      const { error } = await db.from("user_roles").insert({ user_id: data.id, role: data.role });
       if (error) throw new Error(error.message);
     }
     if (data.new_password) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.id, { password: data.new_password });
+      if (!admin) throw new Error("Password reset is unavailable on this server (service key not configured)");
+      const { error } = await admin.auth.admin.updateUserById(data.id, { password: data.new_password });
       if (error) throw new Error(error.message);
     }
-    if (data.active === false) {
-      await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "876000h" });
-    } else if (data.active === true) {
-      await supabaseAdmin.auth.admin.updateUserById(data.id, { ban_duration: "none" });
+    if (admin && data.active === false) {
+      await admin.auth.admin.updateUserById(data.id, { ban_duration: "876000h" });
+    } else if (admin && data.active === true) {
+      await admin.auth.admin.updateUserById(data.id, { ban_duration: "none" });
     }
     return { ok: true };
   });
@@ -108,8 +145,15 @@ export const deleteUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
+    const admin = await tryAdmin();
+    if (admin) {
+      const { error } = await admin.auth.admin.deleteUser(data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+    // No service key: remove app access (profile + role) instead of the auth account.
+    await context.supabase.from("user_roles").delete().eq("user_id", data.id);
+    const { error } = await context.supabase.from("profiles").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -174,8 +218,9 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
   });
 
 export const hasAnyAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { count, error } = await supabaseAdmin
+  const admin = await tryAdmin();
+  if (!admin) return { exists: true };
+  const { count, error } = await admin
     .from("user_roles")
     .select("*", { count: "exact", head: true })
     .eq("role", "admin");

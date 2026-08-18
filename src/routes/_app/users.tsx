@@ -60,6 +60,8 @@ function UsersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const stationRequired = !!editing && (editing.role ?? "operator") !== "admin" && editing.role !== "management" && editing.role !== "viewer";
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -135,11 +137,26 @@ function UsersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium">{t("common.station")}</span>
-              <select value={editing.station_id ?? ""} onChange={(e) => setEditing({ ...editing, station_id: e.target.value || null })} className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+              <span className="text-sm font-medium">
+                {t("common.station")}
+                {stationRequired && <span className="text-destructive"> *</span>}
+              </span>
+              <select
+                value={editing.station_id ?? ""}
+                onChange={(e) => setEditing({ ...editing, station_id: e.target.value || null })}
+                required={stationRequired}
+                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              >
                 <option value="">—</option>
                 {stations?.map((s) => <option key={s.id} value={s.id}>{locale === "ar" ? s.name_ar : s.name_en}</option>)}
               </select>
+              {stationRequired && (
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {locale === "ar"
+                    ? "الموظف سيرى ويعمل داخل هذه المحطة فقط"
+                    : "This user will only see and work within this station"}
+                </span>
+              )}
             </label>
             <Input label={locale === "ar" ? "الهاتف" : "Phone"} value={editing.phone ?? ""} onChange={(v) => setEditing({ ...editing, phone: v })} />
             {editing.id && (

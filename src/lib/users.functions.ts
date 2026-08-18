@@ -144,7 +144,14 @@ export const updateUser = createServerFn({ method: "POST" })
           body: JSON.stringify({ user_id: data.id, password: data.new_password }),
         });
         if (!res.ok) {
-          throw new Error(`Password reset failed (${res.status}): ${await res.text()}`);
+          const raw = (await res.text()).trim();
+          const clean = raw.startsWith("<") ? "" : raw.slice(0, 200);
+          if (res.status === 404) {
+            throw new Error(
+              "خدمة إعادة تعيين كلمة السر غير متاحة بعد — يجب نشر (Publish) نسخة Lovable أولاً.",
+            );
+          }
+          throw new Error(`تعذر إعادة تعيين كلمة السر (${res.status})${clean ? `: ${clean}` : ""}`);
         }
       }
     }

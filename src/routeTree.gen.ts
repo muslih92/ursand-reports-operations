@@ -22,6 +22,7 @@ import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
 import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
+import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -87,6 +88,12 @@ const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   path: '/availability',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicAdminSetPasswordRoute =
+  ApiPublicAdminSetPasswordRouteImport.update({
+    id: '/api/public/admin-set-password',
+    path: '/api/public/admin-set-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
+  '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,6 +123,7 @@ export interface FileRoutesByTo {
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
+  '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +140,7 @@ export interface FileRoutesById {
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
   '/_app/users': typeof AppUsersRoute
+  '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/stations'
     | '/templates'
     | '/users'
+    | '/api/public/admin-set-password'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/stations'
     | '/templates'
     | '/users'
+    | '/api/public/admin-set-password'
   id:
     | '__root__'
     | '/'
@@ -176,12 +188,14 @@ export interface FileRouteTypes {
     | '/_app/stations'
     | '/_app/templates'
     | '/_app/users'
+    | '/api/public/admin-set-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicAdminSetPasswordRoute: typeof ApiPublicAdminSetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -277,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAvailabilityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/admin-set-password': {
+      id: '/api/public/admin-set-password'
+      path: '/api/public/admin-set-password'
+      fullPath: '/api/public/admin-set-password'
+      preLoaderRoute: typeof ApiPublicAdminSetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -312,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicAdminSetPasswordRoute: ApiPublicAdminSetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

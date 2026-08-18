@@ -6,8 +6,8 @@ export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({
-      employee_no: z.string().min(1).max(32),
-      full_name: z.string().min(1).max(120),
+      employee_no: z.string().trim().min(1).max(32).regex(/^\d+$/, "رقم الموظف يجب أن يحتوي أرقاماً فقط"),
+      full_name: z.string().trim().min(1).max(120),
       password: z.string().min(6).max(72),
       password_confirmation: z.string().min(6).max(72),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]),
@@ -75,7 +75,7 @@ export const updateUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
       id: z.string().uuid(),
-      full_name: z.string().min(1).max(120).optional(),
+      full_name: z.string().trim().min(1).max(120).optional(),
       station_id: z.string().uuid().nullable().optional(),
       phone: z.string().max(32).nullable().optional(),
       active: z.boolean().optional(),
@@ -205,8 +205,8 @@ export const listUsers = createServerFn({ method: "GET" })
 export const ensureFirstAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({
-      employee_no: z.string().min(1).max(32),
-      full_name: z.string().min(1).max(120),
+      employee_no: z.string().trim().min(1).max(32).regex(/^\d+$/, "رقم الموظف يجب أن يحتوي أرقاماً فقط"),
+      full_name: z.string().trim().min(1).max(120),
       password: z.string().min(6).max(72),
     }).parse(input),
   )

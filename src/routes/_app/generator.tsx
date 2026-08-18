@@ -515,7 +515,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               SYSTEM: <span className="font-semibold">EMERGENCY POWER — DIESEL GENSET</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end gap-2">
             <img src="/wtco-logo.png" alt="WTCO" className="h-16 w-16 object-contain shrink-0" />
             <div className="text-[11px] text-end leading-5 font-semibold uppercase tracking-wide">
               O&amp;M EASTERN PROVINCE
@@ -523,6 +523,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               PIPELINE ADMINISTRATION JUBAIL
             </div>
           </div>
+
 
 
         </div>

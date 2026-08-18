@@ -151,6 +151,11 @@ export const updateUser = createServerFn({ method: "POST" })
               "خدمة إعادة تعيين كلمة السر غير متاحة بعد — يجب نشر (Publish) نسخة Lovable أولاً.",
             );
           }
+          if (/weak|easy to guess/i.test(clean)) {
+            throw new Error(
+              "كلمة السر ضعيفة وسهلة التخمين — اختر كلمة أقوى (أحرف وأرقام ورموز، ٨ خانات فأكثر).",
+            );
+          }
           throw new Error(`تعذر إعادة تعيين كلمة السر (${res.status})${clean ? `: ${clean}` : ""}`);
         }
       }

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -176,20 +177,10 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
   const { locale, t } = useI18n();
   const { profile, isAdmin } = useAuth();
   const qc = useQueryClient();
-  const [stationFilter, setStationFilter] = useState<string>("");
+  const { scopedStationId } = useStationScope();
+  const [stationFilter, setStationFilter] = useState<string>(scopedStationId ?? "");
 
-  const { data: stations } = useQuery({
-    queryKey: ["stations", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("id, code, name_en, name_ar")
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data as Station[];
-    },
-  });
+  const { data: stations } = useScopedStations();
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["generator-tests", stationFilter || "all"],
@@ -253,10 +244,11 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
           <label className="text-xs text-muted-foreground block mb-1">{t("common.station")}</label>
           <select
             value={stationFilter}
+            disabled={!!scopedStationId}
             onChange={(e) => setStationFilter(e.target.value)}
             className="h-9 rounded-lg border bg-background px-3 text-sm min-w-48"
           >
-            <option value="">{locale === "ar" ? "كل المحطات" : "All stations"}</option>
+            {!scopedStationId && <option value="">{locale === "ar" ? "كل المحطات" : "All stations"}</option>}
             {(stations ?? []).map((s) => (
               <option key={s.id} value={s.id}>
                 {s.code} — {locale === "ar" ? s.name_ar : s.name_en}
@@ -329,18 +321,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const isNew = id === "new";
   const canWrite = isAdmin || hasRole("supervisor") || hasRole("operator");
 
-  const { data: stations } = useQuery({
-    queryKey: ["stations", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("id, code, name_en, name_ar")
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data as Station[];
-    },
-  });
+  const { data: stations } = useScopedStations();
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ["generator-test", id],

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { useI18n } from "@/lib/i18n";
 import {
   Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
@@ -46,15 +47,10 @@ function Dashboard() {
   const { t, locale } = useI18n();
   const [from, setFrom] = useState(daysAgoISO(6));
   const [to, setTo] = useState(todayISO());
-  const [stationFilter, setStationFilter] = useState<string>("all");
+  const { scopedStationId, canPickStation } = useStationScope();
+  const [stationFilter, setStationFilter] = useState<string>(scopedStationId ?? "all");
 
-  const { data: stations } = useQuery({
-    queryKey: ["dash-stations"],
-    queryFn: async () => {
-      const { data } = await supabase.from("stations").select("id, code, name_en, name_ar").eq("active", true).order("code");
-      return data ?? [];
-    },
-  });
+  const { data: stations } = useScopedStations();
 
   const stationEq = stationFilter === "all" ? undefined : stationFilter;
 
@@ -258,9 +254,9 @@ function Dashboard() {
           </div>
           <div>
             <label className="text-xs text-muted-foreground block">{locale === "ar" ? "المحطة" : "Station"}</label>
-            <select value={stationFilter} onChange={(e) => setStationFilter(e.target.value)}
-              className="h-9 px-2 rounded-md border bg-background text-sm">
-              <option value="all">{locale === "ar" ? "الكل" : "All"}</option>
+            <select value={stationFilter} onChange={(e) => setStationFilter(e.target.value)} disabled={!canPickStation}
+              className="h-9 px-2 rounded-md border bg-background text-sm disabled:opacity-70">
+              {canPickStation && <option value="all">{locale === "ar" ? "الكل" : "All"}</option>}
               {stations?.map((s: any) => (
                 <option key={s.id} value={s.id}>{s.code}</option>
               ))}

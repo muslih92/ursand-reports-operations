@@ -17,7 +17,7 @@ interface EditUser {
 }
 
 export const Route = createFileRoute("/_app/users")({
-  component: UsersPage,
+  component: () => <AdminOnly><UsersPage /></AdminOnly>,
 });
 
 function UsersPage() {

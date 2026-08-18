@@ -515,15 +515,19 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               SYSTEM: <span className="font-semibold">EMERGENCY POWER — DIESEL GENSET</span>
             </div>
           </div>
-          <div className="text-xs text-end leading-5">
-            WTCO
-            <br />
-            O&amp;M Eastern Province
-            <br />
-            Pipeline Administration JUBAIL
-            <br />
-            REV – 0
+          <div className="flex items-center gap-3">
+            <img src="/wtco-logo.png" alt="WTCO" className="h-14 w-14 object-contain shrink-0" />
+            <div className="text-[11px] text-end leading-5 font-semibold uppercase tracking-wide">
+              WTCO
+              <br />
+              O&amp;M EASTERN PROVINCE
+              <br />
+              PIPELINE ADMINISTRATION JUBAIL
+              <br />
+              <span className="font-normal">REV – 0</span>
+            </div>
           </div>
+
         </div>
 
         {/* Meta */}

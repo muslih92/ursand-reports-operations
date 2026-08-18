@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -151,19 +152,7 @@ function ListView({
 }) {
   const { locale, t, dir } = useI18n();
 
-  const { data: stations } = useQuery({
-    queryKey: ["stations", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("id, code, name_en, name_ar")
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data as Station[];
-    },
-    enabled: canPickStation,
-  });
+  const { data: stations } = useScopedStations();
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["templates", "active"],

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -86,18 +87,7 @@ function ListView({ onNew, onOpen }: { onNew: () => void; onOpen: (id: string) =
   const canFilterStation = isAdmin || hasRole("supervisor") || hasRole("viewer");
   const [stationFilter, setStationFilter] = useState<string>(profile?.station_id ?? "");
 
-  const { data: stations } = useQuery({
-    queryKey: ["stations", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("id, code, name_en, name_ar")
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data as Station[];
-    },
-  });
+  const { data: stations } = useScopedStations();
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ["shift-reports", stationFilter || "all"],
@@ -268,18 +258,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const isNew = id === "new";
   const canWrite = isAdmin || hasRole("supervisor") || hasRole("operator");
 
-  const { data: stations } = useQuery({
-    queryKey: ["stations", "active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stations")
-        .select("id, code, name_en, name_ar")
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data as Station[];
-    },
-  });
+  const { data: stations } = useScopedStations();
 
   const { data: existing, isLoading } = useQuery({
     queryKey: ["shift-report", id],

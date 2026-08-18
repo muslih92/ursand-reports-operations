@@ -60,6 +60,8 @@ function UsersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const stationRequired = !!editing && (editing.role ?? "operator") !== "admin" && editing.role !== "management" && editing.role !== "viewer";
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -117,7 +119,6 @@ function UsersPage() {
       {editing && (
         <Modal onClose={() => setEditing(null)}>
           <form onSubmit={(e) => { e.preventDefault(); save.mutate(editing); }} className="space-y-3">
-            {(() => null)()}
             <h2 className="text-lg font-bold">{editing.id ? t("common.edit") : t("common.add")}</h2>
             {!editing.id && (
               <Input label={t("auth.employee_no")} value={editing.employee_no ?? ""} onChange={(v) => setEditing({ ...editing, employee_no: v })} required />

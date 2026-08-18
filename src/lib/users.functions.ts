@@ -1,35 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { empEmail } from "@/lib/utils";
-
-/** Service-role client, or null when the key is not configured (self-hosted). */
-async function tryAdmin(): Promise<any | null> {
-  if (!process.env["SUPABASE_SERVICE_ROLE_KEY"] || !process.env["SUPABASE_URL"]) return null;
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    return supabaseAdmin;
-  } catch {
-    return null;
-  }
-}
-
-/** Public (anon) client used as a fallback to sign up new accounts. */
-async function publicClient() {
-  const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
-  if (!url || !key) throw new Error("Backend is not configured on this server");
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-  });
-}
-
-async function assertAdmin(ctx: { supabase: SupabaseClient; userId: string }) {
-  const { data, error } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
-  if (error || !data) throw new Error("Forbidden: admin only");
-}
 
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -45,6 +16,7 @@ export const createUser = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { assertAdmin, employeeEmail, publicClient, tryAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
     if (data.password !== data.password_confirmation) {
       throw new Error("كلمتا المرور غير متطابقتين");
@@ -56,7 +28,7 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error("Station is required for operator/supervisor users");
     }
     const admin = await tryAdmin();
-    const email = empEmail(data.employee_no);
+    const email = employeeEmail(data.employee_no);
     let userId: string;
 
     if (admin) {
@@ -113,6 +85,7 @@ export const updateUser = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { assertAdmin, tryAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
     if (data.new_password || data.new_password_confirmation) {
       if (data.new_password !== data.new_password_confirmation) {
@@ -189,6 +162,7 @@ export const deleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    const { assertAdmin, tryAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
     const admin = await tryAdmin();
     if (admin) {
@@ -206,6 +180,7 @@ export const deleteUser = createServerFn({ method: "POST" })
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
     // Read through the caller's RLS-scoped client so listing works even when
     // the service-role key is not configured on a self-hosted deployment.
@@ -236,6 +211,7 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
+    const { employeeEmail } = await import("@/lib/users.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Only allowed if no users exist yet
     const { count, error: countErr } = await supabaseAdmin
@@ -244,7 +220,7 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
     if (countErr) throw new Error(countErr.message);
     if ((count ?? 0) > 0) throw new Error("System already initialized");
 
-    const email = empEmail(data.employee_no);
+    const email = employeeEmail(data.employee_no);
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: data.password,
@@ -263,6 +239,7 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
   });
 
 export const hasAnyAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  const { tryAdmin } = await import("@/lib/users.server");
   const admin = await tryAdmin();
   if (!admin) return { exists: true };
   const { count, error } = await admin

@@ -767,6 +767,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_unrestricted_viewer: { Args: { _user_id: string }; Returns: boolean }
+      user_station: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "supervisor" | "operator" | "viewer" | "management"

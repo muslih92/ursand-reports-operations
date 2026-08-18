@@ -156,17 +156,19 @@ function ListView({
   const { data: stations } = useScopedStations();
 
   const { data: templates, isLoading } = useQuery({
-    queryKey: ["templates", "active"],
+    queryKey: ["templates", "active", stationId ?? "all"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("reading_templates")
         .select("id, code, name_en, name_ar, frequency, time_slots, active")
-        .eq("active", true)
-        .order("code");
+        .eq("active", true);
+      if (stationId) q = q.or(`station_id.eq.${stationId},station_id.is.null`);
+      const { data, error } = await q.order("code");
       if (error) throw error;
       return data as Template[];
     },
   });
+
 
   const { data: progress } = useQuery({
     queryKey: ["progress", date, stationId ?? "any"],

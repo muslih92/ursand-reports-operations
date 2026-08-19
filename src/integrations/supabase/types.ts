@@ -339,6 +339,35 @@ export type Database = {
           },
         ]
       }
+      profile_stations: {
+        Row: {
+          created_at: string
+          id: string
+          station_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          station_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          station_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_stations_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -762,6 +791,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_station: {
+        Args: { _station_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_station: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

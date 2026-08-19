@@ -10,28 +10,53 @@ export interface ScopedStation {
 }
 
 /**
- * Station scoping: any user that has a station assigned (and is not an admin
- * / management / viewer) can only see and work within that station.
+ * Station scoping: any user that has stations assigned (and is not an admin
+ * / management / viewer) can only see and work within those stations.
+ * A user may be assigned a main station plus extra supervised stations.
  */
 export function useStationScope() {
-  const { profile, isAdmin, hasRole } = useAuth();
+  const { profile, isAdmin, hasRole, user } = useAuth();
   const unrestricted = isAdmin || hasRole("management") || hasRole("viewer");
-  const scopedStationId = unrestricted ? null : (profile?.station_id ?? null);
-  return { scopedStationId, canPickStation: !scopedStationId };
+
+  const { data: extra } = useQuery({
+    queryKey: ["profile-stations", user?.id ?? "none"],
+    enabled: !!user?.id && !unrestricted,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profile_stations")
+        .select("station_id")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return (data ?? []).map((r) => r.station_id as string);
+    },
+  });
+
+  const allowedStationIds = unrestricted
+    ? []
+    : Array.from(new Set([profile?.station_id, ...(extra ?? [])].filter(Boolean) as string[]));
+
+  const scopedStationId = allowedStationIds.length === 1 ? allowedStationIds[0]! : null;
+  return {
+    scopedStationId,
+    allowedStationIds,
+    isRestricted: !unrestricted && allowedStationIds.length > 0,
+    canPickStation: !scopedStationId,
+  };
 }
 
 /** Active stations limited to the current user's station scope. */
 export function useScopedStations() {
-  const { scopedStationId } = useStationScope();
+  const { allowedStationIds, isRestricted } = useStationScope();
+  const key = isRestricted ? [...allowedStationIds].sort().join(",") : "all";
   return useQuery({
-    queryKey: ["stations", "active", scopedStationId ?? "all"],
+    queryKey: ["stations", "active", key],
     queryFn: async () => {
       let q = supabase
         .from("stations")
         .select("id, code, name_en, name_ar")
         .eq("active", true)
         .order("code");
-      if (scopedStationId) q = q.eq("id", scopedStationId);
+      if (isRestricted) q = q.in("id", allowedStationIds);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as ScopedStation[];

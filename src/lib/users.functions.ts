@@ -12,6 +12,7 @@ export const createUser = createServerFn({ method: "POST" })
       password_confirmation: z.string().min(6).max(72),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]),
       station_id: z.string().uuid().nullable().optional(),
+      extra_station_ids: z.array(z.string().uuid()).max(2).optional(),
       phone: z.string().max(32).optional().nullable(),
     }).parse(input),
   )
@@ -67,6 +68,14 @@ export const createUser = createServerFn({ method: "POST" })
     const { error: rErr } = await db.from("user_roles").insert({ user_id: userId, role: data.role });
     if (rErr) throw new Error(rErr.message);
 
+    const extras = (data.extra_station_ids ?? []).filter((s) => s && s !== data.station_id);
+    if (extras.length > 0) {
+      const { error: sErr } = await db
+        .from("profile_stations")
+        .insert(extras.map((sid) => ({ user_id: userId, station_id: sid })));
+      if (sErr) throw new Error(sErr.message);
+    }
+
     return { id: userId };
   });
 
@@ -77,6 +86,7 @@ export const updateUser = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       full_name: z.string().trim().min(1).max(120).optional(),
       station_id: z.string().uuid().nullable().optional(),
+      extra_station_ids: z.array(z.string().uuid()).max(2).optional(),
       phone: z.string().max(32).nullable().optional(),
       active: z.boolean().optional(),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]).optional(),
@@ -110,6 +120,16 @@ export const updateUser = createServerFn({ method: "POST" })
     if (Object.keys(patch).length > 0) {
       const { error } = await db.from("profiles").update(patch).eq("id", data.id);
       if (error) throw new Error(error.message);
+    }
+    if (data.extra_station_ids !== undefined) {
+      await db.from("profile_stations").delete().eq("user_id", data.id);
+      const extras = data.extra_station_ids.filter((s) => s && s !== data.station_id);
+      if (extras.length > 0) {
+        const { error } = await db
+          .from("profile_stations")
+          .insert(extras.map((sid) => ({ user_id: data.id, station_id: sid })));
+        if (error) throw new Error(error.message);
+      }
     }
     if (data.role) {
       await db.from("user_roles").delete().eq("user_id", data.id);
@@ -171,6 +191,7 @@ export const deleteUser = createServerFn({ method: "POST" })
       return { ok: true };
     }
     // No service key: remove app access (profile + role) instead of the auth account.
+    await context.supabase.from("profile_stations").delete().eq("user_id", data.id);
     await context.supabase.from("user_roles").delete().eq("user_id", data.id);
     const { error } = await context.supabase.from("profiles").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -192,13 +213,19 @@ export const listUsers = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const ids = (profiles ?? []).map((p) => p.id);
     let roles: { user_id: string; role: string }[] = [];
+    let extras: { user_id: string; station_id: string }[] = [];
     if (ids.length > 0) {
-      const { data: r } = await db.from("user_roles").select("user_id, role").in("user_id", ids);
+      const [{ data: r }, { data: e }] = await Promise.all([
+        db.from("user_roles").select("user_id, role").in("user_id", ids),
+        db.from("profile_stations").select("user_id, station_id").in("user_id", ids),
+      ]);
       roles = r ?? [];
+      extras = e ?? [];
     }
     return (profiles ?? []).map((p) => ({
       ...p,
       role: roles.find((r) => r.user_id === p.id)?.role ?? "operator",
+      extra_station_ids: extras.filter((e) => e.user_id === p.id).map((e) => e.station_id),
     }));
   });
 

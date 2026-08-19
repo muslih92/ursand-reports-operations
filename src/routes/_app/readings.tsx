@@ -87,6 +87,31 @@ function statusLabel(token: string, locale: "ar" | "en"): string {
   };
   return m[token]?.[locale] ?? token;
 }
+// Quick status marks applied to a whole unit at a given time slot
+const QUICK_MARKS = [
+  { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300" },
+  { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300" },
+  { code: "BUSY", ar: "مشغول", en: "Busy", cls: "bg-blue-100 text-blue-800 border-blue-300" },
+  { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400" },
+] as const;
+
+// Allowed delay (minutes) after the scheduled slot before the actual entry time is flagged
+const LATE_LIMIT_MIN = 90;
+
+function slotToMinutes(slot: string): number {
+  const [h, m] = slot.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+function fmtLocalTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function isLate(slot: string, iso: string): boolean {
+  const d = new Date(iso);
+  const actual = d.getHours() * 60 + d.getMinutes();
+  return actual - slotToMinutes(slot) > LATE_LIMIT_MIN;
+}
+
 function statusClass(token: string): string {
   switch (token) {
     case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";
@@ -349,7 +374,7 @@ function EntryView({
           .order("sort_order"),
         supabase
           .from("reading_entries")
-          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status)")
+          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status, recorded_at)")
           .eq("template_id", templateId)
           .eq("entry_date", date)
           .eq("station_id", stationId!)
@@ -364,7 +389,7 @@ function EntryView({
         sections: (sectionsRes.data ?? []) as Section[],
         fields: (fieldsRes.data ?? []) as Field[],
         entry: entryRes.data as
-          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] }
+          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string | null }[] }
           | null,
       };
     },
@@ -379,6 +404,7 @@ function EntryView({
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [activeMark, setActiveMark] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -449,7 +475,8 @@ function EntryView({
       const existing = new Map<string, string>(
         (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv.id]),
       );
-      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] = [];
+      const nowIso = new Date().toISOString();
+      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string }[] = [];
       const toDelete: string[] = [];
 
       const handledKeys = new Set<string>();
@@ -460,7 +487,7 @@ function EntryView({
         for (const slot of data!.template.time_slots) {
           const key = `${fieldId}|${slot}`;
           handledKeys.add(key);
-          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st });
+          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st, recorded_at: nowIso });
         }
       }
 
@@ -477,9 +504,9 @@ function EntryView({
         }
         const num = Number(trimmed);
         if (!Number.isNaN(num) && trimmed !== "") {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null, recorded_at: nowIso });
         } else {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed, recorded_at: nowIso });
         }
       }
 
@@ -515,6 +542,16 @@ function EntryView({
     }
     return m;
   }, [data?.fields]);
+
+  const slotRecorded = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const rv of data?.entry?.reading_values ?? []) {
+      if (!rv.recorded_at) continue;
+      const cur = m[rv.time_slot];
+      if (!cur || new Date(rv.recorded_at) > new Date(cur)) m[rv.time_slot] = rv.recorded_at;
+    }
+    return m;
+  }, [data?.entry?.reading_values]);
 
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
@@ -678,8 +715,8 @@ function EntryView({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
+        <div className="space-y-2">
+          <div className="flex flex-col gap-1 max-w-sm">
             <label className="text-xs text-muted-foreground">
               {locale === "ar" ? "اسم المشغل" : "Operator name"}
             </label>
@@ -690,16 +727,36 @@ function EntryView({
               className="h-10 px-3 rounded-lg border bg-background text-sm"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">
-              {locale === "ar" ? "ملاحظات" : "Notes"}
-            </label>
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={!canWrite}
-              className="h-10 px-3 rounded-lg border bg-background text-sm"
-            />
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">
+              {locale === "ar"
+                ? "اختر الحالة ثم اضغط على خانة الوقت داخل الوحدة لتطبيقها على كامل الوحدة"
+                : "Pick a status, then click a time cell inside a unit to apply it to that whole unit"}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_MARKS.map((m) => (
+                <button
+                  key={m.code}
+                  type="button"
+                  disabled={!canWrite}
+                  onClick={() => setActiveMark((cur) => (cur === m.code ? null : m.code))}
+                  className={`px-3 h-9 rounded-lg border text-sm font-semibold transition disabled:opacity-50 ${m.cls} ${
+                    activeMark === m.code ? "ring-2 ring-primary" : ""
+                  }`}
+                >
+                  {locale === "ar" ? m.ar : m.en}
+                </button>
+              ))}
+              {activeMark && (
+                <button
+                  type="button"
+                  onClick={() => setActiveMark(null)}
+                  className="px-3 h-9 rounded-lg border text-sm hover:bg-accent"
+                >
+                  {locale === "ar" ? "إلغاء التحديد" : "Clear selection"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -722,7 +779,19 @@ function EntryView({
                     </th>
                     {template.time_slots.map((slot) => (
                       <th key={slot} className="w-[86px] min-w-[86px] px-2 py-2 font-medium text-center" dir="ltr">
-                        {slot}
+                        <div>{slot}</div>
+                        {slotRecorded[slot] && (
+                          <div
+                            className={`mt-0.5 text-[10px] font-semibold rounded px-1 ${
+                              isLate(slot, slotRecorded[slot])
+                                ? "bg-red-100 text-red-700"
+                                : "bg-emerald-100 text-emerald-700"
+                            }`}
+                            title={isLate(slot, slotRecorded[slot]) ? "Late entry" : "On time"}
+                          >
+                            {fmtLocalTime(slotRecorded[slot])}
+                          </div>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -809,6 +878,19 @@ function EntryView({
                                   } else if (e.key === "ArrowLeft") {
                                     if (el.selectionStart === 0) move(rowSel, -1);
                                   }
+                                }}
+                                onMouseDown={(e) => {
+                                  if (!activeMark || !canWrite) return;
+                                  e.preventDefault();
+                                  setValues((v) => {
+                                    const next = { ...v };
+                                    for (const other of fs) {
+                                      if (!other.unit) continue;
+                                      next[`${other.id}|${slot}`] = activeMark;
+                                    }
+                                    return next;
+                                  });
+                                  setActiveMark(null);
                                 }}
                                 data-slot={slot}
                                 data-row={f.id}

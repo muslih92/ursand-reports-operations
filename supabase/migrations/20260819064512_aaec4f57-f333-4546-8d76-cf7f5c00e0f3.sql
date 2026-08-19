@@ -1,0 +1,1 @@
+ALTER TABLE public.reading_values ADD COLUMN IF NOT EXISTS recorded_at timestamptz;

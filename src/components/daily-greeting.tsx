@@ -10,17 +10,38 @@ interface Msg {
 /* ----------------------- الرسائل ----------------------- */
 
 const SAFETY_TIPS: Msg[] = [
-  { ar: "ارتدِ معدات الوقاية الشخصية كاملة قبل دخول موقع التشغيل.", en: "Wear full PPE before entering the operating area." },
-  { ar: "تأكد من عزل الطاقة (LOTO) قبل أي عمل على المعدات.", en: "Verify energy isolation (LOTO) before working on any equipment." },
-  { ar: "لا تتجاوز أي إنذار أو حماية دون تصريح رسمي.", en: "Never bypass an alarm or protection without a formal permit." },
-  { ar: "أبلغ فوراً عن أي تسريب زيت أو ماء مهما كان بسيطاً.", en: "Report any oil or water leak immediately, however small." },
-  { ar: "تحقق من سلامة طفايات الحريق ومخارج الطوارئ في بداية الوردية.", en: "Check fire extinguishers and emergency exits at shift start." },
-  { ar: "حافظ على نظافة وترتيب الموقع — معظم الحوادث سببها الإهمال البسيط.", en: "Keep the site clean and tidy — most incidents start with small neglect." },
-  { ar: "لا تعمل منفرداً في الأماكن المغلقة أو المرتفعة.", en: "Never work alone in confined spaces or at height." },
-  { ar: "راجع قراءات الاهتزاز والحرارة قبل تشغيل أي وحدة.", en: "Review vibration and temperature readings before starting any unit." },
-  { ar: "تأكد من صلاحية تصريح العمل قبل بدء أي مهمة صيانة.", en: "Confirm the work permit is valid before starting any maintenance task." },
-  { ar: "السلامة مسؤولية الجميع — أوقف أي عمل غير آمن فوراً.", en: "Safety is everyone's duty — stop any unsafe act immediately." },
+  { ar: "سلامتك أولاً؛ لا تبدأ أي عمل قبل التأكد من فهم المخاطر وطريقة العمل الآمنة.", en: "Your safety first — never start a job before understanding the hazards and the safe method." },
+  { ar: "استخدم معدات الوقاية الشخصية المناسبة لطبيعة العمل، ولا تعتبرها خيارًا.", en: "Use the PPE suited to the job; it is not optional." },
+  { ar: "لا تتعامل مع أي معدة قبل التأكد من أنها معزولة وآمنة للعمل عليها.", en: "Do not touch any equipment before confirming it is isolated and safe to work on." },
+  { ar: "إذا شككت في سلامة أي إجراء، توقف واسأل قبل أن تبدأ.", en: "If you doubt the safety of any step, stop and ask before you start." },
+  { ar: "حافظ على موقع العمل مرتبًا؛ الفوضى قد تسبب حادثًا بسيطًا بنتائج كبيرة.", en: "Keep the worksite tidy; clutter can cause a small incident with big consequences." },
+  { ar: "لا تقف بالقرب من الأجزاء المتحركة للمعدات أثناء تشغيلها.", en: "Never stand near moving parts while equipment is running." },
+  { ar: "تأكد دائمًا من حالة الصمامات والمعدات قبل التشغيل، ولا تعتمد على الافتراض.", en: "Always verify valve and equipment status before start-up — never assume." },
+  { ar: "لا تتجاوز أي إجراء سلامة لتوفير الوقت؛ دقيقة تأخير أفضل من حادث.", en: "Never skip a safety step to save time; a minute's delay beats an incident." },
+  { ar: "أبلغ عن أي تسريب أو خلل أو خطر تلاحظه فورًا، حتى لو بدا بسيطًا.", en: "Report any leak, defect or hazard immediately, however minor it looks." },
+  { ar: "لا تستخدم معدة أو أداة إذا كانت حالتها غير آمنة أو بها عطل.", en: "Do not use any tool or equipment that is unsafe or defective." },
+  { ar: "قبل بدء العمل، تأكد من وجود التصريح المطلوب وفهم جميع شروطه.", en: "Before starting, make sure the required permit exists and all its conditions are understood." },
+  { ar: "لا تعتمد على الذاكرة فقط؛ اتبع الإجراءات والتعليمات المعتمدة في كل عملية.", en: "Do not rely on memory; follow the approved procedures every time." },
+  { ar: "انتبه لمحيطك أثناء الحركة داخل الموقع، خصوصًا بالقرب من المركبات والمعدات الثقيلة.", en: "Watch your surroundings while moving on site, especially near vehicles and heavy equipment." },
+  { ar: "التواصل الواضح بين أفراد الفريق جزء أساسي من السلامة.", en: "Clear communication within the team is a core part of safety." },
+  { ar: "لا تبدأ أي عمل صيانة قبل التأكد من عزل جميع مصادر الطاقة.", en: "Do not begin maintenance before all energy sources are isolated." },
+  { ar: "الضغط والطاقة المخزنة قد تكون غير مرئية؛ تعامل معها دائمًا على أنها خطر محتمل.", en: "Pressure and stored energy may be invisible — always treat them as a hazard." },
+  { ar: "لا تقترب من أي خط أو معدة تحت الضغط قبل التأكد من عزلها وتفريغ الضغط.", en: "Stay clear of pressurised lines or equipment until isolated and depressurised." },
+  { ar: "إذا رأيت تصرفًا غير آمن، نبّه زميلك بطريقة محترمة؛ السلامة مسؤولية الجميع.", en: "If you see an unsafe act, respectfully warn your colleague; safety is everyone's duty." },
+  { ar: "لا تستخدم الهاتف أثناء القيادة أو تشغيل المعدات؛ انتباهك قد يمنع حادثًا.", en: "No phone while driving or operating equipment; your attention can prevent an incident." },
+  { ar: "خذ وقتك في صعود ونزول السلالم والممرات، واستخدم الدرابزين عند الحاجة.", en: "Take your time on stairs and walkways, and use the handrail." },
+  { ar: "احرص على شرب الماء وأخذ فترات الراحة المناسبة، خصوصًا أثناء العمل في الأجواء الحارة.", en: "Drink water and take proper breaks, especially in hot conditions." },
+  { ar: "لا تدخل مكانًا مغلقًا أو محدود التهوية قبل التأكد من متطلبات السلامة والتصريح والفحص اللازم.", en: "Do not enter a confined or poorly ventilated space without the permit, checks and safety requirements." },
+  { ar: "لا تتجاهل الإنذارات أو إشارات التحذير؛ كل إنذار له سبب ويجب التعامل معه بجدية.", en: "Never ignore alarms or warning signs; every alarm has a reason." },
+  { ar: "قبل تشغيل أي معدة، تأكد من عدم وجود أشخاص في منطقة الخطر.", en: "Before starting any equipment, confirm nobody is in the danger zone." },
+  { ar: "إذا حدثت حالة طارئة، حافظ على هدوئك واتبع خطة الطوارئ والتعليمات المعتمدة.", en: "In an emergency, stay calm and follow the emergency plan and instructions." },
+  { ar: "تعلم من الأخطاء والحوادث السابقة؛ أفضل حادث هو الذي لا يتكرر.", en: "Learn from past mistakes and incidents; the best incident is the one never repeated." },
+  { ar: "لا تتردد في إيقاف العمل إذا لاحظت خطرًا مباشرًا؛ إيقاف العمل الآمن قرار صحيح.", en: "Do not hesitate to stop work on seeing an immediate hazard; stopping work is the right call." },
+  { ar: "قبل مغادرة موقع العمل، تأكد من ترك المكان في حالة آمنة ومرتبة.", en: "Before leaving the worksite, leave it safe and tidy." },
+  { ar: "السلامة ليست مسؤولية قسم السلامة فقط؛ كل شخص في الموقع مسؤول عن سلامته وسلامة زملائه.", en: "Safety is not only the safety department's job; everyone is responsible for themselves and their colleagues." },
+  { ar: "ارجع إلى منزلك بنفس الحالة التي حضرت بها؛ الهدف من العمل أن ننجز المهمة ونعود سالمين.", en: "Go home the same way you came; the goal is to finish the job and return safely." },
 ];
+
 
 interface Occasion {
   ar: string;

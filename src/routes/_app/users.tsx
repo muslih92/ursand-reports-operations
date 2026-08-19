@@ -14,7 +14,8 @@ type Role = "admin" | "supervisor" | "operator" | "management" | "viewer";
 interface EditUser {
   id?: string; employee_no?: string; full_name?: string; password?: string;
   password_confirmation?: string;
-  role?: Role; station_id?: string | null; phone?: string | null; active?: boolean;
+  role?: Role; station_id?: string | null; extra_station_ids?: string[];
+  phone?: string | null; active?: boolean;
 }
 
 export const Route = createFileRoute("/_app/users")({
@@ -43,6 +44,7 @@ function UsersPage() {
         await update({ data: {
           id: u.id, full_name: u.full_name, station_id: u.station_id ?? null,
           phone: u.phone ?? null, active: u.active, role: u.role,
+          extra_station_ids: u.extra_station_ids ?? [],
           new_password: u.password || null,
           new_password_confirmation: u.password_confirmation || null,
         } });
@@ -50,7 +52,8 @@ function UsersPage() {
         await create({ data: {
           employee_no: u.employee_no!, full_name: u.full_name!, password: u.password!,
           password_confirmation: u.password_confirmation!,
-          role: u.role ?? "operator", station_id: u.station_id ?? null, phone: u.phone ?? null,
+          role: u.role ?? "operator", station_id: u.station_id ?? null,
+          extra_station_ids: u.extra_station_ids ?? [], phone: u.phone ?? null,
         } });
       }
     },
@@ -101,7 +104,14 @@ function UsersPage() {
                   <td className="px-4 py-3 font-mono">{u.employee_no}</td>
                   <td className="px-4 py-3 font-medium">{u.full_name}</td>
                   <td className="px-4 py-3">{t(`role.${u.role}`)}</td>
-                  <td className="px-4 py-3">{st ? (locale === "ar" ? st.name_ar : st.name_en) : "—"}</td>
+                  <td className="px-4 py-3">
+                    {st ? (locale === "ar" ? st.name_ar : st.name_en) : "—"}
+                    {!!u.extra_station_ids?.length && (
+                      <span className="ms-1 text-xs text-muted-foreground">
+                        +{u.extra_station_ids.length}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs ${u.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
                       {u.active ? (locale === "ar" ? "نشط" : "Active") : (locale === "ar" ? "معطّل" : "Disabled")}
@@ -109,7 +119,7 @@ function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-end">
                     <div className="inline-flex gap-1">
-                      <button onClick={() => setEditing({ ...u, role: u.role as Role, password: "", password_confirmation: "" })} className="p-1.5 hover:bg-accent rounded"><Pencil className="h-4 w-4" /></button>
+                      <button onClick={() => setEditing({ ...u, role: u.role as Role, extra_station_ids: u.extra_station_ids ?? [], password: "", password_confirmation: "" })} className="p-1.5 hover:bg-accent rounded"><Pencil className="h-4 w-4" /></button>
                       <button onClick={() => confirm(locale === "ar" ? "حذف؟" : "Delete?") && remove.mutate(u.id)} className="p-1.5 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
@@ -184,6 +194,39 @@ function UsersPage() {
                 </span>
               )}
             </label>
+            <div>
+              <span className="text-sm font-medium">
+                {locale === "ar" ? "محطات إضافية للمراقبة (حتى محطتين)" : "Extra supervised stations (up to 2)"}
+              </span>
+              <div className="mt-1 grid grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-lg border p-2">
+                {stations?.filter((s) => s.id !== editing.station_id).map((s) => {
+                  const selected = (editing.extra_station_ids ?? []).includes(s.id);
+                  const full = (editing.extra_station_ids ?? []).length >= 2;
+                  return (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={!selected && full}
+                        onChange={(e) => {
+                          const cur = editing.extra_station_ids ?? [];
+                          setEditing({
+                            ...editing,
+                            extra_station_ids: e.target.checked ? [...cur, s.id] : cur.filter((x) => x !== s.id),
+                          });
+                        }}
+                      />
+                      {locale === "ar" ? s.name_ar : s.name_en}
+                    </label>
+                  );
+                })}
+              </div>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {locale === "ar"
+                  ? "المحطة الأساسية + محطتين إضافيتين = ٣ محطات كحد أقصى"
+                  : "Main station + 2 extra = 3 stations maximum"}
+              </span>
+            </div>
             <Input label={locale === "ar" ? "الهاتف" : "Phone"} value={editing.phone ?? ""} onChange={(v) => setEditing({ ...editing, phone: v })} />
             {editing.id && (
               <label className="flex items-center gap-2 text-sm">

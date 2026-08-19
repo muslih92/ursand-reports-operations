@@ -405,7 +405,18 @@ function EntryView({
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [activeMark, setActiveMark] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<string>("all");
+  const [activeSection, setActiveSection] = useState<string>("");
+
+  // Default to showing ONE system at a time (first available), not everything.
+  useEffect(() => {
+    const secs = data?.sections ?? [];
+    if (secs.length === 0) return;
+    setActiveSection((cur) => {
+      if (cur && (cur === "all" || secs.some((s) => s.id === cur))) return cur;
+      const first = secs.find((s) => (data?.fieldsBySection?.[s.id]?.length ?? 0) > 0) ?? secs[0];
+      return first.id;
+    });
+  }, [data]);
 
   useEffect(() => {
     if (!data) return;

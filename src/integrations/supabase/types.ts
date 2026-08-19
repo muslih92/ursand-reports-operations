@@ -765,6 +765,56 @@ export type Database = {
         }
         Relationships: []
       }
+      supervisor_routines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          items: Json
+          notes: string | null
+          routine_date: string
+          station_id: string
+          supervisor_id: string | null
+          supervisor_name: string | null
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          routine_date: string
+          station_id: string
+          supervisor_id?: string | null
+          supervisor_name?: string | null
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          routine_date?: string
+          station_id?: string
+          supervisor_id?: string | null
+          supervisor_name?: string | null
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supervisor_routines_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

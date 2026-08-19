@@ -119,13 +119,13 @@ function replaceFormControls(root: HTMLElement, source: HTMLElement) {
       `min-height:${Math.ceil(measured)}px`,
       "height:auto",
       "max-height:none",
-      "padding:5px 7px",
+      "padding:7px 8px 10px",
       "border:1px solid #d1d5db",
       "border-radius:4px",
       "background:#ffffff",
       "color:#111827",
       "font:inherit",
-      "line-height:1.5",
+      "line-height:1.6",
       "white-space:pre-wrap",
       "overflow:visible",
       "overflow-wrap:anywhere",
@@ -231,7 +231,14 @@ export async function buildElementPdf(opts: {
   style.textContent = `
     html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: Arial, sans-serif; }
     table { border-collapse: collapse; table-layout: fixed; width: 100%; }
-    th, td { border-color: #9ca3af !important; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
+    th, td {
+      border-color: #9ca3af !important;
+      vertical-align: top;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      padding-top: 8px !important;
+      padding-bottom: 10px !important;
+    }
     .pdf-export-root, .pdf-export-root * {
       color: #111827 !important;
       background-color: #ffffff !important;
@@ -239,7 +246,7 @@ export async function buildElementPdf(opts: {
       box-shadow: none !important;
       text-shadow: none !important;
       caret-color: transparent !important;
-      line-height: 1.45 !important;
+      line-height: 1.6 !important;
       letter-spacing: normal !important;
       overflow: visible !important;
       text-overflow: clip !important;
@@ -254,7 +261,8 @@ export async function buildElementPdf(opts: {
       filter: none !important;
     }
     .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
-    .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th { page-break-inside: avoid; }
+    .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th,
+    .pdf-export-root [data-pdf-value] { page-break-inside: avoid; break-inside: avoid; }
 
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {
@@ -316,6 +324,20 @@ export async function buildElementPdf(opts: {
     });
     if (!canvas.width || !canvas.height) throw new Error("PDF rendering failed (empty canvas)");
 
+    // Map real DOM block endings to canvas pixels. Page slices should end after
+    // a complete table row or text field, never across its final line/border.
+    const cloneRect = frameClone.getBoundingClientRect();
+    const canvasRatio = canvas.height / contentHeight;
+    const safeBreaks = Array.from(
+      frameClone.querySelectorAll<HTMLElement>("tr, thead, [data-pdf-value], .pdf-title-band"),
+    )
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return Math.round((rect.bottom - cloneRect.top + 3) * canvasRatio);
+      })
+      .filter((value) => value > 0 && value < canvas.height)
+      .sort((a, b) => a - b);
+
 
     const pdf = new jsPDF(opts.orientation ?? "p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();
@@ -350,6 +372,12 @@ export async function buildElementPdf(opts: {
     const findBreak = (start: number, ideal: number) => {
       const limit = Math.min(effectiveHeight, ideal);
       const minAllowed = start + Math.floor(pxPerPage * 0.45);
+      // Prefer a measured element boundary. This is the reliable path for
+      // bordered tables where no visually blank scanline exists between rows.
+      for (let i = safeBreaks.length - 1; i >= 0; i -= 1) {
+        const candidate = safeBreaks[i];
+        if (candidate <= limit - 2 && candidate > minAllowed) return candidate;
+      }
       for (let y = limit; y > minAllowed; y -= 1) {
         if (isBlankRow(y)) return y;
       }

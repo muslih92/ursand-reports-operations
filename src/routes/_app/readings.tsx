@@ -404,6 +404,7 @@ function EntryView({
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [activeMark, setActiveMark] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -541,6 +542,16 @@ function EntryView({
     }
     return m;
   }, [data?.fields]);
+
+  const slotRecorded = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const rv of data?.entry?.reading_values ?? []) {
+      if (!rv.recorded_at) continue;
+      const cur = m[rv.time_slot];
+      if (!cur || new Date(rv.recorded_at) > new Date(cur)) m[rv.time_slot] = rv.recorded_at;
+    }
+    return m;
+  }, [data?.entry?.reading_values]);
 
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
@@ -768,7 +779,19 @@ function EntryView({
                     </th>
                     {template.time_slots.map((slot) => (
                       <th key={slot} className="w-[86px] min-w-[86px] px-2 py-2 font-medium text-center" dir="ltr">
-                        {slot}
+                        <div>{slot}</div>
+                        {slotRecorded[slot] && (
+                          <div
+                            className={`mt-0.5 text-[10px] font-semibold rounded px-1 ${
+                              isLate(slot, slotRecorded[slot])
+                                ? "bg-red-100 text-red-700"
+                                : "bg-emerald-100 text-emerald-700"
+                            }`}
+                            title={isLate(slot, slotRecorded[slot]) ? "Late entry" : "On time"}
+                          >
+                            {fmtLocalTime(slotRecorded[slot])}
+                          </div>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -855,6 +878,19 @@ function EntryView({
                                   } else if (e.key === "ArrowLeft") {
                                     if (el.selectionStart === 0) move(rowSel, -1);
                                   }
+                                }}
+                                onMouseDown={(e) => {
+                                  if (!activeMark || !canWrite) return;
+                                  e.preventDefault();
+                                  setValues((v) => {
+                                    const next = { ...v };
+                                    for (const other of fs) {
+                                      if (!other.unit) continue;
+                                      next[`${other.id}|${slot}`] = activeMark;
+                                    }
+                                    return next;
+                                  });
+                                  setActiveMark(null);
                                 }}
                                 data-slot={slot}
                                 data-row={f.id}

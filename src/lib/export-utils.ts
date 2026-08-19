@@ -216,7 +216,6 @@ export async function buildElementPdf(opts: {
       position: static !important;
       transform: none !important;
       float: none !important;
-ammer: 0;
     }
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {
@@ -227,7 +226,7 @@ ammer: 0;
       stroke: #111827 !important;
       fill: none !important;
     }
-  `.replace("ammer: 0;\n", "");
+  `;
   frameDoc.head.appendChild(style);
   frameDoc.body.appendChild(frameDoc.importNode(clone, true));
   const frameClone = frameDoc.getElementById(clone.id) as HTMLElement | null;

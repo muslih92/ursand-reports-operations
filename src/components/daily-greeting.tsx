@@ -107,8 +107,7 @@ export function DailyGreeting({ name }: { name?: string | null }) {
 
   const { msg, Icon } = greetingFor(now.getHours());
   const occasion = getOccasion(now);
-  const dayIndex = Math.floor(now.getTime() / 86_400_000);
-  const tip = SAFETY_TIPS[dayIndex % SAFETY_TIPS.length]!;
+  const tip = SAFETY_TIPS[(now.getDate() - 1) % SAFETY_TIPS.length]!;
 
   return (
     <div className="space-y-3 print:hidden">

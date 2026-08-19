@@ -413,7 +413,8 @@ function EntryView({
     if (secs.length === 0) return;
     setActiveSection((cur) => {
       if (cur && (cur === "all" || secs.some((s) => s.id === cur))) return cur;
-      const first = secs.find((s) => (data?.fieldsBySection?.[s.id]?.length ?? 0) > 0) ?? secs[0];
+      const withFields = new Set((data?.fields ?? []).map((f) => f.section_id));
+      const first = secs.find((s) => withFields.has(s.id)) ?? secs[0];
       return first.id;
     });
   }, [data]);

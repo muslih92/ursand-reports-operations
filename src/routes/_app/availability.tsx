@@ -1508,7 +1508,12 @@ async function exportAvailabilityXlsx(opts: {
 
 function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
   const { locale, dir } = useI18n();
-  const { profile } = useAuth();
+  const { profile, isAdmin, hasRole } = useAuth();
+  const { allowedStationIds, isRestricted } = useStationScope();
+  const isOperator = !isAdmin && hasRole("operator") && !hasRole("supervisor");
+  const canWriteStation = (stationId: string) =>
+    isAdmin || ((hasRole("supervisor") || hasRole("operator")) && (!isRestricted || allowedStationIds.includes(stationId)));
+  const canViewStation = (stationId: string) => !isOperator || allowedStationIds.includes(stationId);
   const qc = useQueryClient();
   const [reportDate, setReportDate] = useState(todayISO());
   const [values, setValues] = useState<Record<string, ValueDraft>>({});
@@ -1606,7 +1611,9 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
   const save = useMutation({
     mutationFn: async () => {
       if (!data || data.stations.length === 0) throw new Error(locale === "ar" ? "لا توجد محطات" : "No stations found");
-      const stationIds = Array.from(new Set(data.equipment.map((equipment) => equipment.station_id)));
+      const writableEquipment = data.equipment.filter((equipment) => canWriteStation(equipment.station_id));
+      if (writableEquipment.length === 0) throw new Error(locale === "ar" ? "لا توجد محطات مسموح لك بحفظها" : "No stations you can save");
+      const stationIds = Array.from(new Set(writableEquipment.map((equipment) => equipment.station_id)));
       const existingByStation = Object.fromEntries(data.entries.map((entry) => [entry.station_id, entry.id]));
       const entryIdByStation: Record<string, string> = { ...existingByStation };
 
@@ -1627,7 +1634,7 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
         entryIdByStation[stationId] = entry.id as string;
       }
 
-      const rows = data.equipment.map((equipment) => {
+      const rows = writableEquipment.map((equipment) => {
         const value = values[equipment.id] ?? emptyDraft();
         return {
           entry_id: entryIdByStation[equipment.station_id],
@@ -1696,8 +1703,10 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
               {line.blocks.map((block) => {
                 const station = stationByCode[block.station];
                 if (!station) return null;
+                if (!canViewStation(station.id)) return null;
                 const units = (equipmentByStation[station.id] ?? []).filter((equipment) => matchesSuffix(equipment.code, block.suffix));
                 if (units.length === 0) return null;
+                const readOnly = !canWriteStation(station.id);
                 return (
                   <div key={`${block.station}-${block.title}`} className="overflow-x-auto border">
                     <div className="flex items-center bg-sky-100 px-3 py-2 text-foreground">
@@ -1715,12 +1724,12 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
                           return (
                             <tr key={equipment.id}>
                               <td className="border p-2 text-center font-bold">{equipment.code}</td>
-                              <td className="border p-1"><textarea value={value.problem_description} onChange={(event) => updateValue(equipment.id, "problem_description", event.target.value)} className="min-h-10 w-full resize-y bg-transparent p-1" /></td>
-                              <td className="border p-1"><select value={value.status} onChange={(event) => updateValue(equipment.id, "status", event.target.value)} className={`h-10 w-full border px-2 font-bold ${statusColor(value.status)}`}>{STATUS_LIST.map((status) => <option key={status} value={status}>{statusLabel(status, locale)}</option>)}</select></td>
-                              <td className="border p-1"><input value={value.work_notification} onChange={(event) => updateValue(equipment.id, "work_notification", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
-                              <td className="border p-1"><input value={value.work_center} onChange={(event) => updateValue(equipment.id, "work_center", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
-                              <td className="border p-1"><input type="date" value={value.notification_date} onChange={(event) => updateValue(equipment.id, "notification_date", event.target.value)} className="h-10 w-full bg-transparent px-1" /></td>
-                              <td className="border p-1"><input value={value.ets} onChange={(event) => updateValue(equipment.id, "ets", event.target.value)} className="h-10 w-full bg-transparent px-2" /></td>
+                              <td className="border p-1"><textarea value={value.problem_description} onChange={(event) => updateValue(equipment.id, "problem_description", event.target.value)} disabled={readOnly} className="min-h-10 w-full resize-y bg-transparent p-1 disabled:opacity-70" /></td>
+                              <td className="border p-1"><select value={value.status} onChange={(event) => updateValue(equipment.id, "status", event.target.value)} disabled={readOnly} className={`h-10 w-full border px-2 font-bold ${statusColor(value.status)}`}>{STATUS_LIST.map((status) => <option key={status} value={status}>{statusLabel(status, locale)}</option>)}</select></td>
+                              <td className="border p-1"><input value={value.work_notification} onChange={(event) => updateValue(equipment.id, "work_notification", event.target.value)} disabled={readOnly} className="h-10 w-full bg-transparent px-2" /></td>
+                              <td className="border p-1"><input value={value.work_center} onChange={(event) => updateValue(equipment.id, "work_center", event.target.value)} disabled={readOnly} className="h-10 w-full bg-transparent px-2" /></td>
+                              <td className="border p-1"><input type="date" value={value.notification_date} onChange={(event) => updateValue(equipment.id, "notification_date", event.target.value)} disabled={readOnly} className="h-10 w-full bg-transparent px-1" /></td>
+                              <td className="border p-1"><input value={value.ets} onChange={(event) => updateValue(equipment.id, "ets", event.target.value)} disabled={readOnly} className="h-10 w-full bg-transparent px-2" /></td>
                             </tr>
                           );
                         })}

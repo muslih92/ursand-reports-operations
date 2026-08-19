@@ -342,8 +342,13 @@ export async function buildElementPdf(opts: {
       }
     };
 
+    // Trim trailing blank space so we never emit empty pages at the end.
+    let effectiveHeight = canvas.height;
+    while (effectiveHeight > 10 && isBlankRow(effectiveHeight - 1)) effectiveHeight -= 8;
+    effectiveHeight = Math.min(canvas.height, effectiveHeight + 8);
+
     const findBreak = (start: number, ideal: number) => {
-      const limit = Math.min(canvas.height, ideal);
+      const limit = Math.min(effectiveHeight, ideal);
       const minAllowed = start + Math.floor(pxPerPage * 0.45);
       for (let y = limit; y > minAllowed; y -= 1) {
         if (isBlankRow(y)) return y;
@@ -353,10 +358,11 @@ export async function buildElementPdf(opts: {
 
     let offset = 0;
     let first = true;
-    while (offset < canvas.height) {
-      const remaining = canvas.height - offset;
+    while (offset < effectiveHeight) {
+      const remaining = effectiveHeight - offset;
       const sliceH = remaining <= pxPerPage ? remaining : findBreak(offset, offset + pxPerPage) - offset;
       const safeSliceH = Math.max(1, Math.min(sliceH, remaining));
+
 
       const pageCanvas = document.createElement("canvas");
       pageCanvas.width = canvas.width;

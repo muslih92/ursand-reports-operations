@@ -570,6 +570,7 @@ export type Database = {
           entry_id: string
           field_id: string
           id: string
+          recorded_at: string | null
           status: string | null
           time_slot: string
           updated_at: string
@@ -580,6 +581,7 @@ export type Database = {
           entry_id: string
           field_id: string
           id?: string
+          recorded_at?: string | null
           status?: string | null
           time_slot: string
           updated_at?: string
@@ -590,6 +592,7 @@ export type Database = {
           entry_id?: string
           field_id?: string
           id?: string
+          recorded_at?: string | null
           status?: string | null
           time_slot?: string
           updated_at?: string

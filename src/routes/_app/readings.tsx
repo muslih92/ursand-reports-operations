@@ -704,8 +704,8 @@ function EntryView({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
+        <div className="space-y-2">
+          <div className="flex flex-col gap-1 max-w-sm">
             <label className="text-xs text-muted-foreground">
               {locale === "ar" ? "اسم المشغل" : "Operator name"}
             </label>
@@ -716,16 +716,36 @@ function EntryView({
               className="h-10 px-3 rounded-lg border bg-background text-sm"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted-foreground">
-              {locale === "ar" ? "ملاحظات" : "Notes"}
-            </label>
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={!canWrite}
-              className="h-10 px-3 rounded-lg border bg-background text-sm"
-            />
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">
+              {locale === "ar"
+                ? "اختر الحالة ثم اضغط على خانة الوقت داخل الوحدة لتطبيقها على كامل الوحدة"
+                : "Pick a status, then click a time cell inside a unit to apply it to that whole unit"}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_MARKS.map((m) => (
+                <button
+                  key={m.code}
+                  type="button"
+                  disabled={!canWrite}
+                  onClick={() => setActiveMark((cur) => (cur === m.code ? null : m.code))}
+                  className={`px-3 h-9 rounded-lg border text-sm font-semibold transition disabled:opacity-50 ${m.cls} ${
+                    activeMark === m.code ? "ring-2 ring-primary" : ""
+                  }`}
+                >
+                  {locale === "ar" ? m.ar : m.en}
+                </button>
+              ))}
+              {activeMark && (
+                <button
+                  type="button"
+                  onClick={() => setActiveMark(null)}
+                  className="px-3 h-9 rounded-lg border text-sm hover:bg-accent"
+                >
+                  {locale === "ar" ? "إلغاء التحديد" : "Clear selection"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

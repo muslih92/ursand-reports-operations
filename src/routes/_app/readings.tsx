@@ -670,9 +670,9 @@ function EntryView({
                     activeSection && activeSection !== "all"
                       ? sections.filter((s) => s.id === activeSection)
                       : sections,
-
                   fieldsBySection,
                   values,
+
 
                   date,
                   stationId,

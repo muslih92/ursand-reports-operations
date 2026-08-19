@@ -666,8 +666,11 @@ function EntryView({
                 const file = await exportReadingsXlsx({
                   locale,
                   template,
-                  sections,
-                  fieldsBySection,
+                  sections:
+                    activeSection && activeSection !== "all"
+                      ? sections.filter((s) => s.id === activeSection)
+                      : sections,
+
                   values,
                   date,
                   stationId,

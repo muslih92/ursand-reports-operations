@@ -234,6 +234,28 @@ function Dashboard() {
       return data ?? [];
     },
   });
+  const { data: routineStats } = useQuery({
+    queryKey: ["dash-routine", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("supervisor_routines")
+        .select("routine_date, items")
+        .gte("routine_date", from).lte("routine_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      let done = 0, notDone = 0, pending = 0, total = 0;
+      for (const row of data ?? []) {
+        const items = (row.items ?? []) as { status?: string }[];
+        for (const it of items) {
+          total += 1;
+          if (it.status === "done") done += 1;
+          else if (it.status === "not_done") notDone += 1;
+          else pending += 1;
+        }
+      }
+      return { done, notDone, pending, total, pct: total ? Math.round((done / total) * 100) : 0, records: (data ?? []).length };
+    },
+  });
+
 
 
   return (

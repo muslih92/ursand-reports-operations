@@ -615,14 +615,17 @@ function EntryView({
           <button
             onClick={async () => {
               try {
-                setActiveSection("all");
-                await new Promise((r) => setTimeout(r, 150));
+                const secPart =
+                  activeSection && activeSection !== "all"
+                    ? safeFilePart(sections.find((s) => s.id === activeSection)?.name_en)
+                    : "All";
                 const file = await buildElementPdf({
                   elementId: "readings-print-sheet",
-                  filename: `Readings_${safeFilePart(template.code)}_${date}.pdf`,
+                  filename: `Readings_${safeFilePart(template.code)}_${secPart}_${date}.pdf`,
                   orientation: "l",
                   minWidth: 1100,
                 });
+
                 const link = await triggerBlobDownload(file.blob, file.filename);
                 setPdfDownload((previous) => {
                   if (previous) URL.revokeObjectURL(previous.url);
@@ -663,9 +666,14 @@ function EntryView({
                 const file = await exportReadingsXlsx({
                   locale,
                   template,
-                  sections,
+                  sections:
+                    activeSection && activeSection !== "all"
+                      ? sections.filter((s) => s.id === activeSection)
+                      : sections,
                   fieldsBySection,
                   values,
+
+
                   date,
                   stationId,
                   operatorName,

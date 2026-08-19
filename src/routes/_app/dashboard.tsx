@@ -301,35 +301,6 @@ function Dashboard() {
         <StatCard icon={Zap} label={locale === "ar" ? "اختبارات مولد الطوارئ" : "Generator Tests"} value={testsKpis?.generator ?? 0} color="text-amber-600 bg-amber-100" />
       </div>
 
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title={locale === "ar" ? "القراءات المدخلة يومياً" : "Readings per day"}>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={readingsByDay ?? []}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="date" fontSize={11} />
-              <YAxis fontSize={11} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title={locale === "ar" ? "الحوادث حسب الخطورة" : "Incidents by severity"}>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={incidentsBySev ?? []} dataKey="value" nameKey="name" outerRadius={90} label>
-                {(incidentsBySev ?? []).map((e, i) => (
-                  <Cell key={i} fill={SEV_COLORS[e.name] ?? "#64748b"} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </div>
-
       <div className="rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold flex items-center gap-2">
@@ -369,6 +340,36 @@ function Dashboard() {
       </div>
 
 
+
+
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCard title={locale === "ar" ? "القراءات المدخلة يومياً" : "Readings per day"}>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={readingsByDay ?? []}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="date" fontSize={11} />
+              <YAxis fontSize={11} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title={locale === "ar" ? "الحوادث حسب الخطورة" : "Incidents by severity"}>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={incidentsBySev ?? []} dataKey="value" nameKey="name" outerRadius={90} label>
+                {(incidentsBySev ?? []).map((e, i) => (
+                  <Cell key={i} fill={SEV_COLORS[e.name] ?? "#64748b"} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title={locale === "ar" ? "التقارير اليومية للمشغلين" : "Daily operator reports"}>

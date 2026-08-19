@@ -374,7 +374,7 @@ function EntryView({
           .order("sort_order"),
         supabase
           .from("reading_entries")
-          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status)")
+          .select("id, notes, operator_name, reading_values(id, field_id, time_slot, value, status, recorded_at)")
           .eq("template_id", templateId)
           .eq("entry_date", date)
           .eq("station_id", stationId!)
@@ -389,7 +389,7 @@ function EntryView({
         sections: (sectionsRes.data ?? []) as Section[],
         fields: (fieldsRes.data ?? []) as Field[],
         entry: entryRes.data as
-          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] }
+          | { id: string; notes: string | null; operator_name: string | null; reading_values: { id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string | null }[] }
           | null,
       };
     },
@@ -474,7 +474,8 @@ function EntryView({
       const existing = new Map<string, string>(
         (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv.id]),
       );
-      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null }[] = [];
+      const nowIso = new Date().toISOString();
+      const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string }[] = [];
       const toDelete: string[] = [];
 
       const handledKeys = new Set<string>();
@@ -485,7 +486,7 @@ function EntryView({
         for (const slot of data!.template.time_slots) {
           const key = `${fieldId}|${slot}`;
           handledKeys.add(key);
-          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st });
+          toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st, recorded_at: nowIso });
         }
       }
 
@@ -502,9 +503,9 @@ function EntryView({
         }
         const num = Number(trimmed);
         if (!Number.isNaN(num) && trimmed !== "") {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null, recorded_at: nowIso });
         } else {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed, recorded_at: nowIso });
         }
       }
 

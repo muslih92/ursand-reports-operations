@@ -330,6 +330,46 @@ function Dashboard() {
         </ChartCard>
       </div>
 
+      <div className="rounded-xl border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            {locale === "ar" ? "روتين المشرفين" : "Supervisor's routine"}
+          </h3>
+          <Link to="/routine" className="text-sm text-primary hover:underline">
+            {locale === "ar" ? "عرض" : "Open"}
+          </Link>
+        </div>
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "إجمالي المهام" : "Total tasks"}</p>
+            <p className="text-2xl font-bold">{routineStats?.total ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "منجزة" : "Done"}</p>
+            <p className="text-2xl font-bold text-emerald-600">{routineStats?.done ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "غير منجزة" : "Not done"}</p>
+            <p className="text-2xl font-bold text-destructive">{routineStats?.notDone ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "نسبة الإكمال" : "Completion"}</p>
+            <p className="text-2xl font-bold text-primary">{routineStats?.pct ?? 0}%</p>
+          </div>
+        </div>
+        <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${routineStats?.pct ?? 0}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {locale === "ar"
+            ? `عدد السجلات: ${routineStats?.records ?? 0} — غير محدد: ${routineStats?.pending ?? 0}`
+            : `Records: ${routineStats?.records ?? 0} — Unmarked: ${routineStats?.pending ?? 0}`}
+        </p>
+      </div>
+
+
+
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title={locale === "ar" ? "التقارير اليومية للمشغلين" : "Daily operator reports"}>
           <ResponsiveContainer width="100%" height={240}>

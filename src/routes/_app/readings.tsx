@@ -405,6 +405,7 @@ function EntryView({
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [activeMark, setActiveMark] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string>("all");
 
   useEffect(() => {
     if (!data) return;
@@ -428,7 +429,7 @@ function EntryView({
     setValues(v);
     setStatuses(s);
     setNotes(data.entry?.notes ?? "");
-    setOperatorName(data.entry?.operator_name ?? profile?.full_name ?? "");
+    setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
     setHydrated(true);
   }, [data, profile?.full_name]);
 
@@ -453,7 +454,7 @@ function EntryView({
             station_id: stationId,
             entry_date: date,
             operator_id: profile?.id,
-            operator_name: operatorName || profile?.full_name,
+            operator_name: profile?.full_name ?? operatorName,
             notes: notes || null,
           })
           .select("id")
@@ -464,7 +465,7 @@ function EntryView({
         const { error } = await supabase
           .from("reading_entries")
           .update({
-            operator_name: operatorName || profile?.full_name,
+            operator_name: profile?.full_name ?? operatorName,
             notes: notes || null,
           })
           .eq("id", entryId);
@@ -602,6 +603,8 @@ function EntryView({
           <button
             onClick={async () => {
               try {
+                setActiveSection("all");
+                await new Promise((r) => setTimeout(r, 150));
                 const file = await buildElementPdf({
                   elementId: "readings-print-sheet",
                   filename: `Readings_${safeFilePart(template.code)}_${date}.pdf`,

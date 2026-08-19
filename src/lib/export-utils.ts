@@ -87,39 +87,61 @@ function formValue(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   return control.value || control.getAttribute("placeholder") || "—";
 }
 
-function replaceFormControls(root: HTMLElement) {
-  const controls = Array.from(root.querySelectorAll("input, textarea, select")) as Array<
+const CONTROL_SELECTOR = "input, textarea, select";
+
+/**
+ * Replaces form controls with plain text blocks.
+ * Heights are measured on the LIVE source controls (a detached clone reports 0),
+ * so long text never gets clipped or overlaps the content below it.
+ */
+function replaceFormControls(root: HTMLElement, source: HTMLElement) {
+  const clones = Array.from(root.querySelectorAll(CONTROL_SELECTOR)) as Array<
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   >;
-  for (const control of controls) {
+  const originals = Array.from(source.querySelectorAll(CONTROL_SELECTOR)) as Array<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  >;
+
+  clones.forEach((control, index) => {
+    const original = originals[index] ?? control;
     const replacement = document.createElement("div");
-    replacement.textContent = formValue(control);
+    replacement.setAttribute("data-pdf-value", "1");
+    replacement.textContent = formValue(original);
     replacement.dir = control.dir || "auto";
+    const isTextarea = control instanceof HTMLTextAreaElement;
+    const measured = isTextarea
+      ? Math.max(original.scrollHeight, original.getBoundingClientRect().height, 90)
+      : 28;
     replacement.style.cssText = [
       "box-sizing:border-box",
+      "display:block",
       "width:100%",
-      "min-height:28px",
+      `min-height:${Math.ceil(measured)}px`,
+      "height:auto",
+      "max-height:none",
       "padding:5px 7px",
       "border:1px solid #d1d5db",
       "border-radius:4px",
       "background:#ffffff",
       "color:#111827",
       "font:inherit",
+      "line-height:1.5",
       "white-space:pre-wrap",
+      "overflow:visible",
       "overflow-wrap:anywhere",
     ].join(";");
-    if (control instanceof HTMLTextAreaElement) {
-      replacement.style.minHeight = `${Math.max(control.scrollHeight, 80)}px`;
-    }
     control.replaceWith(replacement);
-  }
+  });
 }
 
 function forceCanvasSafeColors(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const element of elements) {
     const isRoot = element === root;
+    const isValueBlock = element.hasAttribute("data-pdf-value");
+    const keepStyle = isValueBlock ? element.getAttribute("style") : null;
     element.removeAttribute("style");
+    if (keepStyle) element.setAttribute("style", keepStyle);
     const tag = element.tagName.toLowerCase();
     const isTableHead = Boolean(element.closest("thead"));
     const isSectionHeader = element.className.toString().includes("pdf-title-band");
@@ -148,6 +170,15 @@ function forceCanvasSafeColors(root: HTMLElement) {
   }
 }
 
+/** Widest content inside the sheet (wide readings tables overflow their scroll box). */
+function measureContentWidth(source: HTMLElement) {
+  let widest = Math.max(source.scrollWidth, source.getBoundingClientRect().width);
+  for (const el of Array.from(source.querySelectorAll<HTMLElement>("table"))) {
+    widest = Math.max(widest, el.scrollWidth + 60);
+  }
+  return Math.ceil(widest);
+}
+
 export async function buildElementPdf(opts: {
   elementId: string;
   filename: string;
@@ -162,8 +193,7 @@ export async function buildElementPdf(opts: {
     import("jspdf"),
   ]);
 
-  const sourceRect = source.getBoundingClientRect();
-  const width = Math.max(Math.ceil(source.scrollWidth || sourceRect.width), opts.minWidth ?? 794);
+  const width = Math.max(measureContentWidth(source), opts.minWidth ?? 794);
   const clone = source.cloneNode(true) as HTMLElement;
   clone.id = `${opts.elementId}-pdf-clone`;
   clone.classList.add("pdf-export-root");
@@ -172,8 +202,10 @@ export async function buildElementPdf(opts: {
   clone.style.backgroundColor = "#ffffff";
   clone.style.color = "#111827";
   clone.style.borderColor = "#d1d5db";
-  replaceFormControls(clone);
+  for (const hidden of Array.from(clone.querySelectorAll("[data-pdf-hide]"))) hidden.remove();
+  replaceFormControls(clone, source);
   forceCanvasSafeColors(clone);
+
 
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
@@ -212,11 +244,18 @@ export async function buildElementPdf(opts: {
       overflow: visible !important;
       text-overflow: clip !important;
       white-space: normal !important;
+      height: auto !important;
       max-height: none !important;
+      -webkit-line-clamp: none !important;
       position: static !important;
       transform: none !important;
       float: none !important;
+      backdrop-filter: none !important;
+      filter: none !important;
     }
+    .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
+    .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th { page-break-inside: avoid; }
+
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {
       background-color: #eaf4fb !important;
@@ -241,17 +280,42 @@ export async function buildElementPdf(opts: {
         /* ignore font loading issues */
       }
     }
-    await new Promise((resolve) => setTimeout(resolve, 60));
-    frame.style.height = `${Math.max(frameClone.scrollHeight + 40, 1400)}px`;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const contentHeight = Math.max(frameClone.scrollHeight, frameClone.getBoundingClientRect().height, 200);
+    const contentWidth = Math.max(frameClone.scrollWidth, width);
+    frame.style.height = `${contentHeight + 40}px`;
+    frame.style.width = `${contentWidth}px`;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    // Browsers refuse to paint canvases beyond ~16k px per side / ~2^25 total px.
+    // Exceeding that limit is what produced fully blank PDF pages on long sheets.
+    const MAX_SIDE = 12000;
+    const MAX_AREA = 26_000_000;
+    const requested = Math.min(2.5, Math.max(1.6, window.devicePixelRatio || 1));
+    const scale = Math.max(
+      0.85,
+      Math.min(
+        requested,
+        MAX_SIDE / contentHeight,
+        MAX_SIDE / contentWidth,
+        Math.sqrt(MAX_AREA / (contentWidth * contentHeight)),
+      ),
+    );
+
     const canvas = await html2canvas(frameClone, {
-      scale: Math.min(3, Math.max(2, (window.devicePixelRatio || 1) * 1.5)),
+      scale,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
-      windowWidth: width,
+      width: contentWidth,
+      height: contentHeight,
+      windowWidth: contentWidth,
+      windowHeight: contentHeight + 40,
       scrollX: 0,
       scrollY: 0,
     });
+    if (!canvas.width || !canvas.height) throw new Error("PDF rendering failed (empty canvas)");
+
 
     const pdf = new jsPDF(opts.orientation ?? "p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();
@@ -278,8 +342,13 @@ export async function buildElementPdf(opts: {
       }
     };
 
+    // Trim trailing blank space so we never emit empty pages at the end.
+    let effectiveHeight = canvas.height;
+    while (effectiveHeight > 10 && isBlankRow(effectiveHeight - 1)) effectiveHeight -= 8;
+    effectiveHeight = Math.min(canvas.height, effectiveHeight + 8);
+
     const findBreak = (start: number, ideal: number) => {
-      const limit = Math.min(canvas.height, ideal);
+      const limit = Math.min(effectiveHeight, ideal);
       const minAllowed = start + Math.floor(pxPerPage * 0.45);
       for (let y = limit; y > minAllowed; y -= 1) {
         if (isBlankRow(y)) return y;
@@ -289,10 +358,11 @@ export async function buildElementPdf(opts: {
 
     let offset = 0;
     let first = true;
-    while (offset < canvas.height) {
-      const remaining = canvas.height - offset;
+    while (offset < effectiveHeight) {
+      const remaining = effectiveHeight - offset;
       const sliceH = remaining <= pxPerPage ? remaining : findBreak(offset, offset + pxPerPage) - offset;
       const safeSliceH = Math.max(1, Math.min(sliceH, remaining));
+
 
       const pageCanvas = document.createElement("canvas");
       pageCanvas.width = canvas.width;

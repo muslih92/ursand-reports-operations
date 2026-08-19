@@ -244,11 +244,18 @@ export async function buildElementPdf(opts: {
       overflow: visible !important;
       text-overflow: clip !important;
       white-space: normal !important;
+      height: auto !important;
       max-height: none !important;
+      -webkit-line-clamp: none !important;
       position: static !important;
       transform: none !important;
       float: none !important;
+      backdrop-filter: none !important;
+      filter: none !important;
     }
+    .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
+    .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th { page-break-inside: avoid; }
+
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {
       background-color: #eaf4fb !important;

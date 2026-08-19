@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { useI18n } from "@/lib/i18n";
+import { DailyGreeting } from "@/components/daily-greeting";
+
 import {
   Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
 } from "lucide-react";
@@ -236,6 +238,8 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <DailyGreeting name={profile?.full_name} />
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("dash.welcome")} {profile?.full_name}</h1>

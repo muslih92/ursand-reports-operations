@@ -280,17 +280,42 @@ export async function buildElementPdf(opts: {
         /* ignore font loading issues */
       }
     }
-    await new Promise((resolve) => setTimeout(resolve, 60));
-    frame.style.height = `${Math.max(frameClone.scrollHeight + 40, 1400)}px`;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const contentHeight = Math.max(frameClone.scrollHeight, frameClone.getBoundingClientRect().height, 200);
+    const contentWidth = Math.max(frameClone.scrollWidth, width);
+    frame.style.height = `${contentHeight + 40}px`;
+    frame.style.width = `${contentWidth}px`;
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+
+    // Browsers refuse to paint canvases beyond ~16k px per side / ~2^25 total px.
+    // Exceeding that limit is what produced fully blank PDF pages on long sheets.
+    const MAX_SIDE = 12000;
+    const MAX_AREA = 26_000_000;
+    const requested = Math.min(2.5, Math.max(1.6, window.devicePixelRatio || 1));
+    const scale = Math.max(
+      0.85,
+      Math.min(
+        requested,
+        MAX_SIDE / contentHeight,
+        MAX_SIDE / contentWidth,
+        Math.sqrt(MAX_AREA / (contentWidth * contentHeight)),
+      ),
+    );
+
     const canvas = await html2canvas(frameClone, {
-      scale: Math.min(3, Math.max(2, (window.devicePixelRatio || 1) * 1.5)),
+      scale,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
-      windowWidth: width,
+      width: contentWidth,
+      height: contentHeight,
+      windowWidth: contentWidth,
+      windowHeight: contentHeight + 40,
       scrollX: 0,
       scrollY: 0,
     });
+    if (!canvas.width || !canvas.height) throw new Error("PDF rendering failed (empty canvas)");
+
 
     const pdf = new jsPDF(opts.orientation ?? "p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();

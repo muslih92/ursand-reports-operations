@@ -234,6 +234,28 @@ function Dashboard() {
       return data ?? [];
     },
   });
+  const { data: routineStats } = useQuery({
+    queryKey: ["dash-routine", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("supervisor_routines")
+        .select("routine_date, items")
+        .gte("routine_date", from).lte("routine_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      let done = 0, notDone = 0, pending = 0, total = 0;
+      for (const row of data ?? []) {
+        const items = (row.items ?? []) as { status?: string }[];
+        for (const it of items) {
+          total += 1;
+          if (it.status === "done") done += 1;
+          else if (it.status === "not_done") notDone += 1;
+          else pending += 1;
+        }
+      }
+      return { done, notDone, pending, total, pct: total ? Math.round((done / total) * 100) : 0, records: (data ?? []).length };
+    },
+  });
+
 
 
   return (
@@ -307,6 +329,46 @@ function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
       </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            {locale === "ar" ? "روتين المشرفين" : "Supervisor's routine"}
+          </h3>
+          <Link to="/routine" className="text-sm text-primary hover:underline">
+            {locale === "ar" ? "عرض" : "Open"}
+          </Link>
+        </div>
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "إجمالي المهام" : "Total tasks"}</p>
+            <p className="text-2xl font-bold">{routineStats?.total ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "منجزة" : "Done"}</p>
+            <p className="text-2xl font-bold text-emerald-600">{routineStats?.done ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "غير منجزة" : "Not done"}</p>
+            <p className="text-2xl font-bold text-destructive">{routineStats?.notDone ?? 0}</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">{locale === "ar" ? "نسبة الإكمال" : "Completion"}</p>
+            <p className="text-2xl font-bold text-primary">{routineStats?.pct ?? 0}%</p>
+          </div>
+        </div>
+        <div className="mt-3 h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${routineStats?.pct ?? 0}%` }} />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {locale === "ar"
+            ? `عدد السجلات: ${routineStats?.records ?? 0} — غير محدد: ${routineStats?.pending ?? 0}`
+            : `Records: ${routineStats?.records ?? 0} — Unmarked: ${routineStats?.pending ?? 0}`}
+        </p>
+      </div>
+
+
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard title={locale === "ar" ? "التقارير اليومية للمشغلين" : "Daily operator reports"}>

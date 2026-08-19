@@ -198,8 +198,8 @@ export async function buildElementPdf(opts: {
   const style = frameDoc.createElement("style");
   style.textContent = `
     html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: Arial, sans-serif; }
-    table { border-collapse: collapse; }
-    th, td { border-color: #9ca3af !important; }
+    table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+    th, td { border-color: #9ca3af !important; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
     .pdf-export-root, .pdf-export-root * {
       color: #111827 !important;
       background-color: #ffffff !important;
@@ -207,6 +207,15 @@ export async function buildElementPdf(opts: {
       box-shadow: none !important;
       text-shadow: none !important;
       caret-color: transparent !important;
+      line-height: 1.45 !important;
+      letter-spacing: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
+      max-height: none !important;
+      position: static !important;
+      transform: none !important;
+      float: none !important;
     }
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {
@@ -225,9 +234,17 @@ export async function buildElementPdf(opts: {
 
   try {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    if (frameDoc.fonts?.ready) {
+      try {
+        await frameDoc.fonts.ready;
+      } catch {
+        /* ignore font loading issues */
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 60));
     frame.style.height = `${Math.max(frameClone.scrollHeight + 40, 1400)}px`;
     const canvas = await html2canvas(frameClone, {
-      scale: 2,
+      scale: Math.min(3, Math.max(2, (window.devicePixelRatio || 1) * 1.5)),
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
@@ -235,23 +252,71 @@ export async function buildElementPdf(opts: {
       scrollX: 0,
       scrollY: 0,
     });
-    const imgData = canvas.toDataURL("image/png");
+
     const pdf = new jsPDF(opts.orientation ?? "p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const margin = 8;
     const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    let heightLeft = imgH;
-    let position = margin;
+    const usableH = pageH - margin * 2;
+    // how many canvas pixels fit on one PDF page
+    const pxPerPage = Math.floor((usableH * canvas.width) / imgW);
 
-    pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-    heightLeft -= pageH - margin * 2;
-    while (heightLeft > 0) {
-      position = margin - (imgH - heightLeft);
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-      heightLeft -= pageH - margin * 2;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    // Detect rows that are visually "empty" so we never cut through a line of text.
+    const isBlankRow = (y: number) => {
+      if (!ctx) return true;
+      try {
+        const data = ctx.getImageData(0, y, canvas.width, 1).data;
+        for (let i = 0; i < data.length; i += 4 * 4) {
+          if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) return false;
+        }
+        return true;
+      } catch {
+        return true;
+      }
+    };
+
+    const findBreak = (start: number, ideal: number) => {
+      const limit = Math.min(canvas.height, ideal);
+      const minAllowed = start + Math.floor(pxPerPage * 0.45);
+      for (let y = limit; y > minAllowed; y -= 1) {
+        if (isBlankRow(y)) return y;
+      }
+      return limit;
+    };
+
+    let offset = 0;
+    let first = true;
+    while (offset < canvas.height) {
+      const remaining = canvas.height - offset;
+      const sliceH = remaining <= pxPerPage ? remaining : findBreak(offset, offset + pxPerPage) - offset;
+      const safeSliceH = Math.max(1, Math.min(sliceH, remaining));
+
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = safeSliceH;
+      const pageCtx = pageCanvas.getContext("2d");
+      if (pageCtx) {
+        pageCtx.fillStyle = "#ffffff";
+        pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        pageCtx.drawImage(canvas, 0, offset, canvas.width, safeSliceH, 0, 0, canvas.width, safeSliceH);
+      }
+
+      if (!first) pdf.addPage();
+      first = false;
+      pdf.addImage(
+        pageCanvas.toDataURL("image/png"),
+        "PNG",
+        margin,
+        margin,
+        imgW,
+        (safeSliceH * imgW) / canvas.width,
+        undefined,
+        "FAST",
+      );
+      offset += safeSliceH;
     }
 
     return { blob: withMimeType(pdf.output("blob"), PDF_MIME), filename: ensureFileExtension(opts.filename, ".pdf") };

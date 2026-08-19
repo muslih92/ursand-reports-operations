@@ -722,9 +722,9 @@ function EntryView({
             </label>
             <input
               value={operatorName}
-              onChange={(e) => setOperatorName(e.target.value)}
-              disabled={!canWrite}
-              className="h-10 px-3 rounded-lg border bg-background text-sm"
+              readOnly
+              disabled
+              className="h-10 px-3 rounded-lg border bg-muted/40 text-sm cursor-not-allowed"
             />
           </div>
           <div className="space-y-1">
@@ -760,9 +760,28 @@ function EntryView({
           </div>
         </div>
 
+        <div className="sticky top-0 z-30 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-card/95 backdrop-blur border-y flex flex-wrap items-center gap-3">
+          <label className="text-sm font-semibold shrink-0">
+            {locale === "ar" ? "النظام" : "System"}
+          </label>
+          <select
+            value={activeSection}
+            onChange={(e) => setActiveSection(e.target.value)}
+            className="flex-1 min-w-[200px] h-10 px-3 rounded-lg border bg-background text-sm font-medium"
+          >
+            <option value="all">{locale === "ar" ? "كل الأنظمة" : "All systems"}</option>
+            {sections.map((s) => (
+              <option key={s.id} value={s.id}>
+                {locale === "ar" ? s.name_ar : s.name_en}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {sections.map((sec) => {
         const fs = fieldsBySection[sec.id] ?? [];
         if (fs.length === 0) return null;
+        if (activeSection !== "all" && activeSection !== sec.id) return null;
         return (
           <div key={sec.id} className="rounded-xl border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b bg-primary/10">
@@ -770,6 +789,7 @@ function EntryView({
                 {locale === "ar" ? sec.name_ar : sec.name_en}
               </h2>
             </div>
+
             <div className="overflow-auto">
               <table className="w-max min-w-full table-fixed text-sm" dir={dir}>
                 <thead className="bg-muted/20">

@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppStationsRouteImport } from './routes/_app/stations'
+import { Route as AppRoutineRouteImport } from './routes/_app/routine'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
@@ -51,6 +52,11 @@ const AppTemplatesRoute = AppTemplatesRouteImport.update({
 const AppStationsRoute = AppStationsRouteImport.update({
   id: '/stations',
   path: '/stations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoutineRoute = AppRoutineRouteImport.update({
+  id: '/routine',
+  path: '/routine',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
+  '/routine': typeof AppRoutineRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/incidents': typeof AppIncidentsRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
+  '/routine': typeof AppRoutineRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/users': typeof AppUsersRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
+  '/_app/routine': typeof AppRoutineRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
   '/_app/users': typeof AppUsersRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/readings'
     | '/reports'
+    | '/routine'
     | '/stations'
     | '/templates'
     | '/users'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/readings'
     | '/reports'
+    | '/routine'
     | '/stations'
     | '/templates'
     | '/users'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/_app/incidents'
     | '/_app/readings'
     | '/_app/reports'
+    | '/_app/routine'
     | '/_app/stations'
     | '/_app/templates'
     | '/_app/users'
@@ -240,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/stations'
       fullPath: '/stations'
       preLoaderRoute: typeof AppStationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/routine': {
+      id: '/_app/routine'
+      path: '/routine'
+      fullPath: '/routine'
+      preLoaderRoute: typeof AppRoutineRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reports': {
@@ -309,6 +328,7 @@ interface AppRouteChildren {
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppRoutineRoute: typeof AppRoutineRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
   AppUsersRoute: typeof AppUsersRoute
@@ -322,6 +342,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIncidentsRoute: AppIncidentsRoute,
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,
+  AppRoutineRoute: AppRoutineRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
   AppUsersRoute: AppUsersRoute,

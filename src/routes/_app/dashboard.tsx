@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { useI18n } from "@/lib/i18n";
+import { DailyGreeting } from "@/components/daily-greeting";
+
 import {
   Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
 } from "lucide-react";

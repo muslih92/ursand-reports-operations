@@ -87,6 +87,31 @@ function statusLabel(token: string, locale: "ar" | "en"): string {
   };
   return m[token]?.[locale] ?? token;
 }
+// Quick status marks applied to a whole unit at a given time slot
+const QUICK_MARKS = [
+  { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300" },
+  { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300" },
+  { code: "BUSY", ar: "مشغول", en: "Busy", cls: "bg-blue-100 text-blue-800 border-blue-300" },
+  { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400" },
+] as const;
+
+// Allowed delay (minutes) after the scheduled slot before the actual entry time is flagged
+const LATE_LIMIT_MIN = 90;
+
+function slotToMinutes(slot: string): number {
+  const [h, m] = slot.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+function fmtLocalTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function isLate(slot: string, iso: string): boolean {
+  const d = new Date(iso);
+  const actual = d.getHours() * 60 + d.getMinutes();
+  return actual - slotToMinutes(slot) > LATE_LIMIT_MIN;
+}
+
 function statusClass(token: string): string {
   switch (token) {
     case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";

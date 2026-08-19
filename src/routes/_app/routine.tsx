@@ -208,7 +208,7 @@ function RoutinePage() {
         weekday,
         supervisor_id: user?.id ?? null,
         supervisor_name: profile?.full_name ?? null,
-        items: items as unknown as object,
+        items: items as unknown as never,
         notes: notes || null,
         created_by: user?.id ?? null,
       };

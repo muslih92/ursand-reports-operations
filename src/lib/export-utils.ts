@@ -87,39 +87,61 @@ function formValue(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectE
   return control.value || control.getAttribute("placeholder") || "—";
 }
 
-function replaceFormControls(root: HTMLElement) {
-  const controls = Array.from(root.querySelectorAll("input, textarea, select")) as Array<
+const CONTROL_SELECTOR = "input, textarea, select";
+
+/**
+ * Replaces form controls with plain text blocks.
+ * Heights are measured on the LIVE source controls (a detached clone reports 0),
+ * so long text never gets clipped or overlaps the content below it.
+ */
+function replaceFormControls(root: HTMLElement, source: HTMLElement) {
+  const clones = Array.from(root.querySelectorAll(CONTROL_SELECTOR)) as Array<
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   >;
-  for (const control of controls) {
+  const originals = Array.from(source.querySelectorAll(CONTROL_SELECTOR)) as Array<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  >;
+
+  clones.forEach((control, index) => {
+    const original = originals[index] ?? control;
     const replacement = document.createElement("div");
-    replacement.textContent = formValue(control);
+    replacement.setAttribute("data-pdf-value", "1");
+    replacement.textContent = formValue(original);
     replacement.dir = control.dir || "auto";
+    const isTextarea = control instanceof HTMLTextAreaElement;
+    const measured = isTextarea
+      ? Math.max(original.scrollHeight, original.getBoundingClientRect().height, 90)
+      : 28;
     replacement.style.cssText = [
       "box-sizing:border-box",
+      "display:block",
       "width:100%",
-      "min-height:28px",
+      `min-height:${Math.ceil(measured)}px`,
+      "height:auto",
+      "max-height:none",
       "padding:5px 7px",
       "border:1px solid #d1d5db",
       "border-radius:4px",
       "background:#ffffff",
       "color:#111827",
       "font:inherit",
+      "line-height:1.5",
       "white-space:pre-wrap",
+      "overflow:visible",
       "overflow-wrap:anywhere",
     ].join(";");
-    if (control instanceof HTMLTextAreaElement) {
-      replacement.style.minHeight = `${Math.max(control.scrollHeight, 80)}px`;
-    }
     control.replaceWith(replacement);
-  }
+  });
 }
 
 function forceCanvasSafeColors(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const element of elements) {
     const isRoot = element === root;
+    const isValueBlock = element.hasAttribute("data-pdf-value");
+    const keepStyle = isValueBlock ? element.getAttribute("style") : null;
     element.removeAttribute("style");
+    if (keepStyle) element.setAttribute("style", keepStyle);
     const tag = element.tagName.toLowerCase();
     const isTableHead = Boolean(element.closest("thead"));
     const isSectionHeader = element.className.toString().includes("pdf-title-band");
@@ -148,6 +170,15 @@ function forceCanvasSafeColors(root: HTMLElement) {
   }
 }
 
+/** Widest content inside the sheet (wide readings tables overflow their scroll box). */
+function measureContentWidth(source: HTMLElement) {
+  let widest = Math.max(source.scrollWidth, source.getBoundingClientRect().width);
+  for (const el of Array.from(source.querySelectorAll<HTMLElement>("table"))) {
+    widest = Math.max(widest, el.scrollWidth + 60);
+  }
+  return Math.ceil(widest);
+}
+
 export async function buildElementPdf(opts: {
   elementId: string;
   filename: string;
@@ -162,8 +193,7 @@ export async function buildElementPdf(opts: {
     import("jspdf"),
   ]);
 
-  const sourceRect = source.getBoundingClientRect();
-  const width = Math.max(Math.ceil(source.scrollWidth || sourceRect.width), opts.minWidth ?? 794);
+  const width = Math.max(measureContentWidth(source), opts.minWidth ?? 794);
   const clone = source.cloneNode(true) as HTMLElement;
   clone.id = `${opts.elementId}-pdf-clone`;
   clone.classList.add("pdf-export-root");
@@ -172,8 +202,10 @@ export async function buildElementPdf(opts: {
   clone.style.backgroundColor = "#ffffff";
   clone.style.color = "#111827";
   clone.style.borderColor = "#d1d5db";
-  replaceFormControls(clone);
+  for (const hidden of Array.from(clone.querySelectorAll("[data-pdf-hide]"))) hidden.remove();
+  replaceFormControls(clone, source);
   forceCanvasSafeColors(clone);
+
 
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");

@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
+import { Route as AppTrendsRouteImport } from './routes/_app/trends'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppRoutineRouteImport } from './routes/_app/routine'
@@ -42,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrendsRoute = AppTrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/routine': typeof AppRoutineRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/routine': typeof AppRoutineRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_app/routine': typeof AppRoutineRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/_app/trends': typeof AppTrendsRoute
   '/_app/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/routine'
     | '/stations'
     | '/templates'
+    | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
   fileRoutesByTo: FileRoutesByTo
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/routine'
     | '/stations'
     | '/templates'
+    | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
   id:
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_app/routine'
     | '/_app/stations'
     | '/_app/templates'
+    | '/_app/trends'
     | '/_app/users'
     | '/api/public/admin-set-password'
   fileRoutesById: FileRoutesById
@@ -238,6 +250,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trends': {
+      id: '/_app/trends'
+      path: '/trends'
+      fullPath: '/trends'
+      preLoaderRoute: typeof AppTrendsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/templates': {
@@ -331,6 +350,7 @@ interface AppRouteChildren {
   AppRoutineRoute: typeof AppRoutineRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
+  AppTrendsRoute: typeof AppTrendsRoute
   AppUsersRoute: typeof AppUsersRoute
 }
 
@@ -345,6 +365,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRoutineRoute: AppRoutineRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
+  AppTrendsRoute: AppTrendsRoute,
   AppUsersRoute: AppUsersRoute,
 }
 

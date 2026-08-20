@@ -269,8 +269,8 @@ export async function buildElementPdf(opts: {
       background-color: #eaf4fb !important;
       color: #0f4c75 !important;
     }
-    .pdf-export-root svg:not(.recharts-surface):not(.recharts-surface *),
-    .pdf-export-root svg:not(.recharts-surface) *:not(.recharts-surface *) {
+    .pdf-export-root svg:not(.recharts-surface),
+    .pdf-export-root svg:not(.recharts-surface) * {
       stroke: #111827 !important;
       fill: none !important;
     }

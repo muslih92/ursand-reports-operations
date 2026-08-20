@@ -138,6 +138,8 @@ function forceCanvasSafeColors(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const element of elements) {
     const isRoot = element === root;
+    // Leave chart internals untouched so recharts keeps its line colors and text fills.
+    if (!isRoot && element.closest?.(".recharts-wrapper")) continue;
     const isValueBlock = element.hasAttribute("data-pdf-value");
     const keepStyle = isValueBlock ? element.getAttribute("style") : null;
     element.removeAttribute("style");
@@ -269,9 +271,18 @@ export async function buildElementPdf(opts: {
       background-color: #eaf4fb !important;
       color: #0f4c75 !important;
     }
-    .pdf-export-root svg, .pdf-export-root svg * {
+    .pdf-export-root svg:not(.recharts-surface),
+    .pdf-export-root svg:not(.recharts-surface) * {
       stroke: #111827 !important;
       fill: none !important;
+    }
+    /* Charts keep their own colors: recharts paints lines via stroke and
+       axis/legend text via fill attributes. */
+    .pdf-export-root .recharts-wrapper,
+    .pdf-export-root .recharts-wrapper * {
+      stroke: revert !important;
+      fill: revert !important;
+      color: revert !important;
     }
   `;
   frameDoc.head.appendChild(style);

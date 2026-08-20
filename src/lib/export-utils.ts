@@ -138,6 +138,8 @@ function forceCanvasSafeColors(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const element of elements) {
     const isRoot = element === root;
+    // Leave chart internals untouched so recharts keeps its line colors and text fills.
+    if (!isRoot && element.closest?.(".recharts-wrapper")) continue;
     const isValueBlock = element.hasAttribute("data-pdf-value");
     const keepStyle = isValueBlock ? element.getAttribute("style") : null;
     element.removeAttribute("style");

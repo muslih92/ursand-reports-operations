@@ -644,6 +644,134 @@ export type Database = {
           },
         ]
       }
+      scada_parameters: {
+        Row: {
+          active: boolean
+          created_at: string
+          equipment_no: number
+          equipment_type: string
+          group_key: string
+          hh: number | null
+          hi: number | null
+          id: string
+          limit_mode: string
+          ll: number | null
+          lo: number | null
+          max_value: number | null
+          min_value: number | null
+          name_ar: string | null
+          name_en: string
+          param_key: string
+          reference_value: number | null
+          scada_tag: string | null
+          sort_order: number
+          station_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          equipment_no?: number
+          equipment_type?: string
+          group_key: string
+          hh?: number | null
+          hi?: number | null
+          id?: string
+          limit_mode?: string
+          ll?: number | null
+          lo?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          name_ar?: string | null
+          name_en: string
+          param_key: string
+          reference_value?: number | null
+          scada_tag?: string | null
+          sort_order?: number
+          station_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          equipment_no?: number
+          equipment_type?: string
+          group_key?: string
+          hh?: number | null
+          hi?: number | null
+          id?: string
+          limit_mode?: string
+          ll?: number | null
+          lo?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          name_ar?: string | null
+          name_en?: string
+          param_key?: string
+          reference_value?: number | null
+          scada_tag?: string | null
+          sort_order?: number
+          station_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scada_parameters_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scada_samples: {
+        Row: {
+          created_at: string
+          id: string
+          parameter_id: string
+          recorded_by: string | null
+          station_id: string
+          ts: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parameter_id: string
+          recorded_by?: string | null
+          station_id: string
+          ts?: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parameter_id?: string
+          recorded_by?: string | null
+          station_id?: string
+          ts?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scada_samples_parameter_id_fkey"
+            columns: ["parameter_id"]
+            isOneToOne: false
+            referencedRelation: "scada_parameters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scada_samples_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_reports: {
         Row: {
           created_at: string

@@ -144,6 +144,7 @@ function ReadingsPage() {
         stationId={stationId}
         canPickStation={canPickStation}
         onSelect={(id) => setSearch({ template: id, date, station: stationId })}
+        onOpenEntry={(tpl, d, st) => setSearch({ template: tpl, date: d, station: st })}
         onDate={(d) => setSearch({ date: d })}
         onStation={(s) => setSearch({ station: s })}
       />
@@ -166,6 +167,7 @@ function ListView({
   stationId,
   canPickStation,
   onSelect,
+  onOpenEntry,
   onDate,
   onStation,
 }: {
@@ -173,12 +175,56 @@ function ListView({
   stationId: string | undefined;
   canPickStation: boolean;
   onSelect: (id: string) => void;
+  onOpenEntry: (templateId: string, date: string, stationId: string) => void;
   onDate: (d: string) => void;
   onStation: (s: string) => void;
 }) {
   const { locale, t, dir } = useI18n();
+  const [showNew, setShowNew] = useState(false);
 
   const { data: stations } = useScopedStations();
+
+  // Saved reading records (most recent first) — visible immediately on open
+  const { data: recent, isLoading: recentLoading } = useQuery({
+    queryKey: ["reading-records", stationId ?? "all"],
+    queryFn: async () => {
+      let q = supabase
+        .from("reading_entries")
+        .select("id, entry_date, template_id, station_id, operator_name")
+        .order("entry_date", { ascending: false })
+        .limit(60);
+      if (stationId) q = q.eq("station_id", stationId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        entry_date: string;
+        template_id: string;
+        station_id: string;
+        operator_name: string | null;
+      }[];
+    },
+  });
+
+  const { data: allTemplates } = useQuery({
+    queryKey: ["templates", "all-names"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reading_templates")
+        .select("id, code, name_en, name_ar");
+      if (error) throw error;
+      return data as { id: string; code: string; name_en: string; name_ar: string }[];
+    },
+  });
+
+  const tplById = useMemo(
+    () => Object.fromEntries((allTemplates ?? []).map((t2) => [t2.id, t2])),
+    [allTemplates],
+  );
+  const stById = useMemo(
+    () => Object.fromEntries((stations ?? []).map((s) => [s.id, s])),
+    [stations],
+  );
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["templates", "active", stationId ?? "all"],
@@ -219,15 +265,28 @@ function ListView({
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-primary" />
-            {t("nav.readings")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {locale === "ar" ? "اختر القالب لإدخال قراءات اليوم" : "Pick a template to enter today's readings"}
-          </p>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ClipboardList className="h-6 w-6 text-primary" />
+              {t("nav.readings")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {locale === "ar"
+                ? "السجلات المحفوظة — اضغط على أي سجل لفتحه"
+                : "Saved records — click any record to open it"}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowNew((v) => !v)}
+            className="ms-auto h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+          >
+            {showNew
+              ? locale === "ar" ? "إخفاء" : "Hide"
+              : locale === "ar" ? "+ قراءة جديدة" : "+ New reading"}
+          </button>
         </div>
+
 
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex flex-col gap-1">
@@ -262,7 +321,54 @@ function ListView({
         </div>
       </div>
 
-      {!stationId ? (
+      {/* Saved records list */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b text-sm font-semibold">
+          {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+        </div>
+        {recentLoading ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
+        ) : (recent ?? []).length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">
+            {locale === "ar" ? "لا توجد سجلات بعد" : "No records yet"}
+          </div>
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs">
+                <tr>
+                  <th className="px-3 py-2 text-start">{t("common.date")}</th>
+                  <th className="px-3 py-2 text-start">{t("common.station")}</th>
+                  <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
+                  <th className="px-3 py-2 text-start">{locale === "ar" ? "بواسطة" : "By"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(recent ?? []).map((r) => {
+                  const tpl = tplById[r.template_id];
+                  const st = stById[r.station_id];
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => onOpenEntry(r.template_id, r.entry_date, r.station_id)}
+                      className="border-t cursor-pointer hover:bg-accent/50"
+                    >
+                      <td className="px-3 py-2 whitespace-nowrap" dir="ltr">{r.entry_date}</td>
+                      <td className="px-3 py-2">{st ? st.code : "—"}</td>
+                      <td className="px-3 py-2">
+                        {tpl ? (locale === "ar" ? tpl.name_ar : tpl.name_en) : "—"}
+                      </td>
+                      <td className="px-3 py-2">{r.operator_name ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {!showNew ? null : !stationId ? (
         <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
           {locale === "ar" ? "اختر محطة للمتابعة" : "Pick a station to continue"}
         </div>

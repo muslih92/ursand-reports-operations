@@ -144,6 +144,7 @@ function ReadingsPage() {
         stationId={stationId}
         canPickStation={canPickStation}
         onSelect={(id) => setSearch({ template: id, date, station: stationId })}
+        onOpenEntry={(tpl, d, st) => setSearch({ template: tpl, date: d, station: st })}
         onDate={(d) => setSearch({ date: d })}
         onStation={(s) => setSearch({ station: s })}
       />

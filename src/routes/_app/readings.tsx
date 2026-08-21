@@ -181,6 +181,9 @@ function ListView({
 }) {
   const { locale, t, dir } = useI18n();
   const [showNew, setShowNew] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+
 
   const { data: stations } = useScopedStations();
 

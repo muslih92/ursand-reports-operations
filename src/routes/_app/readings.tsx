@@ -167,6 +167,7 @@ function ListView({
   stationId,
   canPickStation,
   onSelect,
+  onOpenEntry,
   onDate,
   onStation,
 }: {
@@ -174,12 +175,56 @@ function ListView({
   stationId: string | undefined;
   canPickStation: boolean;
   onSelect: (id: string) => void;
+  onOpenEntry: (templateId: string, date: string, stationId: string) => void;
   onDate: (d: string) => void;
   onStation: (s: string) => void;
 }) {
   const { locale, t, dir } = useI18n();
+  const [showNew, setShowNew] = useState(false);
 
   const { data: stations } = useScopedStations();
+
+  // Saved reading records (most recent first) — visible immediately on open
+  const { data: recent, isLoading: recentLoading } = useQuery({
+    queryKey: ["reading-records", stationId ?? "all"],
+    queryFn: async () => {
+      let q = supabase
+        .from("reading_entries")
+        .select("id, entry_date, template_id, station_id, operator_name")
+        .order("entry_date", { ascending: false })
+        .limit(60);
+      if (stationId) q = q.eq("station_id", stationId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        entry_date: string;
+        template_id: string;
+        station_id: string;
+        operator_name: string | null;
+      }[];
+    },
+  });
+
+  const { data: allTemplates } = useQuery({
+    queryKey: ["templates", "all-names"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reading_templates")
+        .select("id, code, name_en, name_ar");
+      if (error) throw error;
+      return data as { id: string; code: string; name_en: string; name_ar: string }[];
+    },
+  });
+
+  const tplById = useMemo(
+    () => Object.fromEntries((allTemplates ?? []).map((t2) => [t2.id, t2])),
+    [allTemplates],
+  );
+  const stById = useMemo(
+    () => Object.fromEntries((stations ?? []).map((s) => [s.id, s])),
+    [stations],
+  );
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ["templates", "active", stationId ?? "all"],

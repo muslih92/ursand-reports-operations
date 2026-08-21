@@ -112,6 +112,29 @@ function isLate(slot: string, iso: string): boolean {
   return actual - slotToMinutes(slot) > LATE_LIMIT_MIN;
 }
 
+/* ---- 12-hour shift lock (operators) ----
+   Day shift 06:00–18:00, night shift 18:00–06:00 (next day).
+   A time slot stays editable only until the end of the shift it belongs to. */
+function shiftEnd(entryDate: string, slot: string): Date {
+  const [y, m, d] = entryDate.split("-").map(Number);
+  const mins = slotToMinutes(slot);
+  const base = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+  if (mins < 6 * 60) {
+    // belongs to the night shift that started the previous evening → ends today 06:00
+    base.setHours(6, 0, 0, 0);
+  } else if (mins < 18 * 60) {
+    base.setHours(18, 0, 0, 0);
+  } else {
+    base.setDate(base.getDate() + 1);
+    base.setHours(6, 0, 0, 0);
+  }
+  return base;
+}
+function isSlotLocked(entryDate: string, slot: string, now: Date = new Date()): boolean {
+  return now.getTime() >= shiftEnd(entryDate, slot).getTime();
+}
+
+
 function statusClass(token: string): string {
   switch (token) {
     case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";
@@ -524,6 +547,10 @@ function EntryView({
     isAdmin ||
     hasRole("supervisor") ||
     (hasRole("operator") && stationId === profile?.station_id);
+  // Operators lose edit access to a time slot once its 12-hour shift is over
+  const shiftLockActive = !isAdmin && !hasRole("supervisor");
+  const slotLocked = (slot: string) => shiftLockActive && isSlotLocked(date, slot);
+  const cellWritable = (slot: string) => canWrite && !slotLocked(slot);
 
   const { data, isLoading } = useQuery({
     queryKey: ["reading-entry", templateId, date, stationId ?? "none"],
@@ -673,6 +700,7 @@ function EntryView({
         for (const slot of data!.template.time_slots) {
           const key = `${fieldId}|${slot}`;
           handledKeys.add(key);
+          if (slotLocked(slot)) continue;
           toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st, recorded_at: nowIso });
         }
       }
@@ -682,6 +710,7 @@ function EntryView({
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
         if (statuses[field_id]) continue;
+        if (slotLocked(time_slot)) continue; // shift closed → not editable
         const trimmed = raw.trim();
         if (trimmed === "") {
           const id = existing.get(key);
@@ -903,6 +932,15 @@ function EntryView({
         </div>
       )}
 
+      {canWrite && shiftLockActive && template && template.time_slots.some((s) => slotLocked(s)) && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+          {locale === "ar"
+            ? "بعض الأوقات مقفلة لانتهاء ورديتها (١٢ ساعة). يمكنك إدخال قراءات وردتيك الحالية فقط."
+            : "Some time slots are locked because their 12-hour shift has ended. You can only enter readings for your current shift."}
+        </div>
+      )}
+
+
       <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
         <div className="text-center">
           <h2 className="text-xl font-bold">{locale === "ar" ? template.name_ar : template.name_en}</h2>
@@ -1096,7 +1134,7 @@ function EntryView({
                                   }
                                 }}
                                 onMouseDown={(e) => {
-                                  if (!activeMark || !canWrite) return;
+                                  if (!activeMark || !cellWritable(slot)) return;
                                   e.preventDefault();
                                   setValues((v) => {
                                     const next = { ...v };
@@ -1111,10 +1149,20 @@ function EntryView({
                                 data-slot={slot}
                                 data-row={f.id}
 
-                                disabled={!canWrite}
-                                className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                disabled={!cellWritable(slot)}
+                                title={
+                                  slotLocked(slot)
+                                    ? locale === "ar"
+                                      ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
+                                      : "Locked: this shift has ended"
+                                    : undefined
+                                }
+                                className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                                  slotLocked(slot) ? "bg-muted/60 cursor-not-allowed" : "bg-background"
+                                }`}
                                 dir="ltr"
                               />
+
 
                             </td>
                           );

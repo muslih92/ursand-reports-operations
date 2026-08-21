@@ -112,6 +112,29 @@ function isLate(slot: string, iso: string): boolean {
   return actual - slotToMinutes(slot) > LATE_LIMIT_MIN;
 }
 
+/* ---- 12-hour shift lock (operators) ----
+   Day shift 06:00–18:00, night shift 18:00–06:00 (next day).
+   A time slot stays editable only until the end of the shift it belongs to. */
+function shiftEnd(entryDate: string, slot: string): Date {
+  const [y, m, d] = entryDate.split("-").map(Number);
+  const mins = slotToMinutes(slot);
+  const base = new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+  if (mins < 6 * 60) {
+    // belongs to the night shift that started the previous evening → ends today 06:00
+    base.setHours(6, 0, 0, 0);
+  } else if (mins < 18 * 60) {
+    base.setHours(18, 0, 0, 0);
+  } else {
+    base.setDate(base.getDate() + 1);
+    base.setHours(6, 0, 0, 0);
+  }
+  return base;
+}
+function isSlotLocked(entryDate: string, slot: string, now: Date = new Date()): boolean {
+  return now.getTime() >= shiftEnd(entryDate, slot).getTime();
+}
+
+
 function statusClass(token: string): string {
   switch (token) {
     case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";

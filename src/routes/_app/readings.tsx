@@ -932,6 +932,15 @@ function EntryView({
         </div>
       )}
 
+      {canWrite && shiftLockActive && template && template.time_slots.some((s) => slotLocked(s)) && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs">
+          {locale === "ar"
+            ? "بعض الأوقات مقفلة لانتهاء ورديتها (١٢ ساعة). يمكنك إدخال قراءات وردتيك الحالية فقط."
+            : "Some time slots are locked because their 12-hour shift has ended. You can only enter readings for your current shift."}
+        </div>
+      )}
+
+
       <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
         <div className="text-center">
           <h2 className="text-xl font-bold">{locale === "ar" ? template.name_ar : template.name_en}</h2>

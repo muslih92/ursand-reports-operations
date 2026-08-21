@@ -181,6 +181,9 @@ function ListView({
 }) {
   const { locale, t, dir } = useI18n();
   const [showNew, setShowNew] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+
 
   const { data: stations } = useScopedStations();
 
@@ -323,8 +326,48 @@ function ListView({
 
       {/* Saved records list */}
       <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b text-sm font-semibold">
-          {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+        <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold">
+            {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {selected.size > 0
+              ? locale === "ar" ? `${selected.size} محدد` : `${selected.size} selected`
+              : locale === "ar" ? "حدد السجلات لتصديرها" : "Select records to export"}
+          </span>
+          <button
+            disabled={selected.size === 0 || exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const rows = (recent ?? []).filter((r) => selected.has(r.id));
+                const { blob, filename } = await exportSelectedReadingsXlsx({
+                  locale,
+                  entries: rows.map((r) => ({
+                    ...r,
+                    stationCode: stById[r.station_id]?.code ?? "",
+                    templateName: tplById[r.template_id]
+                      ? locale === "ar"
+                        ? tplById[r.template_id].name_ar
+                        : tplById[r.template_id].name_en
+                      : "",
+                  })),
+                });
+                await triggerBlobDownload(blob, filename);
+                toast.success(locale === "ar" ? "تم تصدير ملف Excel" : "Excel exported");
+              } catch (e) {
+                toast.error((e as Error).message);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className="ms-auto h-9 px-3 rounded-lg border text-sm inline-flex items-center gap-2 disabled:opacity-50 hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting
+              ? locale === "ar" ? "جارٍ التصدير…" : "Exporting…"
+              : locale === "ar" ? "تصدير Excel للمحدد" : "Export selected to Excel"}
+          </button>
         </div>
         {recentLoading ? (
           <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
@@ -337,6 +380,15 @@ function ListView({
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs">
                 <tr>
+                  <th className="px-3 py-2 w-10">
+                    <input
+                      type="checkbox"
+                      checked={(recent ?? []).length > 0 && selected.size === (recent ?? []).length}
+                      onChange={(e) =>
+                        setSelected(e.target.checked ? new Set((recent ?? []).map((r) => r.id)) : new Set())
+                      }
+                    />
+                  </th>
                   <th className="px-3 py-2 text-start">{t("common.date")}</th>
                   <th className="px-3 py-2 text-start">{t("common.station")}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
@@ -353,6 +405,20 @@ function ListView({
                       onClick={() => onOpenEntry(r.template_id, r.entry_date, r.station_id)}
                       className="border-t cursor-pointer hover:bg-accent/50"
                     >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(r.id)}
+                          onChange={(e) =>
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                              return next;
+                            })
+                          }
+                        />
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">{r.entry_date}</td>
                       <td className="px-3 py-2">{st ? st.code : "—"}</td>
                       <td className="px-3 py-2">
@@ -365,6 +431,7 @@ function ListView({
               </tbody>
             </table>
           </div>
+
         )}
       </div>
 
@@ -1158,4 +1225,127 @@ async function exportReadingsXlsx(opts: {
   const buffer = await wb.xlsx.writeBuffer();
   const blob = createExcelBlob(buffer);
   return { blob, filename: `Readings_${safeFilePart(template.code)}_${date}.xlsx` };
+}
+
+async function exportSelectedReadingsXlsx(opts: {
+  locale: "ar" | "en";
+  entries: {
+    id: string;
+    entry_date: string;
+    template_id: string;
+    station_id: string;
+    operator_name: string | null;
+    stationCode: string;
+    templateName: string;
+  }[];
+}) {
+  const { locale, entries } = opts;
+  if (entries.length === 0) throw new Error("No records selected");
+  const ids = entries.map((e) => e.id);
+  const templateIds = Array.from(new Set(entries.map((e) => e.template_id)));
+
+  const [valsRes, fieldsRes, sectionsRes] = await Promise.all([
+    supabase.from("reading_values").select("entry_id, field_id, time_slot, value").in("entry_id", ids),
+    supabase
+      .from("reading_fields")
+      .select("id, template_id, section_id, label_en, label_ar, unit, sort_order")
+      .in("template_id", templateIds),
+    supabase
+      .from("reading_sections")
+      .select("id, template_id, name_en, name_ar, sort_order")
+      .in("template_id", templateIds),
+  ]);
+  if (valsRes.error) throw valsRes.error;
+  if (fieldsRes.error) throw fieldsRes.error;
+  if (sectionsRes.error) throw sectionsRes.error;
+
+  const fields = (fieldsRes.data ?? []) as any[];
+  const fieldById = Object.fromEntries(fields.map((f) => [f.id, f]));
+  const sectionById = Object.fromEntries((sectionsRes.data ?? []).map((s: any) => [s.id, s]));
+  const values = (valsRes.data ?? []) as any[];
+
+  const slots = Array.from(new Set(values.map((v) => v.time_slot))).sort();
+
+  const ExcelJS = (await import("exceljs")) as any;
+  const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
+  if (!Workbook) throw new Error("Excel engine not loaded");
+  const wb = new Workbook();
+  wb.creator = "WTCO";
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet(locale === "ar" ? "القراءات" : "Readings", {
+    views: [{ state: "frozen", ySplit: 1, rightToLeft: locale === "ar" }],
+    pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1 },
+  });
+
+  const headers = [
+    locale === "ar" ? "التاريخ" : "Date",
+    locale === "ar" ? "المحطة" : "Station",
+    locale === "ar" ? "القالب" : "Template",
+    locale === "ar" ? "بواسطة" : "By",
+    locale === "ar" ? "القسم" : "Section",
+    locale === "ar" ? "القراءة" : "Reading",
+    locale === "ar" ? "الوحدة" : "Unit",
+    ...slots,
+  ];
+  ws.columns = [
+    { width: 12 },
+    { width: 12 },
+    { width: 24 },
+    { width: 18 },
+    { width: 24 },
+    { width: 34 },
+    { width: 10 },
+    ...slots.map(() => ({ width: 12 })),
+  ];
+  const headerRow = ws.addRow(headers);
+  headerRow.eachCell((cell: any) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  });
+
+  for (const entry of entries) {
+    const entryValues = values.filter((v) => v.entry_id === entry.id);
+    const usedFieldIds = Array.from(new Set(entryValues.map((v) => v.field_id)));
+    const rowsFields = usedFieldIds
+      .map((id) => fieldById[id])
+      .filter(Boolean)
+      .sort((a: any, b: any) => {
+        const sa = sectionById[a.section_id]?.sort_order ?? 0;
+        const sb = sectionById[b.section_id]?.sort_order ?? 0;
+        return sa - sb || a.sort_order - b.sort_order;
+      });
+    for (const f of rowsFields) {
+      const sec = sectionById[f.section_id];
+      const row = ws.addRow([
+        entry.entry_date,
+        entry.stationCode,
+        entry.templateName,
+        entry.operator_name ?? "",
+        sec ? (locale === "ar" ? sec.name_ar : sec.name_en) : "",
+        locale === "ar" ? f.label_ar || f.label_en : f.label_en,
+        f.unit ?? "",
+        ...slots.map((s) => {
+          const v = entryValues.find((x) => x.field_id === f.id && x.time_slot === s);
+          return v?.value ?? "";
+        }),
+      ]);
+      row.eachCell({ includeEmpty: true }, (cell: any) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFBFBFBF" } },
+          bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
+          left: { style: "thin", color: { argb: "FFBFBFBF" } },
+          right: { style: "thin", color: { argb: "FFBFBFBF" } },
+        };
+        cell.alignment = { vertical: "middle", wrapText: true };
+      });
+    }
+  }
+
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = createExcelBlob(buffer);
+  return { blob, filename: `Readings_List_${safeFilePart(new Date().toISOString().slice(0, 10))}.xlsx` };
 }

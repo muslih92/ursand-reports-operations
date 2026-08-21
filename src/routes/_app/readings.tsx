@@ -547,6 +547,10 @@ function EntryView({
     isAdmin ||
     hasRole("supervisor") ||
     (hasRole("operator") && stationId === profile?.station_id);
+  // Operators lose edit access to a time slot once its 12-hour shift is over
+  const shiftLockActive = !isAdmin && !hasRole("supervisor");
+  const slotLocked = (slot: string) => shiftLockActive && isSlotLocked(date, slot);
+  const cellWritable = (slot: string) => canWrite && !slotLocked(slot);
 
   const { data, isLoading } = useQuery({
     queryKey: ["reading-entry", templateId, date, stationId ?? "none"],

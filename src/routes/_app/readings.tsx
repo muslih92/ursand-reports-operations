@@ -265,15 +265,28 @@ function ListView({
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-primary" />
-            {t("nav.readings")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {locale === "ar" ? "اختر القالب لإدخال قراءات اليوم" : "Pick a template to enter today's readings"}
-          </p>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <ClipboardList className="h-6 w-6 text-primary" />
+              {t("nav.readings")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {locale === "ar"
+                ? "السجلات المحفوظة — اضغط على أي سجل لفتحه"
+                : "Saved records — click any record to open it"}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowNew((v) => !v)}
+            className="ms-auto h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+          >
+            {showNew
+              ? locale === "ar" ? "إخفاء" : "Hide"
+              : locale === "ar" ? "+ قراءة جديدة" : "+ New reading"}
+          </button>
         </div>
+
 
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex flex-col gap-1">

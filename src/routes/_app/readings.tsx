@@ -326,8 +326,48 @@ function ListView({
 
       {/* Saved records list */}
       <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b text-sm font-semibold">
-          {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+        <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold">
+            {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {selected.size > 0
+              ? locale === "ar" ? `${selected.size} محدد` : `${selected.size} selected`
+              : locale === "ar" ? "حدد السجلات لتصديرها" : "Select records to export"}
+          </span>
+          <button
+            disabled={selected.size === 0 || exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const rows = (recent ?? []).filter((r) => selected.has(r.id));
+                const { blob, filename } = await exportSelectedReadingsXlsx({
+                  locale,
+                  entries: rows.map((r) => ({
+                    ...r,
+                    stationCode: stById[r.station_id]?.code ?? "",
+                    templateName: tplById[r.template_id]
+                      ? locale === "ar"
+                        ? tplById[r.template_id].name_ar
+                        : tplById[r.template_id].name_en
+                      : "",
+                  })),
+                });
+                await triggerBlobDownload(blob, filename);
+                toast.success(locale === "ar" ? "تم تصدير ملف Excel" : "Excel exported");
+              } catch (e) {
+                toast.error((e as Error).message);
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className="ms-auto h-9 px-3 rounded-lg border text-sm inline-flex items-center gap-2 disabled:opacity-50 hover:bg-accent"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting
+              ? locale === "ar" ? "جارٍ التصدير…" : "Exporting…"
+              : locale === "ar" ? "تصدير Excel للمحدد" : "Export selected to Excel"}
+          </button>
         </div>
         {recentLoading ? (
           <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
@@ -340,6 +380,15 @@ function ListView({
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs">
                 <tr>
+                  <th className="px-3 py-2 w-10">
+                    <input
+                      type="checkbox"
+                      checked={(recent ?? []).length > 0 && selected.size === (recent ?? []).length}
+                      onChange={(e) =>
+                        setSelected(e.target.checked ? new Set((recent ?? []).map((r) => r.id)) : new Set())
+                      }
+                    />
+                  </th>
                   <th className="px-3 py-2 text-start">{t("common.date")}</th>
                   <th className="px-3 py-2 text-start">{t("common.station")}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
@@ -356,6 +405,20 @@ function ListView({
                       onClick={() => onOpenEntry(r.template_id, r.entry_date, r.station_id)}
                       className="border-t cursor-pointer hover:bg-accent/50"
                     >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(r.id)}
+                          onChange={(e) =>
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(r.id);
+                              else next.delete(r.id);
+                              return next;
+                            })
+                          }
+                        />
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">{r.entry_date}</td>
                       <td className="px-3 py-2">{st ? st.code : "—"}</td>
                       <td className="px-3 py-2">
@@ -368,6 +431,7 @@ function ListView({
               </tbody>
             </table>
           </div>
+
         )}
       </div>
 

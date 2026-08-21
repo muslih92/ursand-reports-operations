@@ -19,6 +19,7 @@ const dict: Dict = {
   "nav.generator": { ar: "اختبار مولد الطوارئ", en: "Emergency Generator Test" },
   "nav.routine": { ar: "روتين المشرف", en: "Supervisor's Routine" },
   "nav.trends": { ar: "الرسوم البيانية", en: "Trends" },
+  "nav.scada": { ar: "الترند وحدود التشغيل", en: "SCADA Trends" },
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },

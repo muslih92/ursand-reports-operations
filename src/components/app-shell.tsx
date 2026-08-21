@@ -5,6 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
+import { ChangePasswordButton } from "@/components/change-password-dialog";
+
 
 interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }
 const NAV: NavItem[] = [
@@ -100,7 +102,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="p-2 rounded hover:bg-accent">
             <Languages className="h-4 w-4" />
           </button>
+          <ChangePasswordButton compact />
           <button onClick={() => void signOut()} className="p-2 rounded hover:bg-accent text-destructive">
+
             <LogOut className="h-4 w-4" />
           </button>
         </header>

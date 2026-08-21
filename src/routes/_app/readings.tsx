@@ -700,6 +700,7 @@ function EntryView({
         for (const slot of data!.template.time_slots) {
           const key = `${fieldId}|${slot}`;
           handledKeys.add(key);
+          if (slotLocked(slot)) continue;
           toUpsert.push({ entry_id: entryId!, field_id: fieldId, time_slot: slot, value: null, status: st, recorded_at: nowIso });
         }
       }
@@ -709,6 +710,7 @@ function EntryView({
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
         if (statuses[field_id]) continue;
+        if (slotLocked(time_slot)) continue; // shift closed → not editable
         const trimmed = raw.trim();
         if (trimmed === "") {
           const id = existing.get(key);

@@ -1125,7 +1125,7 @@ function EntryView({
                                   }
                                 }}
                                 onMouseDown={(e) => {
-                                  if (!activeMark || !canWrite) return;
+                                  if (!activeMark || !cellWritable(slot)) return;
                                   e.preventDefault();
                                   setValues((v) => {
                                     const next = { ...v };
@@ -1140,10 +1140,20 @@ function EntryView({
                                 data-slot={slot}
                                 data-row={f.id}
 
-                                disabled={!canWrite}
-                                className="w-full h-9 px-2 rounded-md border bg-background text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                disabled={!cellWritable(slot)}
+                                title={
+                                  slotLocked(slot)
+                                    ? locale === "ar"
+                                      ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
+                                      : "Locked: this shift has ended"
+                                    : undefined
+                                }
+                                className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
+                                  slotLocked(slot) ? "bg-muted/60 cursor-not-allowed" : "bg-background"
+                                }`}
                                 dir="ltr"
                               />
+
 
                             </td>
                           );

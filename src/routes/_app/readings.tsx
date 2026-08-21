@@ -321,7 +321,54 @@ function ListView({
         </div>
       </div>
 
-      {!stationId ? (
+      {/* Saved records list */}
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b text-sm font-semibold">
+          {locale === "ar" ? "سجلات القراءات المحفوظة" : "Saved reading records"}
+        </div>
+        {recentLoading ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
+        ) : (recent ?? []).length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground text-center">
+            {locale === "ar" ? "لا توجد سجلات بعد" : "No records yet"}
+          </div>
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs">
+                <tr>
+                  <th className="px-3 py-2 text-start">{t("common.date")}</th>
+                  <th className="px-3 py-2 text-start">{t("common.station")}</th>
+                  <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
+                  <th className="px-3 py-2 text-start">{locale === "ar" ? "بواسطة" : "By"}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(recent ?? []).map((r) => {
+                  const tpl = tplById[r.template_id];
+                  const st = stById[r.station_id];
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => onOpenEntry(r.template_id, r.entry_date, r.station_id)}
+                      className="border-t cursor-pointer hover:bg-accent/50"
+                    >
+                      <td className="px-3 py-2 whitespace-nowrap" dir="ltr">{r.entry_date}</td>
+                      <td className="px-3 py-2">{st ? st.code : "—"}</td>
+                      <td className="px-3 py-2">
+                        {tpl ? (locale === "ar" ? tpl.name_ar : tpl.name_en) : "—"}
+                      </td>
+                      <td className="px-3 py-2">{r.operator_name ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {!showNew ? null : !stationId ? (
         <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
           {locale === "ar" ? "اختر محطة للمتابعة" : "Pick a station to continue"}
         </div>

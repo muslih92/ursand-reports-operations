@@ -14,6 +14,7 @@ export type GroupKey =
   | "vibration"
   | "electrical"
   | "cooling"
+  | "chiller"
   | "surge";
 
 export interface ScadaParameter {
@@ -122,7 +123,8 @@ export const GROUPS: { key: GroupKey; en: string; ar: string }[] = [
   { key: "vibration", en: "Vibration", ar: "الاهتزاز" },
   { key: "electrical", en: "Electrical Power", ar: "الكهرباء" },
   { key: "cooling", en: "Cooling System", ar: "نظام التبريد" },
-  { key: "surge", en: "Surge Vessel", ar: "أوعية التموج" },
+  { key: "chiller", en: "Chiller System", ar: "نظام الشيلر" },
+  { key: "surge", en: "Surge Vessel", ar: "نظام أوعية التموج" },
 ];
 
 export function useScadaParameters(stationId: string | null) {

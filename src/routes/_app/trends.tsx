@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { ScadaPanel } from "@/components/scada-panel";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import { FileSpreadsheet, Printer, TrendingUp } from "lucide-react";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_app/trends")({
   component: TrendsPage,
   head: () => ({
     meta: [
-      { title: "Trends & Live Charts | URS Operations" },
+      { title: "Unified Trends & Operating Limits | URS Operations" },
       {
         name: "description",
         content:

@@ -867,10 +867,22 @@ function EntryView({
       return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
     },
 
-    onSuccess: () => {
+    onSuccess: (res) => {
       clearLocalDraft();
       setRestoredAt(null);
-      toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
+      toast.success(
+        locale === "ar"
+          ? `تم الحفظ والتحقق: ${res?.saved ?? 0} قراءة`
+          : `Saved & verified: ${res?.saved ?? 0} readings`,
+      );
+      if ((res?.skippedLocked ?? 0) > 0) {
+        toast.warning(
+          locale === "ar"
+            ? `لم يتم حفظ ${res!.skippedLocked} قيمة لأن ورديتها مقفلة (انتهى الشفت). راجع المشرف.`
+            : `${res!.skippedLocked} values were not saved because their shift is closed. Contact your supervisor.`,
+        );
+      }
+
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });
       qc.invalidateQueries({ queryKey: ["dash-stats"] });

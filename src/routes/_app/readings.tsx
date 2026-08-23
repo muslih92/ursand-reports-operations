@@ -826,6 +826,8 @@ function EntryView({
       }
     },
     onSuccess: () => {
+      clearLocalDraft();
+      setRestoredAt(null);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });

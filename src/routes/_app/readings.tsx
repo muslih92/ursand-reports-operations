@@ -677,6 +677,7 @@ function EntryView({
   const [hydrated, setHydrated] = useState(false);
   const [activeMark, setActiveMark] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>("");
+  const [restoredAt, setRestoredAt] = useState<number | null>(null);
 
   // Default to showing ONE system at a time (first available), not everything.
   useEffect(() => {

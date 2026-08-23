@@ -155,7 +155,14 @@ function MessagesPage() {
       subject?: string;
       parentId?: string | null;
       audience?: Audience;
+      shareStations?: string[];
+      targetUsers?: string[];
     }) => {
+      const isReply = !!input.parentId;
+      const target = input.audience ?? "all";
+      const extraStations = input.shareStations ?? [];
+      const named = input.targetUsers ?? [];
+
       const { error } = await sb.from("station_messages").insert({
         station_id: input.stationId,
         parent_id: input.parentId ?? null,
@@ -164,26 +171,52 @@ function MessagesPage() {
         author_id: profile?.id ?? null,
         author_name: profile?.full_name ?? null,
         author_role: roleLabel,
+        // Replies inherit the parent's targeting on the database side.
+        audience_roles: isReply ? null : audienceRoles[target],
+        target_station_ids: isReply ? null : [input.stationId, ...extraStations],
+        target_user_ids: isReply || named.length === 0 ? null : named,
       });
       if (error) throw error;
 
       const st = stationMap[input.stationId];
       const stName = st ? (locale === "ar" ? st.name_ar : st.name_en) : "";
-      const target = input.audience ?? "all";
-      await notifyStation({
-        stationId: input.stationId,
-        kind: input.parentId ? "message_reply" : "message_new",
-        title: input.parentId
-          ? locale === "ar"
-            ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
-            : `New reply from ${profile?.full_name ?? ""} — ${stName}`
-          : locale === "ar"
-            ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
-            : `New message to ${audienceLabel[target]} — ${stName}`,
-        body: (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220),
-        link: "/messages",
-        roles: audienceRoles[target],
-      });
+      const title = isReply
+        ? locale === "ar"
+          ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
+          : `New reply from ${profile?.full_name ?? ""} — ${stName}`
+        : locale === "ar"
+          ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
+          : `New message to ${audienceLabel[target]} — ${stName}`;
+      const notifBody = (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220);
+
+      if (!isReply && named.length > 0) {
+        await notifyUsers({
+          userIds: named,
+          stationId: input.stationId,
+          kind: "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+        });
+      } else if (!isReply && extraStations.length > 0) {
+        await notifyStations({
+          stationIds: [input.stationId, ...extraStations],
+          kind: "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+          roles: audienceRoles[target],
+        });
+      } else {
+        await notifyStation({
+          stationId: input.stationId,
+          kind: isReply ? "message_reply" : "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+          roles: audienceRoles[target],
+        });
+      }
     },
 
     onSuccess: () => {
@@ -192,6 +225,8 @@ function MessagesPage() {
       setBody("");
       setReplyBody("");
       setReplyTo(null);
+      setShareStations([]);
+      setTargetUsers([]);
       qc.invalidateQueries({ queryKey: ["station-messages"] });
       qc.invalidateQueries({ queryKey: ["notifications"] });
     },

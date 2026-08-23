@@ -72,7 +72,7 @@ function TrendsPage() {
   const { locale, dir } = useI18n();
   const [mode, setMode] = useState<"scada" | "readings">("scada");
   const tabs = [
-    { key: "scada" as const, label: locale === "ar" ? "ترند SCADA وحدود التشغيل" : "SCADA & operating limits" },
+    { key: "scada" as const, label: locale === "ar" ? "الترند وحدود التشغيل" : "Trends & operating limits" },
     { key: "readings" as const, label: locale === "ar" ? "ترند القراءات اليومية" : "Daily readings trend" },
   ];
   return (

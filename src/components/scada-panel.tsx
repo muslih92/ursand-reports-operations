@@ -55,7 +55,7 @@ export function ScadaPanel() {
   }, [scopedStationId, stations, stationId]);
 
   const { data: params } = useScadaParameters(stationId || null);
-  const { data: latest } = useLatestPvs(stationId || null);
+  const { data: latest } = useLatestPvs(stationId || null, params ?? null);
 
   const equipments = useMemo(() => {
     const set = new Map<string, { type: string; no: number; label: string }>();
@@ -107,7 +107,7 @@ export function ScadaPanel() {
     return { fromISO: from.toISOString(), toISO: to.toISOString() };
   }, [rangeKey, customFrom, customTo]);
 
-  const { data: samples } = useScadaSamples(selectedId || null, fromISO, toISO);
+  const { data: samples } = useScadaSamples(selectedId || null, fromISO, toISO, selected?.param_key ?? null);
 
   const station = (stations ?? []).find((s) => s.id === stationId);
   const stationLabel = station?.code ?? "";
@@ -157,7 +157,7 @@ export function ScadaPanel() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold">
           <Activity className="h-5 w-5 text-primary" />
-          {locale === "ar" ? "نظام الترند ومراقبة حدود التشغيل" : "SCADA Trends & Operating Limits"}
+          {locale === "ar" ? "الترند ومراقبة حدود التشغيل" : "Trends & Operating Limits"}
         </h1>
         <span
           className={`rounded px-2 py-1 text-xs font-bold ${

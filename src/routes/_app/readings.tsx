@@ -780,7 +780,28 @@ function EntryView({
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });
       qc.invalidateQueries({ queryKey: ["dash-stats"] });
+
+      // 10% deviation alert -> station supervisors + management
+      const devs = collectDeviations(values, baseline ?? {}, data?.fields ?? [], locale);
+      if (devs.length > 0 && stationId) {
+        const lines = devs.slice(0, 6).map((d) => d.text).join("\n");
+        const more = devs.length > 6 ? `\n… +${devs.length - 6}` : "";
+        void notifyStation({
+          stationId,
+          kind: "reading_deviation",
+          title:
+            locale === "ar"
+              ? `انحراف يتجاوز ١٠٪ في قراءات ${data?.template.code ?? ""} (${date})`
+              : `Deviation over 10% in ${data?.template.code ?? ""} readings (${date})`,
+          body:
+            (locale === "ar"
+              ? "يرجى المتابعة والتحقق من الحاجة إلى صيانة:\n"
+              : "Please follow up and check if maintenance is needed:\n") + lines + more,
+          link: "/readings",
+        }).catch(() => undefined);
+      }
     },
+
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(msg);

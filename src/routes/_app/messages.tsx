@@ -296,6 +296,78 @@ function MessagesPage() {
             />
           </div>
         </div>
+
+        {canTarget && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-xs font-semibold">
+                {locale === "ar" ? "المحطات المسموح لها بالاطلاع والرد" : "Stations allowed to view & reply"}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-auto">
+                {stations
+                  .filter((s) => s.id !== effectiveStation)
+                  .map((s) => {
+                    const on = shareStations.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() =>
+                          setShareStations((prev) =>
+                            on ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                          )
+                        }
+                        className={`px-2.5 h-7 rounded-full border text-xs ${on ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                      >
+                        {s.code}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {locale === "ar"
+                  ? "بدون اختيار: المحادثة مرئية لمحطة المرسل فقط ضمن الفئة المحددة."
+                  : "If none selected, the thread stays visible to the sender's station only."}
+              </p>
+            </div>
+
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-xs font-semibold">
+                {locale === "ar" ? "تحديد أشخاص بعينهم (اختياري)" : "Specific recipients (optional)"}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-auto">
+                {eligibleRecipients.map((r) => {
+                  const on = targetUsers.includes(r.user_id);
+                  return (
+                    <button
+                      key={r.user_id}
+                      type="button"
+                      onClick={() =>
+                        setTargetUsers((prev) =>
+                          on ? prev.filter((x) => x !== r.user_id) : [...prev, r.user_id],
+                        )
+                      }
+                      className={`px-2.5 h-7 rounded-full border text-xs ${on ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                    >
+                      {r.full_name} · {r.role}
+                    </button>
+                  );
+                })}
+                {eligibleRecipients.length === 0 && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {locale === "ar" ? "لا يوجد مستخدمون ضمن نطاقك لهذه الفئة" : "No users in your scope for this audience"}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {locale === "ar"
+                  ? "عند التحديد تصبح المحادثة خاصة بهؤلاء فقط (ولا تظهر للإدارة)."
+                  : "When selected, the thread is private to those users only (management excluded)."}
+              </p>
+            </div>
+          </div>
+        )}
+
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}

@@ -429,17 +429,64 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ChartCard title={locale === "ar" ? "توزيع حالة المعدات" : "Equipment status distribution"}>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie data={availability?.pie ?? []} dataKey="value" nameKey="name" outerRadius={90}
-                label={(e: any) => `${STATUS_LABELS[e.name]?.[locale] ?? e.name}: ${e.value}`}>
-                {(availability?.pie ?? []).map((e, i) => (
-                  <Cell key={i} fill={STATUS_COLORS[e.name] ?? "#64748b"} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: any, n: any) => [v, STATUS_LABELS[n]?.[locale] ?? n]} />
-            </PieChart>
-          </ResponsiveContainer>
+          {(() => {
+            const pieData = availability?.pie ?? [];
+            const totalUnits = pieData.reduce((a: number, b: any) => a + (b.value as number), 0);
+            return (
+              <div className="space-y-3">
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={58}
+                        outerRadius={88}
+                        paddingAngle={2}
+                        stroke="none"
+                        isAnimationActive={false}
+                      >
+                        {pieData.map((e: any, i: number) => (
+                          <Cell key={i} fill={STATUS_COLORS[e.name] ?? "#64748b"} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any, n: any) => [v, STATUS_LABELS[n]?.[locale] ?? n]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold">{totalUnits}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {locale === "ar" ? "إجمالي الوحدات" : "Total units"}
+                    </span>
+                  </div>
+                </div>
+                <ul className="space-y-1.5">
+                  {pieData
+                    .slice()
+                    .sort((a: any, b: any) => b.value - a.value)
+                    .map((e: any) => (
+                      <li key={e.name} className="flex items-center gap-2 text-sm">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ background: STATUS_COLORS[e.name] ?? "#64748b" }}
+                        />
+                        <span className="truncate">{STATUS_LABELS[e.name]?.[locale] ?? e.name}</span>
+                        <span className="ms-auto font-mono font-semibold">{e.value}</span>
+                        <span className="w-12 text-end font-mono text-xs text-muted-foreground">
+                          {totalUnits ? Math.round((e.value / totalUnits) * 100) : 0}%
+                        </span>
+                      </li>
+                    ))}
+                  {pieData.length === 0 && (
+                    <li className="text-sm text-muted-foreground">
+                      {locale === "ar" ? "لا توجد بيانات" : "No data"}
+                    </li>
+                  )}
+                </ul>
+              </div>
+            );
+          })()}
         </ChartCard>
 
         <div className="lg:col-span-2 rounded-xl border bg-card p-4 overflow-hidden">

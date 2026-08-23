@@ -1252,13 +1252,22 @@ function EntryView({
                                     ? locale === "ar"
                                       ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
                                       : "Locked: this shift has ended"
-                                    : undefined
+                                    : deviated && base
+                                      ? locale === "ar"
+                                        ? `انحراف ${deviationPct(cellNum, base).toFixed(1)}٪ عن متوسط أمس (${base.toFixed(2)})`
+                                        : `Deviation ${deviationPct(cellNum, base).toFixed(1)}% vs yesterday avg (${base.toFixed(2)})`
+                                      : undefined
                                 }
                                 className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                                  slotLocked(slot) ? "bg-muted/60 cursor-not-allowed" : "bg-background"
+                                  slotLocked(slot)
+                                    ? "bg-muted/60 cursor-not-allowed"
+                                    : deviated
+                                      ? "bg-destructive/15 border-destructive/50 text-destructive font-semibold"
+                                      : "bg-background"
                                 }`}
                                 dir="ltr"
                               />
+
 
 
                             </td>

@@ -18,6 +18,39 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { isDeviating, deviationPct, notifyStation } from "@/lib/notifications";
+
+/** Collect all cells that deviate more than 10% from the previous-day average. */
+function collectDeviations(
+  values: Record<string, string>,
+  baseline: Record<string, number>,
+  fields: { id: string; label_en: string; label_ar: string | null; unit: string | null }[],
+  locale: "ar" | "en",
+) {
+  const byId = new Map(fields.map((f) => [f.id, f]));
+  const out: { text: string }[] = [];
+  const seen = new Set<string>();
+  for (const [key, raw] of Object.entries(values)) {
+    const [fieldId, slot] = key.split("|");
+    const base = baseline[fieldId];
+    const num = Number(String(raw).trim());
+    if (!raw || Number.isNaN(num)) continue;
+    if (!isDeviating(num, base)) continue;
+    const f = byId.get(fieldId);
+    if (!f) continue;
+    const label = (locale === "ar" ? f.label_ar : f.label_en) ?? f.label_en;
+    const sig = `${fieldId}|${slot}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push({
+      text: `• ${label} @${slot}: ${num} (${deviationPct(num, base).toFixed(1)}% ${
+        locale === "ar" ? "عن متوسط أمس" : "vs yesterday avg"
+      } ${base.toFixed(2)})`,
+    });
+  }
+  return out;
+}
+
 
 const searchSchema = z.object({
   template: z.string().optional(),

@@ -744,23 +744,37 @@ function EntryView({
   const save = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error("no station");
-      // 1) upsert entry
+      // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;
       if (!entryId) {
         const { data: created, error } = await supabase
           .from("reading_entries")
-          .insert({
-            template_id: templateId,
-            station_id: stationId,
-            entry_date: date,
-            operator_id: profile?.id,
-            operator_name: profile?.full_name ?? operatorName,
-            notes: notes || null,
-          })
+          .upsert(
+            {
+              template_id: templateId,
+              station_id: stationId,
+              entry_date: date,
+              operator_id: profile?.id,
+              operator_name: profile?.full_name ?? operatorName,
+              notes: notes || null,
+            },
+            { onConflict: "template_id,entry_date" },
+          )
           .select("id")
           .single();
-        if (error) throw error;
-        entryId = created.id;
+        if (error) {
+          // fall back: the row exists but is not visible to this query shape
+          const { data: found, error: findErr } = await supabase
+            .from("reading_entries")
+            .select("id")
+            .eq("template_id", templateId)
+            .eq("entry_date", date)
+            .maybeSingle();
+          if (findErr || !found) throw error;
+          entryId = found.id;
+        } else {
+          entryId = created.id;
+        }
       } else {
         const { error } = await supabase
           .from("reading_entries")
@@ -779,6 +793,7 @@ function EntryView({
       const nowIso = new Date().toISOString();
       const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string }[] = [];
       const toDelete: string[] = [];
+      let skippedLocked = 0;
 
       const handledKeys = new Set<string>();
 
@@ -798,7 +813,10 @@ function EntryView({
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
         if (statuses[field_id]) continue;
-        if (slotLocked(time_slot)) continue; // shift closed → not editable
+        if (slotLocked(time_slot)) {
+          if (raw.trim() !== "" && !existing.has(key)) skippedLocked++;
+          continue; // shift closed → not editable
+        }
         const trimmed = raw.trim();
         if (trimmed === "") {
           const id = existing.get(key);
@@ -818,13 +836,37 @@ function EntryView({
         const { error } = await supabase.from("reading_values").delete().in("id", toDelete);
         if (error) throw error;
       }
-      if (toUpsert.length > 0) {
+      // write in chunks so large sheets never hit a request-size limit silently
+      const CHUNK = 300;
+      for (let i = 0; i < toUpsert.length; i += CHUNK) {
         const { error } = await supabase
           .from("reading_values")
-          .upsert(toUpsert, { onConflict: "entry_id,field_id,time_slot" });
+          .upsert(toUpsert.slice(i, i + CHUNK), { onConflict: "entry_id,field_id,time_slot" });
         if (error) throw error;
       }
+
+      // 3) verify the write actually landed in the database
+      let verifiedMissing = 0;
+      if (toUpsert.length > 0) {
+        const { data: saved, error: verifyErr } = await supabase
+          .from("reading_values")
+          .select("field_id, time_slot")
+          .eq("entry_id", entryId!);
+        if (verifyErr) throw verifyErr;
+        const savedKeys = new Set((saved ?? []).map((r) => `${r.field_id}|${r.time_slot}`));
+        verifiedMissing = toUpsert.filter((r) => !savedKeys.has(`${r.field_id}|${r.time_slot}`)).length;
+        if (verifiedMissing > 0) {
+          throw new Error(
+            locale === "ar"
+              ? `لم يتم حفظ ${verifiedMissing} قراءة في قاعدة البيانات. أعد المحاولة (البيانات محفوظة محلياً).`
+              : `${verifiedMissing} readings did not reach the database. Please retry (your input is kept locally).`,
+          );
+        }
+      }
+
+      return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
     },
+
     onSuccess: () => {
       clearLocalDraft();
       setRestoredAt(null);

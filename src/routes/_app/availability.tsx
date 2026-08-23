@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { notifyStation } from "@/lib/notifications";
+
 import {
   ArrowLeft,
   ArrowRight,

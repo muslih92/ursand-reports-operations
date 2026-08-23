@@ -150,8 +150,9 @@ function Dashboard() {
     return stations.map((s: any) => {
       const p = availability.perStation[s.id] ?? {};
       const total = Object.values(p).reduce((a: number, b) => a + (b as number), 0);
-      const inSvc = p.in_service ?? 0;
-      const avail = total ? (inSvc / total) * 100 : 0;
+      // Availability drops only for units that are actually out of service.
+      const unavailable = (p.out_of_service ?? 0) + (p.not_available ?? 0) + (p.shutdown ?? 0);
+      const avail = total ? ((total - unavailable) / total) * 100 : 0;
       return { id: s.id, code: s.code, name: locale === "ar" ? s.name_ar : s.name_en, ...p, total, avail };
     }).filter((r: any) => r.total > 0);
   }, [stations, availability, locale]);

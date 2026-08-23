@@ -300,7 +300,9 @@ function MessagesPage() {
                           body: replyBody.trim(),
                           subject: root.subject ?? undefined,
                           parentId: root.id,
+                          audience: "all",
                         })
+
                       }
                       className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
                     >

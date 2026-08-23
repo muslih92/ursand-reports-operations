@@ -31,6 +31,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut, roles } = useAuth();
   const { t, locale, setLocale, dir } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: notifications = [] } = useNotifications();
+  const unreadMessages = notifications.filter(
+    (n) => !n.read && (n.kind === "message_new" || n.kind === "message_reply"),
+  ).length;
 
   const isManagement = !isAdmin && (roles.includes("management") || roles.includes("supervisor"));
   const isOperator = !isAdmin && !isManagement && roles.includes("operator");
@@ -40,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     !(isManagement && n.hideForManagement),
   );
   const roleLabel = roles[0] ? t(`role.${roles[0]}`) : "";
+
 
 
 

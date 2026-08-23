@@ -30,7 +30,18 @@ export const Route = createFileRoute("/_app/messages")({
   component: MessagesPage,
 });
 
-const sb = supabase as unknown as { from: (t: string) => any };
+const sb = supabase as unknown as {
+  from: (t: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: any }>;
+};
+
+interface Recipient {
+  user_id: string;
+  full_name: string;
+  employee_no: string;
+  role: string;
+  station_id: string | null;
+}
 
 interface Msg {
   id: string;

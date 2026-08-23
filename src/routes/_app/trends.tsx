@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { ScadaPanel } from "@/components/scada-panel";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import { FileSpreadsheet, Printer, TrendingUp } from "lucide-react";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_app/trends")({
   component: TrendsPage,
   head: () => ({
     meta: [
-      { title: "Trends & Live Charts | URS Operations" },
+      { title: "Unified Trends & Operating Limits | URS Operations" },
       {
         name: "description",
         content:
@@ -68,6 +69,33 @@ function bucketKey(date: string, slot: string, g: Granularity) {
 }
 
 function TrendsPage() {
+  const { locale, dir } = useI18n();
+  const [mode, setMode] = useState<"scada" | "readings">("scada");
+  const tabs = [
+    { key: "scada" as const, label: locale === "ar" ? "ترند SCADA وحدود التشغيل" : "SCADA & operating limits" },
+    { key: "readings" as const, label: locale === "ar" ? "ترند القراءات اليومية" : "Daily readings trend" },
+  ];
+  return (
+    <div className="space-y-4" dir={dir}>
+      <div className="flex flex-wrap gap-2 rounded-xl border bg-card p-2">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setMode(t.key)}
+            className={`h-9 rounded-lg px-3 text-sm font-medium transition-colors ${
+              mode === t.key ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {mode === "scada" ? <ScadaPanel /> : <ReadingsTrends />}
+    </div>
+  );
+}
+
+function ReadingsTrends() {
   const { locale, dir } = useI18n();
   const { scopedStationId, canPickStation } = useStationScope();
   const { data: stations } = useScopedStations();

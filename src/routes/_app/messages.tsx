@@ -175,7 +175,7 @@ function MessagesPage() {
       </div>
 
       <div className="rounded-xl border bg-card p-4 space-y-3">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">{locale === "ar" ? "المحطة" : "Station"}</label>
             <select
@@ -188,6 +188,25 @@ function MessagesPage() {
               {stations.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.code} · {locale === "ar" ? s.name_ar : s.name_en}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">{locale === "ar" ? "إرسال إلى" : "Send to"}</label>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as Audience)}
+              className="h-10 px-3 rounded-lg border bg-background text-sm"
+            >
+              {(isManagement
+                ? (["all", "supervisors", "operators"] as Audience[])
+                : isSupervisor
+                  ? (["operators", "management", "all"] as Audience[])
+                  : (["management", "supervisors"] as Audience[])
+              ).map((a) => (
+                <option key={a} value={a}>
+                  {audienceLabel[a]}
                 </option>
               ))}
             </select>
@@ -213,15 +232,14 @@ function MessagesPage() {
           <button
             type="button"
             disabled={!effectiveStation || !body.trim() || post.isPending}
-            onClick={() => post.mutate({ stationId: effectiveStation, body: body.trim(), subject })}
+            onClick={() => post.mutate({ stationId: effectiveStation, body: body.trim(), subject, audience })}
             className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
-            {isManagement
-              ? locale === "ar" ? "إرسال إلى المحطة" : "Send to station"
-              : locale === "ar" ? "إرسال إلى الإدارة" : "Send to management"}
+            {locale === "ar" ? `إرسال إلى ${audienceLabel[audience]}` : `Send to ${audienceLabel[audience]}`}
           </button>
         </div>
+
       </div>
 
       {isLoading && <div className="text-sm text-muted-foreground">{locale === "ar" ? "جارٍ التحميل…" : "Loading…"}</div>}

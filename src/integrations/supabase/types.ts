@@ -339,6 +339,50 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          link: string | null
+          read: boolean
+          station_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          link?: string | null
+          read?: boolean
+          station_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          link?: string | null
+          read?: boolean
+          station_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_stations: {
         Row: {
           created_at: string
@@ -863,6 +907,57 @@ export type Database = {
           },
         ]
       }
+      station_messages: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          author_role: string | null
+          body: string
+          created_at: string
+          id: string
+          parent_id: string | null
+          station_id: string
+          subject: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          author_role?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          station_id: string
+          subject?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          author_role?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          station_id?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_messages_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "station_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "station_messages_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stations: {
         Row: {
           active: boolean
@@ -982,6 +1077,17 @@ export type Database = {
         Returns: boolean
       }
       is_unrestricted_viewer: { Args: { _user_id: string }; Returns: boolean }
+      notify_station: {
+        Args: {
+          _body: string
+          _include_operators?: boolean
+          _kind: string
+          _link?: string
+          _station_id: string
+          _title: string
+        }
+        Returns: number
+      }
       user_station: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {

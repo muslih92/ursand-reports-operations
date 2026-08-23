@@ -44,7 +44,21 @@ export async function notifyStation(input: {
   body?: string | null;
   link?: string | null;
   includeOperators?: boolean;
+  /** Explicit target roles; overrides includeOperators when provided. */
+  roles?: string[];
 }) {
+  if (input.roles && input.roles.length > 0) {
+    const { error } = await sb.rpc("notify_station_roles", {
+      _station_id: input.stationId,
+      _kind: input.kind,
+      _title: input.title,
+      _body: input.body ?? null,
+      _link: input.link ?? null,
+      _roles: input.roles,
+    });
+    if (error) throw error;
+    return;
+  }
   const { error } = await sb.rpc("notify_station", {
     _station_id: input.stationId,
     _kind: input.kind,
@@ -55,6 +69,7 @@ export async function notifyStation(input: {
   });
   if (error) throw error;
 }
+
 
 export function useNotifications(limit = 30) {
   const { user } = useAuth();

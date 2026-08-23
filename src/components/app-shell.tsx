@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp } from "lucide-react";
+import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp, MessageSquare } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
 import { ChangePasswordButton } from "@/components/change-password-dialog";
+import { NotificationBell } from "@/components/notification-bell";
 
 
 interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }
@@ -14,6 +15,7 @@ const NAV: NavItem[] = [
   { to: "/readings", icon: ClipboardList, key: "nav.readings" },
   { to: "/availability", icon: Activity, key: "nav.availability" },
   { to: "/incidents", icon: AlertTriangle, key: "nav.incidents", hideForOperator: true },
+  { to: "/messages", icon: MessageSquare, key: "nav.messages" },
   { to: "/reports", icon: FileText, key: "nav.reports" },
   { to: "/firepump", icon: Flame, key: "nav.firepump" },
   { to: "/generator", icon: Zap, key: "nav.generator" },
@@ -23,6 +25,7 @@ const NAV: NavItem[] = [
   { to: "/templates", icon: FileSpreadsheet, key: "nav.templates", adminOnly: true },
   { to: "/users", icon: Users, key: "nav.users", adminOnly: true, hideForManagement: true },
 ];
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut, roles } = useAuth();

@@ -1173,8 +1173,13 @@ function EntryView({
                         </td>
                         {template.time_slots.map((slot) => {
                           const key = `${f.id}|${slot}`;
+                          const base = baseline?.[f.id];
+                          const cellNum = Number(String(values[key] ?? "").trim());
+                          const deviated =
+                            (values[key] ?? "").trim() !== "" && isDeviating(cellNum, base);
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
+
                               <input
                                 type="text"
                                 inputMode="text"

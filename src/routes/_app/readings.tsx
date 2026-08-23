@@ -125,7 +125,7 @@ function statusLabel(token: string, locale: "ar" | "en"): string {
 const QUICK_MARKS = [
   { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300" },
   { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300" },
-  { code: "BUSY", ar: "مشغول", en: "Busy", cls: "bg-blue-100 text-blue-800 border-blue-300" },
+  { code: "BUSY", ar: "تحت الصيانة", en: "Under Maintenance", cls: "bg-blue-100 text-blue-800 border-blue-300" },
   { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400" },
 ] as const;
 

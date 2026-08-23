@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
-import { notifyStation } from "@/lib/notifications";
+import { notifyStation, notifyUsers, notifyStations } from "@/lib/notifications";
 import { toast } from "sonner";
 import { MessageSquare, Send, Reply } from "lucide-react";
 
@@ -30,7 +30,18 @@ export const Route = createFileRoute("/_app/messages")({
   component: MessagesPage,
 });
 
-const sb = supabase as unknown as { from: (t: string) => any };
+const sb = supabase as unknown as {
+  from: (t: string) => any;
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: any; error: any }>;
+};
+
+interface Recipient {
+  user_id: string;
+  full_name: string;
+  employee_no: string;
+  role: string;
+  station_id: string | null;
+}
 
 interface Msg {
   id: string;
@@ -77,16 +88,45 @@ function MessagesPage() {
 
   const effectiveStation = canPickStation ? stationId : (scopedStationId ?? "");
 
+  // Extra stations allowed to view/reply to the thread, and named recipients.
+  const [shareStations, setShareStations] = useState<string[]>([]);
+  const [targetUsers, setTargetUsers] = useState<string[]>([]);
+  const canTarget = isManagement || isSupervisor;
+
   const stationMap = useMemo(
     () => Object.fromEntries(stations.map((s) => [s.id, s])),
     [stations],
   );
 
+  const { data: recipients = [] } = useQuery({
+    queryKey: ["message-recipients"],
+    enabled: canTarget,
+    queryFn: async (): Promise<Recipient[]> => {
+      const { data, error } = await sb.rpc("list_message_recipients");
+      if (error) throw error;
+      return (data ?? []) as Recipient[];
+    },
+  });
+
+  const eligibleRecipients = useMemo(() => {
+    const wanted =
+      audience === "operators" ? ["operator"]
+      : audience === "supervisors" ? ["supervisor"]
+      : audience === "management" ? ["management", "admin"]
+      : ["operator", "supervisor", "management", "admin"];
+    const allowedStations = new Set([effectiveStation, ...shareStations].filter(Boolean));
+    return recipients.filter(
+      (r) =>
+        wanted.includes(r.role) &&
+        (allowedStations.size === 0 || !r.station_id || allowedStations.has(r.station_id)),
+    );
+  }, [recipients, audience, effectiveStation, shareStations]);
+
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ["station-messages", effectiveStation || "all"],
+    queryKey: ["station-messages", stationId || "all"],
     queryFn: async (): Promise<Msg[]> => {
       let q = sb.from("station_messages").select("*").order("created_at", { ascending: false }).limit(200);
-      if (effectiveStation) q = q.eq("station_id", effectiveStation);
+      if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as Msg[];
@@ -115,7 +155,14 @@ function MessagesPage() {
       subject?: string;
       parentId?: string | null;
       audience?: Audience;
+      shareStations?: string[];
+      targetUsers?: string[];
     }) => {
+      const isReply = !!input.parentId;
+      const target = input.audience ?? "all";
+      const extraStations = input.shareStations ?? [];
+      const named = input.targetUsers ?? [];
+
       const { error } = await sb.from("station_messages").insert({
         station_id: input.stationId,
         parent_id: input.parentId ?? null,
@@ -124,26 +171,52 @@ function MessagesPage() {
         author_id: profile?.id ?? null,
         author_name: profile?.full_name ?? null,
         author_role: roleLabel,
+        // Replies inherit the parent's targeting on the database side.
+        audience_roles: isReply ? null : audienceRoles[target],
+        target_station_ids: isReply ? null : [input.stationId, ...extraStations],
+        target_user_ids: isReply || named.length === 0 ? null : named,
       });
       if (error) throw error;
 
       const st = stationMap[input.stationId];
       const stName = st ? (locale === "ar" ? st.name_ar : st.name_en) : "";
-      const target = input.audience ?? "all";
-      await notifyStation({
-        stationId: input.stationId,
-        kind: input.parentId ? "message_reply" : "message_new",
-        title: input.parentId
-          ? locale === "ar"
-            ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
-            : `New reply from ${profile?.full_name ?? ""} — ${stName}`
-          : locale === "ar"
-            ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
-            : `New message to ${audienceLabel[target]} — ${stName}`,
-        body: (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220),
-        link: "/messages",
-        roles: audienceRoles[target],
-      });
+      const title = isReply
+        ? locale === "ar"
+          ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
+          : `New reply from ${profile?.full_name ?? ""} — ${stName}`
+        : locale === "ar"
+          ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
+          : `New message to ${audienceLabel[target]} — ${stName}`;
+      const notifBody = (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220);
+
+      if (!isReply && named.length > 0) {
+        await notifyUsers({
+          userIds: named,
+          stationId: input.stationId,
+          kind: "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+        });
+      } else if (!isReply && extraStations.length > 0) {
+        await notifyStations({
+          stationIds: [input.stationId, ...extraStations],
+          kind: "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+          roles: audienceRoles[target],
+        });
+      } else {
+        await notifyStation({
+          stationId: input.stationId,
+          kind: isReply ? "message_reply" : "message_new",
+          title,
+          body: notifBody,
+          link: "/messages",
+          roles: audienceRoles[target],
+        });
+      }
     },
 
     onSuccess: () => {
@@ -152,6 +225,8 @@ function MessagesPage() {
       setBody("");
       setReplyBody("");
       setReplyTo(null);
+      setShareStations([]);
+      setTargetUsers([]);
       qc.invalidateQueries({ queryKey: ["station-messages"] });
       qc.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -221,6 +296,78 @@ function MessagesPage() {
             />
           </div>
         </div>
+
+        {canTarget && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-xs font-semibold">
+                {locale === "ar" ? "المحطات المسموح لها بالاطلاع والرد" : "Stations allowed to view & reply"}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-auto">
+                {stations
+                  .filter((s) => s.id !== effectiveStation)
+                  .map((s) => {
+                    const on = shareStations.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() =>
+                          setShareStations((prev) =>
+                            on ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                          )
+                        }
+                        className={`px-2.5 h-7 rounded-full border text-xs ${on ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                      >
+                        {s.code}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {locale === "ar"
+                  ? "بدون اختيار: المحادثة مرئية لمحطة المرسل فقط ضمن الفئة المحددة."
+                  : "If none selected, the thread stays visible to the sender's station only."}
+              </p>
+            </div>
+
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="text-xs font-semibold">
+                {locale === "ar" ? "تحديد أشخاص بعينهم (اختياري)" : "Specific recipients (optional)"}
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-auto">
+                {eligibleRecipients.map((r) => {
+                  const on = targetUsers.includes(r.user_id);
+                  return (
+                    <button
+                      key={r.user_id}
+                      type="button"
+                      onClick={() =>
+                        setTargetUsers((prev) =>
+                          on ? prev.filter((x) => x !== r.user_id) : [...prev, r.user_id],
+                        )
+                      }
+                      className={`px-2.5 h-7 rounded-full border text-xs ${on ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
+                    >
+                      {r.full_name} · {r.role}
+                    </button>
+                  );
+                })}
+                {eligibleRecipients.length === 0 && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {locale === "ar" ? "لا يوجد مستخدمون ضمن نطاقك لهذه الفئة" : "No users in your scope for this audience"}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {locale === "ar"
+                  ? "عند التحديد تصبح المحادثة خاصة بهؤلاء فقط (ولا تظهر للإدارة)."
+                  : "When selected, the thread is private to those users only (management excluded)."}
+              </p>
+            </div>
+          </div>
+        )}
+
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -232,7 +379,16 @@ function MessagesPage() {
           <button
             type="button"
             disabled={!effectiveStation || !body.trim() || post.isPending}
-            onClick={() => post.mutate({ stationId: effectiveStation, body: body.trim(), subject, audience })}
+            onClick={() =>
+              post.mutate({
+                stationId: effectiveStation,
+                body: body.trim(),
+                subject,
+                audience,
+                shareStations,
+                targetUsers,
+              })
+            }
             className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
           >
             <Send className="h-4 w-4" />

@@ -15,7 +15,8 @@ export type GroupKey =
   | "electrical"
   | "cooling"
   | "chiller"
-  | "surge";
+  | "surge"
+  | "general";
 
 export interface ScadaParameter {
   id: string;

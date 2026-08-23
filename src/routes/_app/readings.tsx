@@ -595,6 +595,44 @@ function EntryView({
     },
   });
 
+  // ---- Previous-day baseline (average per field) for the 10% deviation check ----
+  const prevDate = useMemo(() => {
+    const d = new Date(`${date}T00:00:00`);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, [date]);
+
+  const { data: baseline } = useQuery({
+    queryKey: ["reading-baseline", templateId, prevDate, stationId ?? "none"],
+    enabled: !!stationId,
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data: prevEntry, error } = await supabase
+        .from("reading_entries")
+        .select("id, reading_values(field_id, value)")
+        .eq("template_id", templateId)
+        .eq("entry_date", prevDate)
+        .eq("station_id", stationId!)
+        .maybeSingle();
+      if (error) throw error;
+      const acc: Record<string, { sum: number; n: number }> = {};
+      const rows = (prevEntry as { reading_values?: { field_id: string; value: number | null }[] } | null)
+        ?.reading_values ?? [];
+      for (const rv of rows) {
+        if (rv.value === null || rv.value === undefined) continue;
+        const v = Number(rv.value);
+        if (Number.isNaN(v)) continue;
+        acc[rv.field_id] ??= { sum: 0, n: 0 };
+        acc[rv.field_id].sum += v;
+        acc[rv.field_id].n += 1;
+      }
+      const out: Record<string, number> = {};
+      for (const [k, a] of Object.entries(acc)) if (a.n > 0) out[k] = a.sum / a.n;
+      return out;
+    },
+  });
+
+
+
   // key = `${fieldId}|${slot}` -> string value
   const [values, setValues] = useState<Record<string, string>>({});
   // per-field status: fieldId -> status token (empty = numeric mode)

@@ -15,13 +15,15 @@ export type GroupKey =
   | "electrical"
   | "cooling"
   | "chiller"
-  | "surge";
+  | "surge"
+  | "general";
 
 export interface ScadaParameter {
   id: string;
   station_id: string;
   equipment_type: EquipmentType;
   equipment_no: number;
+  equipment_label?: string | null;
   group_key: GroupKey;
   param_key: string;
   name_en: string;
@@ -125,6 +127,7 @@ export const GROUPS: { key: GroupKey; en: string; ar: string }[] = [
   { key: "cooling", en: "Cooling System", ar: "نظام التبريد" },
   { key: "chiller", en: "Chiller System", ar: "نظام الشيلر" },
   { key: "surge", en: "Surge Vessel", ar: "نظام أوعية التموج" },
+  { key: "general", en: "General Readings", ar: "قراءات عامة" },
 ];
 
 export function useScadaParameters(stationId: string | null) {

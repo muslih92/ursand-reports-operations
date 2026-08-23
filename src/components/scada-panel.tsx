@@ -23,6 +23,7 @@ import {
 } from "@/lib/scada";
 
 function equipLabel(p: ScadaParameter, locale: string) {
+  if (p.equipment_label) return p.equipment_label;
   if (p.equipment_type === "STATION") return locale === "ar" ? "المحطة" : "Station";
   const base = p.equipment_type === "MP" ? (locale === "ar" ? "مضخة رئيسية" : "Main Pump") : locale === "ar" ? "مضخة مساعدة" : "Booster Pump";
   return `${base} ${p.equipment_no}`;

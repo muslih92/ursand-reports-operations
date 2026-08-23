@@ -692,6 +692,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          equipment_label: string | null
           equipment_no: number
           equipment_type: string
           group_key: string
@@ -716,6 +717,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          equipment_label?: string | null
           equipment_no?: number
           equipment_type?: string
           group_key: string
@@ -740,6 +742,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          equipment_label?: string | null
           equipment_no?: number
           equipment_type?: string
           group_key?: string

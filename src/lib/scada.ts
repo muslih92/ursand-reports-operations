@@ -23,6 +23,7 @@ export interface ScadaParameter {
   station_id: string;
   equipment_type: EquipmentType;
   equipment_no: number;
+  equipment_label?: string | null;
   group_key: GroupKey;
   param_key: string;
   name_en: string;

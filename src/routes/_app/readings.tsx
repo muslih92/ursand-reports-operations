@@ -923,7 +923,19 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
+          {(restoredAt || draftSavedAt) && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+              {restoredAt
+                ? locale === "ar"
+                  ? `تمت استعادة مسودة غير محفوظة (${new Date(restoredAt).toLocaleTimeString()}) — اضغط حفظ للاعتماد`
+                  : `Unsaved draft restored (${new Date(restoredAt).toLocaleTimeString()}) — press Save to commit`
+                : locale === "ar"
+                  ? `تم حفظ مسودة محلية ${new Date(draftSavedAt!).toLocaleTimeString()}`
+                  : `Draft autosaved at ${new Date(draftSavedAt!).toLocaleTimeString()}`}
+            </p>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={async () => {

@@ -52,13 +52,31 @@ function MessagesPage() {
   const qc = useQueryClient();
 
   const isManagement = isAdmin || hasRole("management");
+  const isSupervisor = hasRole("supervisor");
   const [stationId, setStationId] = useState<string>(scopedStationId ?? "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  type Audience = "all" | "management" | "supervisors" | "operators";
+  const [audience, setAudience] = useState<Audience>(
+    isManagement ? "all" : isSupervisor ? "operators" : "management",
+  );
+  const audienceRoles: Record<Audience, string[]> = {
+    all: ["admin", "management", "supervisor", "operator"],
+    management: ["admin", "management"],
+    supervisors: ["admin", "management", "supervisor"],
+    operators: ["supervisor", "operator"],
+  };
+  const audienceLabel: Record<Audience, string> = {
+    all: locale === "ar" ? "الجميع" : "Everyone",
+    management: locale === "ar" ? "الإدارة" : "Management",
+    supervisors: locale === "ar" ? "المشرفين" : "Supervisors",
+    operators: locale === "ar" ? "المشغلين" : "Operators",
+  };
 
   const effectiveStation = canPickStation ? stationId : (scopedStationId ?? "");
+
   const stationMap = useMemo(
     () => Object.fromEntries(stations.map((s) => [s.id, s])),
     [stations],

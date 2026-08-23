@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { notifyStation } from "@/lib/notifications";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -610,7 +612,35 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       qc.invalidateQueries({ queryKey: ["availability-entry", newId] });
       qc.invalidateQueries({ queryKey: ["availability-values", newId] });
       if (isNew) window.history.replaceState({}, "", `?id=${newId}`);
+
+      // Alert supervisors / management about equipment that is out of service
+      const oos = (equipment ?? []).filter((e) => (values[e.id]?.status ?? "") === "out_of_service");
+      if (oos.length > 0 && stationId) {
+        const lines = oos
+          .slice(0, 8)
+          .map((e) => {
+            const v = values[e.id];
+            const why = v?.problem_description ? ` — ${v.problem_description}` : "";
+            return `• ${e.code} ${locale === "ar" ? e.name_ar : e.name_en}${why}`;
+          })
+          .join("\n");
+        const more = oos.length > 8 ? `\n… +${oos.length - 8}` : "";
+        void notifyStation({
+          stationId,
+          kind: "equipment_out_of_service",
+          title:
+            locale === "ar"
+              ? `معدات خارج الخدمة (${oos.length}) — ${entryDate}`
+              : `Equipment out of service (${oos.length}) — ${entryDate}`,
+          body:
+            (locale === "ar"
+              ? "يرجى المتابعة وتحديد الحاجة للصيانة:\n"
+              : "Please follow up and confirm maintenance needs:\n") + lines + more,
+          link: "/availability",
+        }).catch(() => undefined);
+      }
     },
+
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 

@@ -20,6 +20,8 @@ const dict: Dict = {
   "nav.routine": { ar: "روتين المشرف", en: "Supervisor's Routine" },
   "nav.trends": { ar: "الترند والرسوم البيانية", en: "Trends & Limits" },
   "nav.scada": { ar: "الترند وحدود التشغيل", en: "SCADA Trends" },
+  "nav.messages": { ar: "التواصل مع المحطات", en: "Station Communication" },
+
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },

@@ -18,6 +18,39 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
+import { isDeviating, deviationPct, notifyStation } from "@/lib/notifications";
+
+/** Collect all cells that deviate more than 10% from the previous-day average. */
+function collectDeviations(
+  values: Record<string, string>,
+  baseline: Record<string, number>,
+  fields: { id: string; label_en: string; label_ar: string | null; unit: string | null }[],
+  locale: "ar" | "en",
+) {
+  const byId = new Map(fields.map((f) => [f.id, f]));
+  const out: { text: string }[] = [];
+  const seen = new Set<string>();
+  for (const [key, raw] of Object.entries(values)) {
+    const [fieldId, slot] = key.split("|");
+    const base = baseline[fieldId];
+    const num = Number(String(raw).trim());
+    if (!raw || Number.isNaN(num)) continue;
+    if (!isDeviating(num, base)) continue;
+    const f = byId.get(fieldId);
+    if (!f) continue;
+    const label = (locale === "ar" ? f.label_ar : f.label_en) ?? f.label_en;
+    const sig = `${fieldId}|${slot}`;
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push({
+      text: `• ${label} @${slot}: ${num} (${deviationPct(num, base).toFixed(1)}% ${
+        locale === "ar" ? "عن متوسط أمس" : "vs yesterday avg"
+      } ${base.toFixed(2)})`,
+    });
+  }
+  return out;
+}
+
 
 const searchSchema = z.object({
   template: z.string().optional(),
@@ -595,6 +628,44 @@ function EntryView({
     },
   });
 
+  // ---- Previous-day baseline (average per field) for the 10% deviation check ----
+  const prevDate = useMemo(() => {
+    const d = new Date(`${date}T00:00:00`);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, [date]);
+
+  const { data: baseline } = useQuery({
+    queryKey: ["reading-baseline", templateId, prevDate, stationId ?? "none"],
+    enabled: !!stationId,
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data: prevEntry, error } = await supabase
+        .from("reading_entries")
+        .select("id, reading_values(field_id, value)")
+        .eq("template_id", templateId)
+        .eq("entry_date", prevDate)
+        .eq("station_id", stationId!)
+        .maybeSingle();
+      if (error) throw error;
+      const acc: Record<string, { sum: number; n: number }> = {};
+      const rows = (prevEntry as { reading_values?: { field_id: string; value: number | null }[] } | null)
+        ?.reading_values ?? [];
+      for (const rv of rows) {
+        if (rv.value === null || rv.value === undefined) continue;
+        const v = Number(rv.value);
+        if (Number.isNaN(v)) continue;
+        acc[rv.field_id] ??= { sum: 0, n: 0 };
+        acc[rv.field_id].sum += v;
+        acc[rv.field_id].n += 1;
+      }
+      const out: Record<string, number> = {};
+      for (const [k, a] of Object.entries(acc)) if (a.n > 0) out[k] = a.sum / a.n;
+      return out;
+    },
+  });
+
+
+
   // key = `${fieldId}|${slot}` -> string value
   const [values, setValues] = useState<Record<string, string>>({});
   // per-field status: fieldId -> status token (empty = numeric mode)
@@ -742,7 +813,28 @@ function EntryView({
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });
       qc.invalidateQueries({ queryKey: ["dash-stats"] });
+
+      // 10% deviation alert -> station supervisors + management
+      const devs = collectDeviations(values, baseline ?? {}, data?.fields ?? [], locale);
+      if (devs.length > 0 && stationId) {
+        const lines = devs.slice(0, 6).map((d) => d.text).join("\n");
+        const more = devs.length > 6 ? `\n… +${devs.length - 6}` : "";
+        void notifyStation({
+          stationId,
+          kind: "reading_deviation",
+          title:
+            locale === "ar"
+              ? `انحراف يتجاوز ١٠٪ في قراءات ${data?.template.code ?? ""} (${date})`
+              : `Deviation over 10% in ${data?.template.code ?? ""} readings (${date})`,
+          body:
+            (locale === "ar"
+              ? "يرجى المتابعة والتحقق من الحاجة إلى صيانة:\n"
+              : "Please follow up and check if maintenance is needed:\n") + lines + more,
+          link: "/readings",
+        }).catch(() => undefined);
+      }
     },
+
     onError: (e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
       toast.error(msg);
@@ -940,6 +1032,14 @@ function EntryView({
         </div>
       )}
 
+      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
+        {locale === "ar"
+          ? "الخانات ذات الخلفية الحمراء تعني انحراف القراءة أكثر من ١٠٪ عن متوسط اليوم السابق، ويُرسل إشعار تلقائي لمشرف المحطة والإدارة عند الحفظ للمتابعة."
+          : "Cells highlighted in red deviate more than 10% from the previous day's average; an automatic alert is sent to the station supervisor and management on save."}
+      </div>
+
+
+
 
       <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
         <div className="text-center">
@@ -1081,8 +1181,13 @@ function EntryView({
                         </td>
                         {template.time_slots.map((slot) => {
                           const key = `${f.id}|${slot}`;
+                          const base = baseline?.[f.id];
+                          const cellNum = Number(String(values[key] ?? "").trim());
+                          const deviated =
+                            (values[key] ?? "").trim() !== "" && isDeviating(cellNum, base);
                           return (
                             <td key={slot} className="w-[86px] min-w-[86px] p-1 align-top">
+
                               <input
                                 type="text"
                                 inputMode="text"
@@ -1155,13 +1260,22 @@ function EntryView({
                                     ? locale === "ar"
                                       ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
                                       : "Locked: this shift has ended"
-                                    : undefined
+                                    : deviated && base
+                                      ? locale === "ar"
+                                        ? `انحراف ${deviationPct(cellNum, base).toFixed(1)}٪ عن متوسط أمس (${base.toFixed(2)})`
+                                        : `Deviation ${deviationPct(cellNum, base).toFixed(1)}% vs yesterday avg (${base.toFixed(2)})`
+                                      : undefined
                                 }
                                 className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
-                                  slotLocked(slot) ? "bg-muted/60 cursor-not-allowed" : "bg-background"
+                                  slotLocked(slot)
+                                    ? "bg-muted/60 cursor-not-allowed"
+                                    : deviated
+                                      ? "bg-destructive/15 border-destructive/50 text-destructive font-semibold"
+                                      : "bg-background"
                                 }`}
                                 dir="ltr"
                               />
+
 
 
                             </td>

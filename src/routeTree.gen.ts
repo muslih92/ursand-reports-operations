@@ -19,6 +19,7 @@ import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppRoutineRouteImport } from './routes/_app/routine'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
+import { Route as AppMessagesRouteImport } from './routes/_app/messages'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
 import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
 import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
@@ -75,6 +76,11 @@ const AppReadingsRoute = AppReadingsRouteImport.update({
   path: '/readings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppIncidentsRoute = AppIncidentsRouteImport.update({
   id: '/incidents',
   path: '/incidents',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/firepump': typeof AppFirepumpRoute
   '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
+  '/messages': typeof AppMessagesRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/firepump': typeof AppFirepumpRoute
   '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
+  '/messages': typeof AppMessagesRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/_app/firepump': typeof AppFirepumpRoute
   '/_app/generator': typeof AppGeneratorRoute
   '/_app/incidents': typeof AppIncidentsRoute
+  '/_app/messages': typeof AppMessagesRoute
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/routine': typeof AppRoutineRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/firepump'
     | '/generator'
     | '/incidents'
+    | '/messages'
     | '/readings'
     | '/reports'
     | '/routine'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/firepump'
     | '/generator'
     | '/incidents'
+    | '/messages'
     | '/readings'
     | '/reports'
     | '/routine'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/_app/firepump'
     | '/_app/generator'
     | '/_app/incidents'
+    | '/_app/messages'
     | '/_app/readings'
     | '/_app/reports'
     | '/_app/routine'
@@ -294,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReadingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/messages': {
+      id: '/_app/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/incidents': {
       id: '/_app/incidents'
       path: '/incidents'
@@ -345,6 +364,7 @@ interface AppRouteChildren {
   AppFirepumpRoute: typeof AppFirepumpRoute
   AppGeneratorRoute: typeof AppGeneratorRoute
   AppIncidentsRoute: typeof AppIncidentsRoute
+  AppMessagesRoute: typeof AppMessagesRoute
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRoutineRoute: typeof AppRoutineRoute
@@ -360,6 +380,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFirepumpRoute: AppFirepumpRoute,
   AppGeneratorRoute: AppGeneratorRoute,
   AppIncidentsRoute: AppIncidentsRoute,
+  AppMessagesRoute: AppMessagesRoute,
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,
   AppRoutineRoute: AppRoutineRoute,

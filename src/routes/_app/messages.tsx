@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
-import { notifyStation } from "@/lib/notifications";
+import { notifyStation, notifyUsers, notifyStations } from "@/lib/notifications";
 import { toast } from "sonner";
 import { MessageSquare, Send, Reply } from "lucide-react";
 

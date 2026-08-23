@@ -109,7 +109,13 @@ function MessagesPage() {
   const roleLabel = isAdmin ? "admin" : hasRole("management") ? "management" : hasRole("supervisor") ? "supervisor" : "operator";
 
   const post = useMutation({
-    mutationFn: async (input: { stationId: string; body: string; subject?: string; parentId?: string | null }) => {
+    mutationFn: async (input: {
+      stationId: string;
+      body: string;
+      subject?: string;
+      parentId?: string | null;
+      audience?: Audience;
+    }) => {
       const { error } = await sb.from("station_messages").insert({
         station_id: input.stationId,
         parent_id: input.parentId ?? null,
@@ -123,6 +129,7 @@ function MessagesPage() {
 
       const st = stationMap[input.stationId];
       const stName = st ? (locale === "ar" ? st.name_ar : st.name_en) : "";
+      const target = input.audience ?? "all";
       await notifyStation({
         stationId: input.stationId,
         kind: input.parentId ? "message_reply" : "message_new",
@@ -131,13 +138,14 @@ function MessagesPage() {
             ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
             : `New reply from ${profile?.full_name ?? ""} — ${stName}`
           : locale === "ar"
-            ? `طلب/استفسار جديد — ${stName}`
-            : `New request/enquiry — ${stName}`,
+            ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
+            : `New message to ${audienceLabel[target]} — ${stName}`,
         body: (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220),
         link: "/messages",
-        includeOperators: true,
+        roles: audienceRoles[target],
       });
     },
+
     onSuccess: () => {
       toast.success(locale === "ar" ? "تم الإرسال" : "Sent");
       setSubject("");

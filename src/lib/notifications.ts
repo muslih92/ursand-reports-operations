@@ -71,6 +71,48 @@ export async function notifyStation(input: {
 }
 
 
+/** Notify a list of explicitly targeted users. */
+export async function notifyUsers(input: {
+  userIds: string[];
+  stationId: string;
+  kind: string;
+  title: string;
+  body?: string | null;
+  link?: string | null;
+}) {
+  if (input.userIds.length === 0) return;
+  const { error } = await sb.rpc("notify_users", {
+    _user_ids: input.userIds,
+    _station_id: input.stationId,
+    _kind: input.kind,
+    _title: input.title,
+    _body: input.body ?? null,
+    _link: input.link ?? null,
+  });
+  if (error) throw error;
+}
+
+/** Notify given roles across a set of stations. */
+export async function notifyStations(input: {
+  stationIds: string[];
+  kind: string;
+  title: string;
+  body?: string | null;
+  link?: string | null;
+  roles: string[];
+}) {
+  if (input.stationIds.length === 0) return;
+  const { error } = await sb.rpc("notify_stations_roles", {
+    _station_ids: input.stationIds,
+    _kind: input.kind,
+    _title: input.title,
+    _body: input.body ?? null,
+    _link: input.link ?? null,
+    _roles: input.roles,
+  });
+  if (error) throw error;
+}
+
 export function useNotifications(limit = 30) {
   const { user } = useAuth();
   return useQuery({

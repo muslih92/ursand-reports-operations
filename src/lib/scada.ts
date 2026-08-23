@@ -149,42 +149,125 @@ export function useScadaParameters(stationId: string | null) {
   });
 }
 
-export function useScadaSamples(parameterId: string | null, fromISO: string, toISO: string) {
+/** Parameters are generated from reading fields: param_key = "f_" + field uuid (no dashes). */
+export function fieldIdFromParamKey(paramKey: string | null | undefined): string | null {
+  if (!paramKey) return null;
+  const raw = paramKey.startsWith("f_") ? paramKey.slice(2) : paramKey;
+  const hex = raw.replace(/-/g, "");
+  if (!/^[0-9a-fA-F]{32}$/.test(hex)) return null;
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function slotTs(entryDate: string, slot: string | null, recordedAt: string | null) {
+  if (recordedAt) return recordedAt;
+  const hhmm = (slot ?? "00:00").slice(0, 5);
+  return new Date(`${entryDate}T${hhmm}:00Z`).toISOString();
+}
+
+const dayOf = (iso: string) => iso.slice(0, 10);
+
+/**
+ * Chart series for a parameter. Values come from the operators' entered readings
+ * (reading_values) merged with any manually recorded samples.
+ */
+export function useScadaSamples(
+  parameterId: string | null,
+  fromISO: string,
+  toISO: string,
+  paramKey?: string | null,
+) {
   return useQuery({
-    queryKey: ["scada-samples", parameterId, fromISO, toISO],
+    queryKey: ["scada-samples", parameterId, paramKey ?? null, fromISO, toISO],
     enabled: !!parameterId,
     refetchInterval: 30000,
     queryFn: async (): Promise<ScadaSample[]> => {
-      const { data, error } = await sb
+      const out: ScadaSample[] = [];
+
+      const fieldId = fieldIdFromParamKey(paramKey ?? null);
+      if (fieldId) {
+        const { data, error } = await sb
+          .from("reading_values")
+          .select("id, value, time_slot, recorded_at, reading_entries!inner(entry_date)")
+          .eq("field_id", fieldId)
+          .not("value", "is", null)
+          .gte("reading_entries.entry_date", dayOf(fromISO))
+          .lte("reading_entries.entry_date", dayOf(toISO))
+          .limit(5000);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          const entryDate = (r as any).reading_entries?.entry_date as string | undefined;
+          if (!entryDate) continue;
+          const ts = slotTs(entryDate, r.time_slot, r.recorded_at);
+          if (ts < fromISO || ts > toISO) continue;
+          out.push({ id: r.id, parameter_id: parameterId!, ts, value: Number(r.value) });
+        }
+      }
+
+      const { data: manual, error: mErr } = await sb
         .from("scada_samples")
         .select("id, parameter_id, ts, value")
         .eq("parameter_id", parameterId)
         .gte("ts", fromISO)
         .lte("ts", toISO)
         .order("ts");
-      if (error) throw error;
-      return (data ?? []).map((r: any) => ({ ...r, value: Number(r.value) })) as ScadaSample[];
+      if (mErr) throw mErr;
+      for (const r of manual ?? []) out.push({ ...r, value: Number(r.value) } as ScadaSample);
+
+      return out.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
     },
   });
 }
 
-/** Latest PV for every parameter of a station. */
-export function useLatestPvs(stationId: string | null) {
+/** Latest PV for every parameter of a station (readings first, manual samples as fallback). */
+export function useLatestPvs(stationId: string | null, params?: ScadaParameter[] | null) {
+  const keyMap = (params ?? [])
+    .map((p) => `${p.id}:${p.param_key}`)
+    .sort()
+    .join(",");
   return useQuery({
-    queryKey: ["scada-latest", stationId],
+    queryKey: ["scada-latest", stationId, keyMap],
     enabled: !!stationId,
     refetchInterval: 30000,
     queryFn: async (): Promise<Record<string, { value: number; ts: string }>> => {
-      const { data, error } = await sb
+      const out: Record<string, { value: number; ts: string }> = {};
+
+      const byField = new Map<string, string>(); // field id -> parameter id
+      for (const p of params ?? []) {
+        const fid = fieldIdFromParamKey(p.param_key);
+        if (fid) byField.set(fid, p.id);
+      }
+
+      if (byField.size > 0) {
+        const since = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const { data, error } = await sb
+          .from("reading_values")
+          .select("field_id, value, time_slot, recorded_at, reading_entries!inner(entry_date, station_id)")
+          .eq("reading_entries.station_id", stationId)
+          .gte("reading_entries.entry_date", since)
+          .not("value", "is", null)
+          .limit(20000);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          const pid = byField.get(r.field_id);
+          if (!pid) continue;
+          const entryDate = (r as any).reading_entries?.entry_date as string | undefined;
+          if (!entryDate) continue;
+          const ts = slotTs(entryDate, r.time_slot, r.recorded_at);
+          const cur = out[pid];
+          if (!cur || cur.ts < ts) out[pid] = { value: Number(r.value), ts };
+        }
+      }
+
+      const { data: manual, error: mErr } = await sb
         .from("scada_samples")
         .select("parameter_id, value, ts")
         .eq("station_id", stationId)
         .order("ts", { ascending: false })
         .limit(3000);
-      if (error) throw error;
-      const out: Record<string, { value: number; ts: string }> = {};
-      for (const r of data ?? []) {
-        if (!out[r.parameter_id]) out[r.parameter_id] = { value: Number(r.value), ts: r.ts };
+      if (mErr) throw mErr;
+      for (const r of manual ?? []) {
+        const cur = out[r.parameter_id];
+        if (!cur || cur.ts < r.ts) out[r.parameter_id] = { value: Number(r.value), ts: r.ts };
       }
       return out;
     },

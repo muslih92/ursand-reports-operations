@@ -1032,6 +1032,14 @@ function EntryView({
         </div>
       )}
 
+      <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs">
+        {locale === "ar"
+          ? "الخانات ذات الخلفية الحمراء تعني انحراف القراءة أكثر من ١٠٪ عن متوسط اليوم السابق، ويُرسل إشعار تلقائي لمشرف المحطة والإدارة عند الحفظ للمتابعة."
+          : "Cells highlighted in red deviate more than 10% from the previous day's average; an automatic alert is sent to the station supervisor and management on save."}
+      </div>
+
+
+
 
       <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
         <div className="text-center">

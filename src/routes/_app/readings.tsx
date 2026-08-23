@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
+import { readDraft, useAutoDraft } from "@/lib/local-draft";
 import { toast } from "sonner";
 import {
   ArrowLeft,

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
+import { readDraft, useAutoDraft } from "@/lib/local-draft";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -677,6 +678,7 @@ function EntryView({
   const [hydrated, setHydrated] = useState(false);
   const [activeMark, setActiveMark] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>("");
+  const [restoredAt, setRestoredAt] = useState<number | null>(null);
 
   // Default to showing ONE system at a time (first available), not everything.
   useEffect(() => {
@@ -689,6 +691,8 @@ function EntryView({
       return first.id;
     });
   }, [data]);
+
+  const draftKey = `readings:${templateId}:${date}:${stationId ?? "none"}`;
 
   useEffect(() => {
     if (!data) return;
@@ -709,12 +713,25 @@ function EntryView({
         v[key] = "";
       }
     }
+    let n = data.entry?.notes ?? "";
+    // Restore an unsaved local draft (idle / refresh / accidental close)
+    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
+    if (draft) {
+      Object.assign(v, draft.data.values ?? {});
+      Object.assign(s, draft.data.statuses ?? {});
+      if (draft.data.notes) n = draft.data.notes;
+      setRestoredAt(draft.savedAt);
+    }
     setValues(v);
     setStatuses(s);
-    setNotes(data.entry?.notes ?? "");
+    setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
     setHydrated(true);
-  }, [data, profile?.full_name]);
+  }, [data, profile?.full_name, draftKey]);
+
+  const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
+  const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(draftKey, draftData, hydrated && canWrite);
+
 
 
   useEffect(() => {
@@ -809,6 +826,8 @@ function EntryView({
       }
     },
     onSuccess: () => {
+      clearLocalDraft();
+      setRestoredAt(null);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });
@@ -904,7 +923,19 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
+          {(restoredAt || draftSavedAt) && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+              {restoredAt
+                ? locale === "ar"
+                  ? `تمت استعادة مسودة غير محفوظة (${new Date(restoredAt).toLocaleTimeString()}) — اضغط حفظ للاعتماد`
+                  : `Unsaved draft restored (${new Date(restoredAt).toLocaleTimeString()}) — press Save to commit`
+                : locale === "ar"
+                  ? `تم حفظ مسودة محلية ${new Date(draftSavedAt!).toLocaleTimeString()}`
+                  : `Draft autosaved at ${new Date(draftSavedAt!).toLocaleTimeString()}`}
+            </p>
+          )}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={async () => {

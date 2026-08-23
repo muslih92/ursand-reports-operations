@@ -912,6 +912,7 @@ export type Database = {
       }
       station_messages: {
         Row: {
+          audience_roles: string[] | null
           author_id: string | null
           author_name: string | null
           author_role: string | null
@@ -921,8 +922,11 @@ export type Database = {
           parent_id: string | null
           station_id: string
           subject: string | null
+          target_station_ids: string[] | null
+          target_user_ids: string[] | null
         }
         Insert: {
+          audience_roles?: string[] | null
           author_id?: string | null
           author_name?: string | null
           author_role?: string | null
@@ -932,8 +936,11 @@ export type Database = {
           parent_id?: string | null
           station_id: string
           subject?: string | null
+          target_station_ids?: string[] | null
+          target_user_ids?: string[] | null
         }
         Update: {
+          audience_roles?: string[] | null
           author_id?: string | null
           author_name?: string | null
           author_role?: string | null
@@ -943,6 +950,8 @@ export type Database = {
           parent_id?: string | null
           station_id?: string
           subject?: string | null
+          target_station_ids?: string[] | null
+          target_user_ids?: string[] | null
         }
         Relationships: [
           {
@@ -1071,6 +1080,17 @@ export type Database = {
         Args: { _station_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_station_message: {
+        Args: {
+          _author: string
+          _roles: string[]
+          _station: string
+          _stations: string[]
+          _user: string
+          _users: string[]
+        }
+        Returns: boolean
+      }
       get_user_station: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -1080,6 +1100,16 @@ export type Database = {
         Returns: boolean
       }
       is_unrestricted_viewer: { Args: { _user_id: string }; Returns: boolean }
+      list_message_recipients: {
+        Args: never
+        Returns: {
+          employee_no: string
+          full_name: string
+          role: string
+          station_id: string
+          user_id: string
+        }[]
+      }
       notify_station: {
         Args: {
           _body: string
@@ -1099,6 +1129,28 @@ export type Database = {
           _roles?: string[]
           _station_id: string
           _title: string
+        }
+        Returns: number
+      }
+      notify_stations_roles: {
+        Args: {
+          _body: string
+          _kind: string
+          _link?: string
+          _roles?: string[]
+          _station_ids: string[]
+          _title: string
+        }
+        Returns: number
+      }
+      notify_users: {
+        Args: {
+          _body?: string
+          _kind: string
+          _link?: string
+          _station_id: string
+          _title: string
+          _user_ids: string[]
         }
         Returns: number
       }

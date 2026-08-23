@@ -499,11 +499,17 @@ function Dashboard() {
               <thead className="bg-muted/40">
                 <tr>
                   <th className="text-start px-2 py-2">{locale === "ar" ? "المحطة" : "Station"}</th>
-                  <th className="px-2 py-2" title="In Service">🟢</th>
-                  <th className="px-2 py-2" title="Standby">🟡</th>
-                  <th className="px-2 py-2" title="N/V">🔴</th>
-                  <th className="px-2 py-2" title="Maintenance">🔵</th>
-                  <th className="px-2 py-2" title="Fixed Speed">🟠</th>
+                  {(["in_service", "standby", "out_of_service", "maintenance", "fixed_speed"] as const).map((k) => (
+                    <th key={k} className="px-2 py-2 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ background: STATUS_COLORS[k] ?? "#64748b" }}
+                        />
+                        <span className="text-xs font-medium">{STATUS_LABELS[k]?.[locale] ?? k}</span>
+                      </span>
+                    </th>
+                  ))}
                   <th className="px-2 py-2">{locale === "ar" ? "الإجمالي" : "Total"}</th>
                   <th className="px-2 py-2">{locale === "ar" ? "التواجدية %" : "Avail %"}</th>
                 </tr>

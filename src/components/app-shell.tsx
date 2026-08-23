@@ -104,10 +104,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="md:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 border-b bg-card">
           <img src={logo.url} alt="WTCO" className="h-8 w-8" />
           <div className="flex-1 font-semibold text-sm truncate">{t("app.name")}</div>
+          <NotificationBell compact />
           <button onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="p-2 rounded hover:bg-accent">
             <Languages className="h-4 w-4" />
           </button>
           <ChangePasswordButton compact />
+
           <button onClick={() => void signOut()} className="p-2 rounded hover:bg-accent text-destructive">
 
             <LogOut className="h-4 w-4" />

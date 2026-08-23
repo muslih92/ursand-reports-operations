@@ -76,7 +76,7 @@ export function useNotifications(limit = 30) {
   return useQuery({
     queryKey: ["notifications", user?.id ?? "none"],
     enabled: !!user?.id,
-    refetchInterval: 60000,
+    refetchInterval: 20000,
     queryFn: async (): Promise<AppNotification[]> => {
       const { data, error } = await sb
         .from("notifications")

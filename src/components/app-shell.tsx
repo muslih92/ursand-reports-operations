@@ -7,6 +7,7 @@ const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
 import { ChangePasswordButton } from "@/components/change-password-dialog";
 import { NotificationBell } from "@/components/notification-bell";
+import { useNotifications } from "@/lib/notifications";
 
 
 interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }
@@ -31,6 +32,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut, roles } = useAuth();
   const { t, locale, setLocale, dir } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: notifications = [] } = useNotifications();
+  const unreadMessages = notifications.filter(
+    (n) => !n.read && (n.kind === "message_new" || n.kind === "message_reply"),
+  ).length;
 
   const isManagement = !isAdmin && (roles.includes("management") || roles.includes("supervisor"));
   const isOperator = !isAdmin && !isManagement && roles.includes("operator");
@@ -40,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     !(isManagement && n.hideForManagement),
   );
   const roleLabel = roles[0] ? t(`role.${roles[0]}`) : "";
+
 
 
 
@@ -69,7 +75,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{t(n.key)}</span>
+                <span className="truncate flex-1">{t(n.key)}</span>
+                {n.to === "/messages" && unreadMessages > 0 && (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -122,7 +133,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             const active = pathname === n.to || pathname.startsWith(n.to + "/");
             return (
               <Link key={n.to} to={n.to} className={cn("flex shrink-0 min-w-[4.5rem] flex-col items-center gap-1 p-2 rounded text-[11px] text-center", active ? "text-primary" : "text-muted-foreground")}>
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {n.to === "/messages" && unreadMessages > 0 && (
+                    <span className="absolute -top-1 -end-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  )}
+                </span>
                 <span className="leading-tight">{t(n.key)}</span>
               </Link>
             );

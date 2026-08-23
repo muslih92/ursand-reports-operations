@@ -1091,6 +1091,17 @@ export type Database = {
         }
         Returns: number
       }
+      notify_station_roles: {
+        Args: {
+          _body: string
+          _kind: string
+          _link?: string
+          _roles?: string[]
+          _station_id: string
+          _title: string
+        }
+        Returns: number
+      }
       user_station: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {

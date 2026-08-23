@@ -52,13 +52,31 @@ function MessagesPage() {
   const qc = useQueryClient();
 
   const isManagement = isAdmin || hasRole("management");
+  const isSupervisor = hasRole("supervisor");
   const [stationId, setStationId] = useState<string>(scopedStationId ?? "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState("");
+  type Audience = "all" | "management" | "supervisors" | "operators";
+  const [audience, setAudience] = useState<Audience>(
+    isManagement ? "all" : isSupervisor ? "operators" : "management",
+  );
+  const audienceRoles: Record<Audience, string[]> = {
+    all: ["admin", "management", "supervisor", "operator"],
+    management: ["admin", "management"],
+    supervisors: ["admin", "management", "supervisor"],
+    operators: ["supervisor", "operator"],
+  };
+  const audienceLabel: Record<Audience, string> = {
+    all: locale === "ar" ? "الجميع" : "Everyone",
+    management: locale === "ar" ? "الإدارة" : "Management",
+    supervisors: locale === "ar" ? "المشرفين" : "Supervisors",
+    operators: locale === "ar" ? "المشغلين" : "Operators",
+  };
 
   const effectiveStation = canPickStation ? stationId : (scopedStationId ?? "");
+
   const stationMap = useMemo(
     () => Object.fromEntries(stations.map((s) => [s.id, s])),
     [stations],
@@ -91,7 +109,13 @@ function MessagesPage() {
   const roleLabel = isAdmin ? "admin" : hasRole("management") ? "management" : hasRole("supervisor") ? "supervisor" : "operator";
 
   const post = useMutation({
-    mutationFn: async (input: { stationId: string; body: string; subject?: string; parentId?: string | null }) => {
+    mutationFn: async (input: {
+      stationId: string;
+      body: string;
+      subject?: string;
+      parentId?: string | null;
+      audience?: Audience;
+    }) => {
       const { error } = await sb.from("station_messages").insert({
         station_id: input.stationId,
         parent_id: input.parentId ?? null,
@@ -105,6 +129,7 @@ function MessagesPage() {
 
       const st = stationMap[input.stationId];
       const stName = st ? (locale === "ar" ? st.name_ar : st.name_en) : "";
+      const target = input.audience ?? "all";
       await notifyStation({
         stationId: input.stationId,
         kind: input.parentId ? "message_reply" : "message_new",
@@ -113,13 +138,14 @@ function MessagesPage() {
             ? `رد جديد من ${profile?.full_name ?? ""} — ${stName}`
             : `New reply from ${profile?.full_name ?? ""} — ${stName}`
           : locale === "ar"
-            ? `طلب/استفسار جديد — ${stName}`
-            : `New request/enquiry — ${stName}`,
+            ? `رسالة جديدة إلى ${audienceLabel[target]} — ${stName}`
+            : `New message to ${audienceLabel[target]} — ${stName}`,
         body: (input.subject ? `${input.subject}\n` : "") + input.body.slice(0, 220),
         link: "/messages",
-        includeOperators: true,
+        roles: audienceRoles[target],
       });
     },
+
     onSuccess: () => {
       toast.success(locale === "ar" ? "تم الإرسال" : "Sent");
       setSubject("");
@@ -149,7 +175,7 @@ function MessagesPage() {
       </div>
 
       <div className="rounded-xl border bg-card p-4 space-y-3">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">{locale === "ar" ? "المحطة" : "Station"}</label>
             <select
@@ -162,6 +188,25 @@ function MessagesPage() {
               {stations.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.code} · {locale === "ar" ? s.name_ar : s.name_en}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">{locale === "ar" ? "إرسال إلى" : "Send to"}</label>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as Audience)}
+              className="h-10 px-3 rounded-lg border bg-background text-sm"
+            >
+              {(isManagement
+                ? (["all", "supervisors", "operators"] as Audience[])
+                : isSupervisor
+                  ? (["operators", "management", "all"] as Audience[])
+                  : (["management", "supervisors"] as Audience[])
+              ).map((a) => (
+                <option key={a} value={a}>
+                  {audienceLabel[a]}
                 </option>
               ))}
             </select>
@@ -187,15 +232,14 @@ function MessagesPage() {
           <button
             type="button"
             disabled={!effectiveStation || !body.trim() || post.isPending}
-            onClick={() => post.mutate({ stationId: effectiveStation, body: body.trim(), subject })}
+            onClick={() => post.mutate({ stationId: effectiveStation, body: body.trim(), subject, audience })}
             className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
-            {isManagement
-              ? locale === "ar" ? "إرسال إلى المحطة" : "Send to station"
-              : locale === "ar" ? "إرسال إلى الإدارة" : "Send to management"}
+            {locale === "ar" ? `إرسال إلى ${audienceLabel[audience]}` : `Send to ${audienceLabel[audience]}`}
           </button>
         </div>
+
       </div>
 
       {isLoading && <div className="text-sm text-muted-foreground">{locale === "ar" ? "جارٍ التحميل…" : "Loading…"}</div>}
@@ -256,7 +300,9 @@ function MessagesPage() {
                           body: replyBody.trim(),
                           subject: root.subject ?? undefined,
                           parentId: root.id,
+                          audience: "all",
                         })
+
                       }
                       className="inline-flex items-center gap-2 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50"
                     >

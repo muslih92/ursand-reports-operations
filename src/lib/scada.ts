@@ -14,6 +14,7 @@ export type GroupKey =
   | "vibration"
   | "electrical"
   | "cooling"
+  | "chiller"
   | "surge";
 
 export interface ScadaParameter {

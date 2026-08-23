@@ -88,16 +88,45 @@ function MessagesPage() {
 
   const effectiveStation = canPickStation ? stationId : (scopedStationId ?? "");
 
+  // Extra stations allowed to view/reply to the thread, and named recipients.
+  const [shareStations, setShareStations] = useState<string[]>([]);
+  const [targetUsers, setTargetUsers] = useState<string[]>([]);
+  const canTarget = isManagement || isSupervisor;
+
   const stationMap = useMemo(
     () => Object.fromEntries(stations.map((s) => [s.id, s])),
     [stations],
   );
 
+  const { data: recipients = [] } = useQuery({
+    queryKey: ["message-recipients"],
+    enabled: canTarget,
+    queryFn: async (): Promise<Recipient[]> => {
+      const { data, error } = await sb.rpc("list_message_recipients");
+      if (error) throw error;
+      return (data ?? []) as Recipient[];
+    },
+  });
+
+  const eligibleRecipients = useMemo(() => {
+    const wanted =
+      audience === "operators" ? ["operator"]
+      : audience === "supervisors" ? ["supervisor"]
+      : audience === "management" ? ["management", "admin"]
+      : ["operator", "supervisor", "management", "admin"];
+    const allowedStations = new Set([effectiveStation, ...shareStations].filter(Boolean));
+    return recipients.filter(
+      (r) =>
+        wanted.includes(r.role) &&
+        (allowedStations.size === 0 || !r.station_id || allowedStations.has(r.station_id)),
+    );
+  }, [recipients, audience, effectiveStation, shareStations]);
+
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ["station-messages", effectiveStation || "all"],
+    queryKey: ["station-messages", stationId || "all"],
     queryFn: async (): Promise<Msg[]> => {
       let q = sb.from("station_messages").select("*").order("created_at", { ascending: false }).limit(200);
-      if (effectiveStation) q = q.eq("station_id", effectiveStation);
+      if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as Msg[];

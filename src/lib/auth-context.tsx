@@ -55,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (event === "SIGNED_IN") markSessionStart();
+      if (event === "SIGNED_OUT") clearSessionStart();
       setUser(session?.user ?? null);
       // Defer to avoid deadlock
       setTimeout(() => { void loadUserData(session?.user ?? null); }, 0);
@@ -66,11 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    clearSessionStart();
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
     router.navigate({ to: "/auth", replace: true });
   };
+
+  // Auto sign-out 12 hours after sign-in, even if the browser stayed open.
+  useSessionTimeout(!!user, () => {
+    toast.warning("انتهت الجلسة (12 ساعة). يرجى تسجيل الدخول من جديد. / Session expired after 12 hours.");
+    void signOut();
+  });
+
 
   const refresh = async () => { await loadUserData(user); };
 

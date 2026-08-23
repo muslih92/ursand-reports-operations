@@ -690,6 +690,8 @@ function EntryView({
     });
   }, [data]);
 
+  const draftKey = `readings:${templateId}:${date}:${stationId ?? "none"}`;
+
   useEffect(() => {
     if (!data) return;
     const v: Record<string, string> = {};
@@ -709,12 +711,25 @@ function EntryView({
         v[key] = "";
       }
     }
+    let n = data.entry?.notes ?? "";
+    // Restore an unsaved local draft (idle / refresh / accidental close)
+    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
+    if (draft) {
+      Object.assign(v, draft.data.values ?? {});
+      Object.assign(s, draft.data.statuses ?? {});
+      if (draft.data.notes) n = draft.data.notes;
+      setRestoredAt(draft.savedAt);
+    }
     setValues(v);
     setStatuses(s);
-    setNotes(data.entry?.notes ?? "");
+    setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
     setHydrated(true);
-  }, [data, profile?.full_name]);
+  }, [data, profile?.full_name, draftKey]);
+
+  const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
+  const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(draftKey, draftData, hydrated && canWrite);
+
 
 
   useEffect(() => {

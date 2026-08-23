@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,34 +22,13 @@ import {
   type ScadaParameter,
 } from "@/lib/scada";
 
-export const Route = createFileRoute("/_app/scada")({
-  component: ScadaPage,
-  head: () => ({
-    meta: [
-      { title: "SCADA Trends & Operating Limits | URS Operations" },
-      {
-        name: "description",
-        content:
-          "Live SCADA-style trends for FG pumping stations with HI/HH/LO/LL operating limits, reference values and alarm status per pump.",
-      },
-      { property: "og:title", content: "SCADA Trends & Operating Limits | URS Operations" },
-      {
-        property: "og:description",
-        content: "Monitor pump temperatures, vibration, flow, pressure and power against operating limits.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
-});
-
 function equipLabel(p: ScadaParameter, locale: string) {
   if (p.equipment_type === "STATION") return locale === "ar" ? "المحطة" : "Station";
   const base = p.equipment_type === "MP" ? (locale === "ar" ? "مضخة رئيسية" : "Main Pump") : locale === "ar" ? "مضخة مساعدة" : "Booster Pump";
   return `${base} ${p.equipment_no}`;
 }
 
-function ScadaPage() {
+export function ScadaPanel() {
   const { locale, dir } = useI18n();
   const { isAdmin, hasRole, profile } = useAuth();
   const canConfigure = isAdmin || hasRole("supervisor");

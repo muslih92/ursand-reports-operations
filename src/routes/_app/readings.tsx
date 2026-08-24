@@ -731,6 +731,10 @@ function EntryView({
 
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(draftKey, draftData, hydrated && canWrite);
+  const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const lastAutoSavedRef = useRef<string>("");
+
+
 
 
 

@@ -106,7 +106,8 @@ export function StationOfWeek() {
         id={panelId}
         role="region"
         aria-hidden={!open}
-        className={`grid transition-all duration-300 ease-out motion-reduce:transition-none ${
+        style={{ willChange: open ? "grid-template-rows, opacity" : "auto" }}
+        className={`grid [contain:layout_paint] transition-all duration-300 ease-out motion-reduce:transition-none ${
           open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >

@@ -18,7 +18,7 @@ import {
   MessageSquare,
   type LucideIcon,
 } from "lucide-react";
-import { useId } from "react";
+import { memo, useId } from "react";
 
 type Row = {
   user_id: string;
@@ -51,7 +51,7 @@ const METRICS: Record<"operator" | "supervisor", { k: "m1" | "m2" | "m3" | "m4";
   ],
 };
 
-function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) {
+const Card = memo(function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const [open, toggle] = usePersistentToggle(`card-open:staff-of-month:${kind}`);
@@ -113,7 +113,8 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
         id={panelId}
         role="region"
         aria-hidden={!open}
-        className={`grid transition-all duration-300 ease-out motion-reduce:transition-none ${
+        style={{ willChange: open ? "grid-template-rows, opacity" : "auto" }}
+        className={`grid [contain:layout_paint] transition-all duration-300 ease-out motion-reduce:transition-none ${
           open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >
@@ -161,7 +162,7 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
       </div>
     </section>
   );
-}
+});
 
 export function StaffOfMonth() {
   const { data, isLoading } = useQuery({

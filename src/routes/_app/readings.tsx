@@ -849,15 +849,23 @@ function EntryView({
         if (error) throw error;
       }
 
-      // 3) verify the write actually landed in the database
+      // 3) verify the write actually landed in the database.
+      // PostgREST caps a select at 1000 rows, so page through everything.
       let verifiedMissing = 0;
       if (toUpsert.length > 0) {
-        const { data: saved, error: verifyErr } = await supabase
-          .from("reading_values")
-          .select("field_id, time_slot")
-          .eq("entry_id", entryId!);
-        if (verifyErr) throw verifyErr;
-        const savedKeys = new Set((saved ?? []).map((r) => `${r.field_id}|${r.time_slot}`));
+        const savedKeys = new Set<string>();
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: saved, error: verifyErr } = await supabase
+            .from("reading_values")
+            .select("field_id, time_slot")
+            .eq("entry_id", entryId!)
+            .order("field_id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (verifyErr) throw verifyErr;
+          for (const r of saved ?? []) savedKeys.add(`${r.field_id}|${r.time_slot}`);
+          if (!saved || saved.length < PAGE) break;
+        }
         verifiedMissing = toUpsert.filter((r) => !savedKeys.has(`${r.field_id}|${r.time_slot}`)).length;
         if (verifiedMissing > 0) {
           throw new Error(
@@ -867,6 +875,7 @@ function EntryView({
           );
         }
       }
+
 
       return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
     },

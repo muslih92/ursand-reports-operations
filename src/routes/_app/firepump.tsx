@@ -442,7 +442,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [operatorName, setOperatorName] = useState(profile?.full_name ?? "");
   const [supervisorName, setSupervisorName] = useState("");
   const [notes, setNotes] = useState("");
-  const [data, setData] = useState<TestData>(emptyData);
+  const [pumpType, setPumpType] = useState<PumpType>("diesel");
+  const [data, setData] = useState<TestData>(() => emptyData("diesel"));
   const [hydrated, setHydrated] = useState(false);
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
@@ -462,13 +463,17 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setSupervisorName(existing.supervisor_name ?? "");
     setNotes(existing.supervisor_notes ?? "");
     const raw = (existing.data ?? {}) as Partial<TestData>;
-    const base = emptyData();
+    const type: PumpType = raw.pump_type === "electric" ? "electric" : "diesel";
+    setPumpType(type);
+    const base = emptyData(type);
     setData({
       values: { ...base.values, ...(raw.values ?? {}) },
       checks: { ...base.checks, ...(raw.checks ?? {}) },
+      pump_type: type,
     });
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
+
 
   useEffect(() => {
     return () => {

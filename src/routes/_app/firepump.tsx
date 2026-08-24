@@ -140,6 +140,83 @@ const CHECKLIST = [
   { key: "c_sound", label: "ABNORMAL SOUND DURING RUNNING THE PUMP" },
 ];
 
+/* -------- ELECTRIC FIRE FIGHTING PUMP (PS1FG / PS2FG / PS3FG) -------- */
+
+/** Stations allowed to record the electric fire fighting pump test.
+ *  Add more station codes here when the pump is installed elsewhere. */
+const ELECTRIC_STATION_CODES = ["PS1FG", "PS2FG", "PS3FG"];
+
+const ELECTRIC_SECTIONS: SectionDef[] = [
+  {
+    key: "before",
+    title: "BEFORE STARTING",
+    titleAr: "قبل التشغيل",
+    hint: "Fill these items before running the Pump. Test Line Flowmeter: Upstream Valve → Mark Open/Close, Flowmeter → Mark Available/Not Available, Downstream Valve → Mark Open/Close. Electric Pump: Suction & Discharge valve → Mark Open/Close, Hour Meter Counter → Record hours before starting, Testing Mode → Select Auto/Manual.",
+    hintAr: "عبّئ هذه البنود قبل تشغيل المضخة: صمام الدخول/الخروج (فتح/إغلاق)، عدّاد التدفق (متوفر/غير متوفر)، صمامات السحب والطرد، عدّاد الساعات قبل التشغيل، ووضع الاختبار (أوتوماتيك/يدوي).",
+    fields: [
+      { key: "eb_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
+      { key: "eb_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
+      { key: "eb_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
+      { key: "eb_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
+      { key: "eb_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
+      { key: "eb_hourmeter", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
+      { key: "eb_mode", label: "TESTING MODE", kind: "auto_man" },
+    ],
+  },
+  {
+    key: "during",
+    title: "DURRING RUNNING",
+    titleAr: "أثناء التشغيل",
+    hint: "While the pump is operating. Flow & Valve Opening: Flowmeter → Record actual flow in m³/hr, Downstream valve → Confirm Partial Open. Electric Pump: Suction & Discharge Pressure → Record in bar, Starting Time → Record time in hours (Hrs).",
+    hintAr: "أثناء عمل المضخة: سجّل التدفق الفعلي (م³/س)، وتأكد أن صمام الخروج مفتوح جزئياً، وسجّل ضغط السحب والطرد بالبار، ووقت البدء بالساعات.",
+    fields: [
+      { key: "ed_flowmeter", group: "FLOW & VALVE OPENING", label: "FLOWMETER", kind: "text", unit: "m³/h" },
+      { key: "ed_downstream", group: "FLOW & VALVE OPENING", label: "DOWNSTREAM VALVE", kind: "partial" },
+      { key: "ed_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "text", unit: "BAR" },
+      { key: "ed_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "text", unit: "BAR" },
+      { key: "ed_start_time", label: "STARTING TIME", kind: "text", unit: "MIN" },
+    ],
+  },
+  {
+    key: "after",
+    title: "AFTER STOPPING",
+    titleAr: "بعد الإيقاف",
+    hint: "Immediately after stopping the pump. Test Line Flowmeter: Upstream valve → Mark Open/Close, Flowmeter → Mark Available/Not Available, Downstream valve → Mark Open/Close. Electric Pump: Suction & Discharge valve → Mark Open/Close, Hour Meter Counter → Record total running hours, Selector Mode → Select Auto/Manual, Stopping Time → Record time in hours (Hrs).",
+    hintAr: "مباشرة بعد إيقاف المضخة: حالة الصمامات، توفر عدّاد التدفق، إجمالي ساعات التشغيل، وضع المفتاح (أوتوماتيك/يدوي)، ووقت الإيقاف بالساعات.",
+    fields: [
+      { key: "ea_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
+      { key: "ea_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
+      { key: "ea_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
+      { key: "ea_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
+      { key: "ea_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
+      { key: "ea_hourmeter", group: "ELECTRIC PUMP", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
+      { key: "ea_selector", group: "ELECTRIC PUMP", label: "SELECTOR MODE", kind: "auto_man" },
+      { key: "ea_stop_time", label: "STOPPING TIME", kind: "text", unit: "Hrs" },
+    ],
+  },
+];
+
+const ELECTRIC_CHECKLIST = [
+  { key: "ec_auto", label: "ELECTRICAL PUMP SWITCH ON AUTO" },
+  { key: "ec_flow_switch", label: "FLOW SWITCH WORKING PROPERLY" },
+  { key: "ec_pressure_switch", label: "PRESSURE SWITCH WORKING PROPERLY" },
+  { key: "ec_sound", label: "ABNORMAL SOUND DURING RUNNING THE PUMP" },
+];
+
+type PumpType = "diesel" | "electric";
+
+function sectionsFor(type: PumpType) {
+  return type === "electric" ? ELECTRIC_SECTIONS : SECTIONS;
+}
+function checklistFor(type: PumpType) {
+  return type === "electric" ? ELECTRIC_CHECKLIST : CHECKLIST;
+}
+function titleFor(type: PumpType) {
+  return type === "electric" ? "ELECTRIC FIRE FIGTHING PUMP TEST RUN" : "DIESEL FIRE FIGTHING PUMP";
+}
+function systemFor(type: PumpType) {
+  return type === "electric" ? "FIRE FIGHTING" : "DIESEL FIRE FIGTHING PUMP";
+}
 
 interface CheckRow {
   answer: "YES" | "NO" | "";
@@ -149,13 +226,15 @@ interface CheckRow {
 interface TestData {
   values: Record<string, string>;
   checks: Record<string, CheckRow>;
+  pump_type?: PumpType;
 }
 
-function emptyData(): TestData {
+function emptyData(type: PumpType = "diesel"): TestData {
   const checks: Record<string, CheckRow> = {};
-  for (const c of CHECKLIST) checks[c.key] = { answer: "", remark: "" };
-  return { values: {}, checks };
+  for (const c of checklistFor(type)) checks[c.key] = { answer: "", remark: "" };
+  return { values: {}, checks, pump_type: type };
 }
+
 
 interface Station {
   id: string;

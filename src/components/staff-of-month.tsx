@@ -18,7 +18,7 @@ import {
   MessageSquare,
   type LucideIcon,
 } from "lucide-react";
-import { useId } from "react";
+import { memo, useId } from "react";
 
 type Row = {
   user_id: string;
@@ -51,7 +51,7 @@ const METRICS: Record<"operator" | "supervisor", { k: "m1" | "m2" | "m3" | "m4";
   ],
 };
 
-function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) {
+const Card = memo(function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) {
   const { locale } = useI18n();
   const ar = locale === "ar";
   const [open, toggle] = usePersistentToggle(`card-open:staff-of-month:${kind}`);
@@ -113,7 +113,8 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
         id={panelId}
         role="region"
         aria-hidden={!open}
-        className={`grid transition-all duration-300 ease-out motion-reduce:transition-none ${
+        style={{ willChange: open ? "grid-template-rows, opacity" : "auto" }}
+        className={`grid [contain:layout_paint] transition-all duration-300 ease-out motion-reduce:transition-none ${
           open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >
@@ -121,10 +122,20 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
           <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {METRICS[kind].map(({ k, ar: a, en, Icon: MIcon }) => (
               <li key={k} className="flex items-center gap-2 rounded-md border bg-background/70 px-2 py-1 text-xs">
-                <MIcon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                <span
+                  tabIndex={0}
+                  role="img"
+                  title={ar ? a : en}
+                  aria-label={ar ? a : en}
+                  data-testid="metric-tip"
+                  className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <MIcon className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{ar ? a : en}</span>
                 <span className="shrink-0 font-semibold">{winner[k]}%</span>
               </li>
+
             ))}
           </ul>
           {rest.length > 0 && (
@@ -151,7 +162,7 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
       </div>
     </section>
   );
-}
+});
 
 export function StaffOfMonth() {
   const { data, isLoading } = useQuery({

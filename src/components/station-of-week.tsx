@@ -106,7 +106,8 @@ export function StationOfWeek() {
         id={panelId}
         role="region"
         aria-hidden={!open}
-        className={`grid transition-all duration-300 ease-out motion-reduce:transition-none ${
+        style={{ willChange: open ? "grid-template-rows, opacity" : "auto" }}
+        className={`grid [contain:layout_paint] transition-all duration-300 ease-out motion-reduce:transition-none ${
           open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >
@@ -117,10 +118,20 @@ export function StationOfWeek() {
                 key={String(k)}
                 className="flex items-center gap-2 rounded-md border bg-background/70 px-2 py-1 text-xs"
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden="true" />
+                <span
+                  tabIndex={0}
+                  role="img"
+                  title={ar ? a : en}
+                  aria-label={ar ? a : en}
+                  data-testid="metric-tip"
+                  className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  <Icon className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">{ar ? a : en}</span>
                 <span className="shrink-0 font-semibold">{winner[k] as number}%</span>
               </li>
+
             ))}
           </ul>
           {rest.length > 0 && (

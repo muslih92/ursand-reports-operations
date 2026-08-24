@@ -1010,17 +1010,22 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {(restoredAt || draftSavedAt) && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
-              {restoredAt
+          {(save.isPending || autoSavedAt || draftSavedAt) && (
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {save.isPending
                 ? locale === "ar"
-                  ? `تمت استعادة مسودة غير محفوظة (${new Date(restoredAt).toLocaleTimeString()}) — اضغط حفظ للاعتماد`
-                  : `Unsaved draft restored (${new Date(restoredAt).toLocaleTimeString()}) — press Save to commit`
-                : locale === "ar"
-                  ? `تم حفظ مسودة محلية ${new Date(draftSavedAt!).toLocaleTimeString()}`
-                  : `Draft autosaved at ${new Date(draftSavedAt!).toLocaleTimeString()}`}
+                  ? "جارٍ الحفظ التلقائي…"
+                  : "Auto-saving…"
+                : autoSavedAt
+                  ? locale === "ar"
+                    ? `تم الحفظ التلقائي ${new Date(autoSavedAt).toLocaleTimeString()}`
+                    : `Auto-saved at ${new Date(autoSavedAt).toLocaleTimeString()}`
+                  : locale === "ar"
+                    ? "الحفظ التلقائي مفعّل"
+                    : "Auto-save is on"}
             </p>
           )}
+
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

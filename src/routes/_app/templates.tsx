@@ -353,7 +353,15 @@ function TemplateEditor({
           (exFields ?? []).map((f) => [f.label_en.trim().toLowerCase(), f]),
         );
         const usedFieldIds = new Set<string>();
-        const toInsert: Array<Record<string, unknown>> = [];
+        const toInsert: Array<{
+          template_id: string;
+          section_id: string | null;
+          label_en: string;
+          label_ar: string | null;
+          unit: string | null;
+          sort_order: number;
+        }> = [];
+
 
         for (const f of fields) {
           const targetSection = f.section_id ? (map[f.section_id] ?? null) : null;

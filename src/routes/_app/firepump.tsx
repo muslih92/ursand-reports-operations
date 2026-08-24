@@ -773,7 +773,7 @@ async function exportFirePumpXlsx(opts: {
 
   let r = 1;
   ws.mergeCells(`A${r}:D${r}`);
-  ws.getCell(`A${r}`).value = "DIESEL FIRE FIGHTING PUMP TEST RUN — WEEKLY ROUTINE";
+  ws.getCell(`A${r}`).value = "WEEKLY TEST RUN LOGSHEET — DIESEL FIRE FIGTHING PUMP";
   ws.getCell(`A${r}`).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
   ws.getCell(`A${r}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC00000" } };
   ws.getCell(`A${r}`).alignment = { horizontal: "center" };

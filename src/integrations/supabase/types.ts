@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_events: {
+        Row: {
+          actor_id: string | null
+          details: Json
+          entity_id: string | null
+          entity_table: string | null
+          event_type: string
+          id: string
+          occurred_at: string
+          station_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          details?: Json
+          entity_id?: string | null
+          entity_table?: string | null
+          event_type: string
+          id?: string
+          occurred_at?: string
+          station_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          details?: Json
+          entity_id?: string | null
+          entity_table?: string | null
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          station_id?: string | null
+        }
+        Relationships: []
+      }
       equipment_availability_entries: {
         Row: {
           created_at: string
@@ -1109,6 +1142,16 @@ export type Database = {
           station_id: string
           user_id: string
         }[]
+      }
+      log_audit_event: {
+        Args: {
+          _details?: Json
+          _entity_id?: string
+          _entity_table?: string
+          _event_type: string
+          _station_id?: string
+        }
+        Returns: undefined
       }
       notify_station: {
         Args: {

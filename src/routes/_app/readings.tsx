@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -731,6 +731,10 @@ function EntryView({
 
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(draftKey, draftData, hydrated && canWrite);
+  const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const lastAutoSavedRef = useRef<string>("");
+
+
 
 
 
@@ -742,7 +746,7 @@ function EntryView({
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_vars?: { silent?: boolean }) => {
       if (!stationId) throw new Error("no station");
       // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;
@@ -867,21 +871,25 @@ function EntryView({
       return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
     },
 
-    onSuccess: (res) => {
+    onSuccess: (res, vars) => {
       clearLocalDraft();
       setRestoredAt(null);
-      toast.success(
-        locale === "ar"
-          ? `تم الحفظ والتحقق: ${res?.saved ?? 0} قراءة`
-          : `Saved & verified: ${res?.saved ?? 0} readings`,
-      );
-      if ((res?.skippedLocked ?? 0) > 0) {
+      setAutoSavedAt(Date.now());
+      if (!vars?.silent) {
+        toast.success(
+          locale === "ar"
+            ? `تم الحفظ والتحقق: ${res?.saved ?? 0} قراءة`
+            : `Saved & verified: ${res?.saved ?? 0} readings`,
+        );
+      }
+      if ((res?.skippedLocked ?? 0) > 0 && !vars?.silent) {
         toast.warning(
           locale === "ar"
             ? `لم يتم حفظ ${res!.skippedLocked} قيمة لأن ورديتها مقفلة (انتهى الشفت). راجع المشرف.`
             : `${res!.skippedLocked} values were not saved because their shift is closed. Contact your supervisor.`,
         );
       }
+
 
       qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
       qc.invalidateQueries({ queryKey: ["progress", date, stationId ?? "any"] });
@@ -913,6 +921,31 @@ function EntryView({
       toast.error(msg);
     },
   });
+
+  // Automatic save to the database — no manual confirmation needed.
+  useEffect(() => {
+    if (!hydrated || !canWrite || !stationId) return;
+    const snapshot = JSON.stringify(draftData);
+    if (lastAutoSavedRef.current === "" && !restoredAt) {
+      lastAutoSavedRef.current = snapshot;
+      return;
+    }
+    if (snapshot === lastAutoSavedRef.current) return;
+    const id = window.setTimeout(() => {
+      if (save.isPending) return;
+      lastAutoSavedRef.current = snapshot;
+      save.mutate({ silent: true });
+    }, 2000);
+    return () => window.clearTimeout(id);
+  }, [draftData, hydrated, canWrite, stationId, restoredAt]);
+
+  // Reset the autosave baseline when the sheet (template/date/station) changes.
+  useEffect(() => {
+    lastAutoSavedRef.current = "";
+    setAutoSavedAt(null);
+  }, [draftKey]);
+
+
 
   const fieldsBySection = useMemo(() => {
     const m: Record<string, Field[]> = {};
@@ -977,17 +1010,22 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {(restoredAt || draftSavedAt) && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
-              {restoredAt
+          {(save.isPending || autoSavedAt || draftSavedAt) && (
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {save.isPending
                 ? locale === "ar"
-                  ? `تمت استعادة مسودة غير محفوظة (${new Date(restoredAt).toLocaleTimeString()}) — اضغط حفظ للاعتماد`
-                  : `Unsaved draft restored (${new Date(restoredAt).toLocaleTimeString()}) — press Save to commit`
-                : locale === "ar"
-                  ? `تم حفظ مسودة محلية ${new Date(draftSavedAt!).toLocaleTimeString()}`
-                  : `Draft autosaved at ${new Date(draftSavedAt!).toLocaleTimeString()}`}
+                  ? "جارٍ الحفظ التلقائي…"
+                  : "Auto-saving…"
+                : autoSavedAt
+                  ? locale === "ar"
+                    ? `تم الحفظ التلقائي ${new Date(autoSavedAt).toLocaleTimeString()}`
+                    : `Auto-saved at ${new Date(autoSavedAt).toLocaleTimeString()}`
+                  : locale === "ar"
+                    ? "الحفظ التلقائي مفعّل"
+                    : "Auto-save is on"}
             </p>
           )}
+
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -1093,7 +1131,7 @@ function EntryView({
             </a>
           )}
           <button
-            onClick={() => save.mutate()}
+            onClick={() => save.mutate({ silent: false })}
             disabled={!canWrite || save.isPending}
             className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
           >

@@ -266,6 +266,8 @@ function Dashboard() {
       <DailyGreeting name={profile?.full_name} />
       <StationOfWeek />
 
+      <StaffOfMonth />
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("dash.welcome")} {profile?.full_name}</h1>

@@ -937,7 +937,7 @@ function EntryView({
       save.mutate({ silent: true });
     }, 2000);
     return () => window.clearTimeout(id);
-  }, [draftData, hydrated, canWrite, stationId]);
+  }, [draftData, hydrated, canWrite, stationId, restoredAt]);
 
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {

@@ -614,6 +614,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 supervisorName,
                 notes,
                 data,
+                pumpType,
               });
               const link = await triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((p) => {
@@ -650,8 +651,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div>
             <div className="text-xs font-semibold tracking-wide text-muted-foreground print:text-black">WEEKLY TEST RUN LOGSHEET</div>
-            <h2 className="text-lg md:text-xl font-bold mt-1">DIESEL FIRE FIGTHING PUMP</h2>
-            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">DIESEL FIRE FIGTHING PUMP</span></div>
+            <h2 className="text-lg md:text-xl font-bold mt-1">{titleFor(pumpType)}</h2>
+            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">{systemFor(pumpType)}</span></div>
 
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -668,7 +669,26 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
 
         {/* Meta */}
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
+          <Field label="Pump Type">
+            <select
+              value={pumpType}
+              onChange={(e) => changePumpType(e.target.value as PumpType)}
+              className="h-9 w-full rounded-lg border bg-background px-2 text-sm"
+            >
+              <option value="diesel">DIESEL FIRE FIGHTING PUMP</option>
+              <option value="electric" disabled={!electricAllowed}>
+                ELECTRIC FIRE FIGHTING PUMP
+              </option>
+            </select>
+            {!electricAllowed && (
+              <div className="text-[11px] text-muted-foreground mt-1 print:hidden">
+                {locale === "ar"
+                  ? "الكهربائية متاحة فقط لـ " + ELECTRIC_STATION_CODES.join("، ")
+                  : "Electric only for " + ELECTRIC_STATION_CODES.join(", ")}
+              </div>
+            )}
+          </Field>
           <Field label="Station">
             <select
               value={stationId}
@@ -695,7 +715,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
 
         {/* Sections */}
-        {SECTIONS.map((sec) => (
+        {sections.map((sec) => (
           <div key={sec.key} className="border rounded-lg overflow-hidden">
             <div className="bg-muted/60 px-4 py-2 border-b">
               <div className="font-bold text-sm">{sec.title}</div>
@@ -765,7 +785,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               </tr>
             </thead>
             <tbody>
-              {CHECKLIST.map((c) => {
+              {checklist.map((c) => {
                 const row = data.checks[c.key] ?? { answer: "", remark: "" };
                 return (
                   <tr key={c.key} className="border-t">
@@ -860,8 +880,9 @@ async function exportFirePumpXlsx(opts: {
   supervisorName: string;
   notes: string;
   data: TestData;
+  pumpType: PumpType;
 }) {
-  const { station, testDate, pumpTag, operatorName, supervisorName, notes, data } = opts;
+  const { station, testDate, pumpTag, operatorName, supervisorName, notes, data, pumpType } = opts;
   const ExcelJS = (await import("exceljs")) as any;
   const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
   if (!Workbook) throw new Error("Excel engine not loaded");
@@ -882,7 +903,7 @@ async function exportFirePumpXlsx(opts: {
 
   let r = 1;
   ws.mergeCells(`A${r}:D${r}`);
-  ws.getCell(`A${r}`).value = "WEEKLY TEST RUN LOGSHEET — DIESEL FIRE FIGTHING PUMP";
+  ws.getCell(`A${r}`).value = `WEEKLY TEST RUN LOGSHEET — ${titleFor(pumpType)}`;
   ws.getCell(`A${r}`).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
   ws.getCell(`A${r}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC00000" } };
   ws.getCell(`A${r}`).alignment = { horizontal: "center" };
@@ -892,6 +913,7 @@ async function exportFirePumpXlsx(opts: {
   const meta: [string, string][] = [
     ["Station", station ? `${station.code} - ${station.name_en}` : ""],
     ["Date", testDate],
+    ["Pump Type", pumpType === "electric" ? "ELECTRIC" : "DIESEL"],
     ["Pump / Tag", pumpTag],
     ["Operator", operatorName],
   ];
@@ -904,7 +926,7 @@ async function exportFirePumpXlsx(opts: {
   }
   r += 1;
 
-  for (const sec of SECTIONS) {
+  for (const sec of sectionsFor(pumpType)) {
     ws.mergeCells(`A${r}:D${r}`);
     const head = ws.getCell(`A${r}`);
     head.value = sec.title;
@@ -942,7 +964,7 @@ async function exportFirePumpXlsx(opts: {
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDCE6F1" } };
     c.border = border();
   });
-  for (const c of CHECKLIST) {
+  for (const c of checklistFor(pumpType)) {
     const row = ws.getRow(r++);
     const chk = data.checks[c.key] ?? { answer: "", remark: "" };
     row.values = [c.label, chk.answer === "YES" ? "✓" : "", chk.answer === "NO" ? "✓" : "", chk.remark];
@@ -974,6 +996,6 @@ async function exportFirePumpXlsx(opts: {
   const buffer = await wb.xlsx.writeBuffer();
   return {
     blob: createExcelBlob(buffer),
-    filename: `Fire_Pump_Test_${safeFilePart(station?.code)}_${testDate}.xlsx`,
+    filename: `${pumpType === "electric" ? "Electric" : "Diesel"}_Fire_Pump_Test_${safeFilePart(station?.code)}_${testDate}.xlsx`,
   };
 }

@@ -926,7 +926,7 @@ function EntryView({
   useEffect(() => {
     if (!hydrated || !canWrite || !stationId) return;
     const snapshot = JSON.stringify(draftData);
-    if (lastAutoSavedRef.current === "") {
+    if (lastAutoSavedRef.current === "" && !restoredAt) {
       lastAutoSavedRef.current = snapshot;
       return;
     }

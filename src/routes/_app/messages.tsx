@@ -174,7 +174,11 @@ function MessagesPage() {
         // Replies inherit the parent's targeting on the database side.
         audience_roles: isReply ? null : audienceRoles[target],
         target_station_ids: isReply ? null : [input.stationId, ...extraStations],
-        target_user_ids: isReply || named.length === 0 ? null : named,
+        target_user_ids:
+          isReply || named.length === 0
+            ? null
+            : Array.from(new Set([...named, profile?.id].filter(Boolean) as string[])),
+
       });
       if (error) throw error;
 

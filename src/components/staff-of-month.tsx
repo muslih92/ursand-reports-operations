@@ -126,9 +126,9 @@ export function StaffOfMonth() {
   const supervisors = data.filter((r) => r.role === "supervisor");
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <>
       <Card rows={operators} kind="operator" />
       <Card rows={supervisors} kind="supervisor" />
-    </div>
+    </>
   );
 }

@@ -146,6 +146,11 @@ const CHECKLIST = [
  *  Add more station codes here when the pump is installed elsewhere. */
 const ELECTRIC_STATION_CODES = ["PS1FG", "PS2FG", "PS3FG"];
 
+/** Compare station codes ignoring separators/case (PS1_FG === PS1FG). */
+const normalizeCode = (code: string) => code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+const isElectricStation = (code?: string | null) =>
+  !!code && ELECTRIC_STATION_CODES.some((c) => normalizeCode(c) === normalizeCode(code));
+
 const ELECTRIC_SECTIONS: SectionDef[] = [
   {
     key: "before",
@@ -488,7 +493,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     return m;
   }, [stations]);
   const station = stationMap[stationId];
-  const electricAllowed = !!station && ELECTRIC_STATION_CODES.includes(station.code.toUpperCase());
+  const electricAllowed = isElectricStation(station?.code);
   const sections = sectionsFor(pumpType);
   const checklist = checklistFor(pumpType);
 

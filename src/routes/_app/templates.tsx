@@ -305,44 +305,111 @@ function TemplateEditor({
       if (targets.length === 0) throw new Error(ar ? "اختر القوالب المستهدفة" : "Select target templates");
       const sections = data?.sections ?? [];
       const fields = data?.fields ?? [];
+
       for (const tid of targets) {
-        await supabase.from("reading_fields").delete().eq("template_id", tid);
-        await supabase.from("reading_sections").delete().eq("template_id", tid);
+        // Non-destructive merge: existing sections/fields are matched by name and
+        // updated in place so historical reading_values are never cascade-deleted.
+        const [{ data: exSections }, { data: exFields }] = await Promise.all([
+          supabase.from("reading_sections").select("id, name_en, name_ar, sort_order").eq("template_id", tid),
+          supabase
+            .from("reading_fields")
+            .select("id, section_id, label_en, label_ar, unit, sort_order")
+            .eq("template_id", tid),
+        ]);
+
+        // ---- sections ----
         const map: Record<string, string> = {};
-        if (sections.length > 0) {
-          const { data: ins, error } = await supabase
-            .from("reading_sections")
-            .insert(
-              sections.map((s) => ({
-                template_id: tid,
-                name_en: s.name_en,
-                name_ar: s.name_ar,
-                sort_order: s.sort_order,
-              })),
-            )
-            .select("id, sort_order, name_en");
-          if (error) throw error;
-          for (const s of sections) {
-            const hit = (ins ?? []).find((x) => x.name_en === s.name_en && x.sort_order === s.sort_order);
-            if (hit) map[s.id] = hit.id;
+        const usedSectionIds = new Set<string>();
+        for (const s of sections) {
+          const hit = (exSections ?? []).find(
+            (x) => x.name_en.trim().toLowerCase() === s.name_en.trim().toLowerCase(),
+          );
+          if (hit) {
+            map[s.id] = hit.id;
+            usedSectionIds.add(hit.id);
+            await supabase
+              .from("reading_sections")
+              .update({ name_ar: s.name_ar, sort_order: s.sort_order })
+              .eq("id", hit.id);
+          } else {
+            const { data: ins, error } = await supabase
+              .from("reading_sections")
+              .insert({ template_id: tid, name_en: s.name_en, name_ar: s.name_ar, sort_order: s.sort_order })
+              .select("id")
+              .single();
+            if (error) throw error;
+            map[s.id] = ins!.id;
+            usedSectionIds.add(ins!.id);
           }
         }
-        if (fields.length > 0) {
-          const { error } = await supabase.from("reading_fields").insert(
-            fields.map((f) => ({
+
+        // ---- fields ----
+        const keyOf = (label: string, sectionId: string | null) =>
+          `${sectionId ?? "none"}::${label.trim().toLowerCase()}`;
+        const existingByKey = new Map(
+          (exFields ?? []).map((f) => [keyOf(f.label_en, f.section_id ?? null), f]),
+        );
+        const looseByLabel = new Map(
+          (exFields ?? []).map((f) => [f.label_en.trim().toLowerCase(), f]),
+        );
+        const usedFieldIds = new Set<string>();
+        const toInsert: Array<Record<string, unknown>> = [];
+
+        for (const f of fields) {
+          const targetSection = f.section_id ? (map[f.section_id] ?? null) : null;
+          const hit =
+            existingByKey.get(keyOf(f.label_en, targetSection)) ??
+            looseByLabel.get(f.label_en.trim().toLowerCase());
+          if (hit && !usedFieldIds.has(hit.id)) {
+            usedFieldIds.add(hit.id);
+            await supabase
+              .from("reading_fields")
+              .update({
+                section_id: targetSection,
+                label_ar: f.label_ar,
+                unit: f.unit,
+                sort_order: f.sort_order,
+              })
+              .eq("id", hit.id);
+          } else {
+            toInsert.push({
               template_id: tid,
-              section_id: f.section_id ? (map[f.section_id] ?? null) : null,
+              section_id: targetSection,
               label_en: f.label_en,
               label_ar: f.label_ar,
               unit: f.unit,
               sort_order: f.sort_order,
-            })),
-          );
+            });
+          }
+        }
+        if (toInsert.length > 0) {
+          const { error } = await supabase.from("reading_fields").insert(toInsert);
           if (error) throw error;
         }
+
+        // ---- clean up leftovers that carry no history ----
+        const leftoverFields = (exFields ?? []).filter((f) => !usedFieldIds.has(f.id));
+        for (const f of leftoverFields) {
+          const { count } = await supabase
+            .from("reading_values")
+            .select("id", { count: "exact", head: true })
+            .eq("field_id", f.id);
+          if ((count ?? 0) === 0) {
+            await supabase.from("reading_fields").delete().eq("id", f.id);
+          } else {
+            usedFieldIds.add(f.id);
+            if (f.section_id) usedSectionIds.add(f.section_id);
+          }
+        }
+        const leftoverSections = (exSections ?? []).filter((s) => !usedSectionIds.has(s.id));
+        for (const s of leftoverSections) {
+          await supabase.from("reading_sections").delete().eq("id", s.id);
+        }
+
         await supabase.from("reading_templates").update({ time_slots: template.time_slots }).eq("id", tid);
       }
     },
+
     onSuccess: () => {
       toast.success(ar ? "تم توحيد القوالب" : "Templates unified");
       setCopyOpen(false);

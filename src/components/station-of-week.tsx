@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { Crown, Medal, Trophy, ChevronDown, ChevronUp } from "lucide-react";
+import { Crown, Medal, Trophy, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 type Row = {

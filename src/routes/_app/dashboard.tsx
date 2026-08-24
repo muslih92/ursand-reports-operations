@@ -264,9 +264,10 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       <DailyGreeting name={profile?.full_name} />
-      <StationOfWeek />
-
-      <StaffOfMonth />
+      <div className="grid gap-2 lg:grid-cols-3">
+        <StationOfWeek />
+        <StaffOfMonth />
+      </div>
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>

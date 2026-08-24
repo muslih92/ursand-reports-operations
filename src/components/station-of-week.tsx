@@ -50,56 +50,53 @@ export function StationOfWeek() {
   ] as const;
 
   return (
-    <div className="rounded-xl border border-amber-400/50 bg-gradient-to-l from-amber-500/10 via-amber-400/5 to-transparent p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-400/20 ring-2 ring-amber-400">
-          <Crown className="h-7 w-7 text-amber-500" />
+    <div className="rounded-lg border border-amber-400/50 bg-gradient-to-l from-amber-500/10 via-amber-400/5 to-transparent px-3 py-2 shadow-sm">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/20 ring-1 ring-amber-400">
+          <Crown className="h-4 w-4 text-amber-500" />
         </div>
-        <div className="flex-1 min-w-[200px]">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-600">
-            <Trophy className="h-4 w-4" />
-            {ar ? "المحطة المثالية لهذا الأسبوع" : "Station of the Week"}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+            <Trophy className="h-3 w-3" />
+            {ar ? "المحطة المثالية للأسبوع" : "Station of the Week"}
           </div>
-          <div className="text-xl font-bold">
-            {label(winner)} <span className="text-muted-foreground text-sm">· {winner.code}</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {winner.week_start} → {winner.week_end}
+          <div className="truncate text-sm font-bold">
+            {label(winner)} <span className="text-xs text-muted-foreground">· {winner.code}</span>
           </div>
         </div>
-        <div className="text-center">
-          <div className="text-3xl font-extrabold text-amber-600">{winner.total_score}</div>
-          <div className="text-[11px] text-muted-foreground">{ar ? "النقاط من 100" : "Score / 100"}</div>
-        </div>
+        <div className="text-lg font-extrabold text-amber-600">{winner.total_score}</div>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="text-sm text-amber-700 hover:underline flex items-center gap-1"
+          className="text-amber-700 hover:text-amber-800"
+          aria-label={ar ? "الترتيب" : "Ranking"}
         >
-          {ar ? "الترتيب" : "Ranking"}
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-        {metrics.map((m) => (
-          <div key={m.k} className="rounded-lg bg-background/70 border px-2 py-1.5">
-            <div className="text-[11px] text-muted-foreground truncate">{ar ? m.ar : m.en}</div>
-            <div className="text-sm font-semibold">{(winner as any)[m.k]}%</div>
+      {open && (
+        <>
+          <div className="mt-2 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+            {metrics.map((m) => (
+              <div key={m.k} className="rounded-md bg-background/70 border px-1.5 py-1">
+                <div className="text-[10px] text-muted-foreground truncate">{ar ? m.ar : m.en}</div>
+                <div className="text-xs font-semibold">{(winner as any)[m.k]}%</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {open && rest.length > 0 && (
-        <ul className="mt-3 divide-y rounded-lg border bg-background/60">
-          {rest.map((r) => (
-            <li key={r.station_id} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="w-6 text-center font-semibold text-muted-foreground">{r.rank}</span>
-              <Medal className={`h-4 w-4 ${r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"}`} />
-              <span className="flex-1 truncate">{label(r)} · {r.code}</span>
-              <span className="font-semibold">{r.total_score}</span>
-            </li>
-          ))}
-        </ul>
+          {rest.length > 0 && (
+            <ul className="mt-2 divide-y rounded-md border bg-background/60">
+              {rest.map((r) => (
+                <li key={r.station_id} className="flex items-center gap-2 px-2 py-1 text-xs">
+                  <span className="w-4 text-center font-semibold text-muted-foreground">{r.rank}</span>
+                  <Medal className={`h-3 w-3 ${r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"}`} />
+                  <span className="flex-1 truncate">{label(r)} · {r.code}</span>
+                  <span className="font-semibold">{r.total_score}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

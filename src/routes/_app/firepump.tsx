@@ -518,11 +518,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const save = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
+      if (pumpType === "electric" && !electricAllowed)
+        throw new Error(
+          locale === "ar"
+            ? "اختبار المضخة الكهربائية متاح فقط لمحطات: " + ELECTRIC_STATION_CODES.join(", ")
+            : "Electric pump test is only available for: " + ELECTRIC_STATION_CODES.join(", "),
+        );
       const payload = {
         station_id: stationId,
         test_date: testDate,
         pump_tag: pumpTag || null,
-        data: JSON.parse(JSON.stringify(data)),
+        data: JSON.parse(JSON.stringify({ ...data, pump_type: pumpType })),
+
         supervisor_notes: notes || null,
         supervisor_name: supervisorName || null,
         operator_name: operatorName || null,

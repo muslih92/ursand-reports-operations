@@ -488,6 +488,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     return m;
   }, [stations]);
   const station = stationMap[stationId];
+  const electricAllowed = !!station && ELECTRIC_STATION_CODES.includes(station.code.toUpperCase());
+  const sections = sectionsFor(pumpType);
+  const checklist = checklistFor(pumpType);
+
+  // Electric pump only exists at specific stations — fall back to diesel elsewhere.
+  useEffect(() => {
+    if (pumpType === "electric" && stationId && !electricAllowed) {
+      setPumpType("diesel");
+      setData((d) => ({ ...emptyData("diesel"), values: d.values }));
+    }
+  }, [pumpType, stationId, electricAllowed]);
+
+  const changePumpType = (type: PumpType) => {
+    setPumpType(type);
+    setData(() => emptyData(type));
+  };
+
+
 
   const setValue = (key: string, v: string) =>
     setData((d) => ({ ...d, values: { ...d.values, [key]: v } }));

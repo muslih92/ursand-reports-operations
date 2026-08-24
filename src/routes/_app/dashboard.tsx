@@ -7,6 +7,7 @@ import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { useI18n } from "@/lib/i18n";
 import { DailyGreeting } from "@/components/daily-greeting";
 import { StationOfWeek } from "@/components/station-of-week";
+import { StaffOfMonth } from "@/components/staff-of-month";
 
 import {
   Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,

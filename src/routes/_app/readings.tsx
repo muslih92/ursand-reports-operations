@@ -922,6 +922,31 @@ function EntryView({
     },
   });
 
+  // Automatic save to the database — no manual confirmation needed.
+  useEffect(() => {
+    if (!hydrated || !canWrite || !stationId) return;
+    const snapshot = JSON.stringify(draftData);
+    if (lastAutoSavedRef.current === "") {
+      lastAutoSavedRef.current = snapshot;
+      return;
+    }
+    if (snapshot === lastAutoSavedRef.current) return;
+    const id = window.setTimeout(() => {
+      if (save.isPending) return;
+      lastAutoSavedRef.current = snapshot;
+      save.mutate({ silent: true });
+    }, 2000);
+    return () => window.clearTimeout(id);
+  }, [draftData, hydrated, canWrite, stationId]);
+
+  // Reset the autosave baseline when the sheet (template/date/station) changes.
+  useEffect(() => {
+    lastAutoSavedRef.current = "";
+    setAutoSavedAt(null);
+  }, [draftKey]);
+
+
+
   const fieldsBySection = useMemo(() => {
     const m: Record<string, Field[]> = {};
     for (const f of data?.fields ?? []) {

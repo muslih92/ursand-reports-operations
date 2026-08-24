@@ -515,9 +515,10 @@ function TemplateEditor({
           <div className="mt-3 rounded-lg border p-3">
             <div className="mb-2 text-sm font-semibold text-destructive">
               {ar
-                ? "تنبيه: سيتم استبدال أقسام وقراءات القوالب المختارة بنسخة مطابقة لهذا القالب."
-                : "Warning: selected templates will be replaced with an exact copy of this template."}
+                ? "سيتم مطابقة أقسام وقراءات القوالب المختارة مع هذا القالب. القراءات التاريخية محفوظة ولن تُحذف؛ تُحذف فقط الحقول غير المستخدمة."
+                : "Selected templates will be aligned with this template. Historical readings are preserved — only unused fields are removed."}
             </div>
+
             <div className="grid max-h-56 gap-1 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
               {templates
                 .filter((t) => t.id !== template.id)

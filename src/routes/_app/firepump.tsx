@@ -540,9 +540,10 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div>
-            <div className="text-xs font-semibold tracking-wide text-muted-foreground print:text-black">WEEKLY ROUTINE</div>
-            <h2 className="text-lg md:text-xl font-bold mt-1">DIESEL FIRE FIGHTING PUMP TEST RUN</h2>
-            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">DIESEL FIRE WATER PUMP</span></div>
+            <div className="text-xs font-semibold tracking-wide text-muted-foreground print:text-black">WEEKLY TEST RUN LOGSHEET</div>
+            <h2 className="text-lg md:text-xl font-bold mt-1">DIESEL FIRE FIGTHING PUMP</h2>
+            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">DIESEL FIRE FIGTHING PUMP</span></div>
+
           </div>
           <div className="flex flex-col items-end gap-2">
             <img src="/wtco-logo.png" alt="WTCO" className="h-16 w-16 object-contain shrink-0" />

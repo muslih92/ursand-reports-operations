@@ -1206,6 +1206,24 @@ export type Database = {
           scenario: string
         }[]
       }
+      staff_month_scores: {
+        Args: { _month?: string }
+        Returns: {
+          employee_no: string
+          full_name: string
+          m1: number
+          m2: number
+          m3: number
+          m4: number
+          month_end: string
+          month_start: string
+          rank: number
+          role: string
+          station_code: string
+          total_score: number
+          user_id: string
+        }[]
+      }
       station_week_scores: {
         Args: { _week_start?: string }
         Returns: {

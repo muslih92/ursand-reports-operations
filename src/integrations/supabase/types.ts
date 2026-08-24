@@ -1206,6 +1206,24 @@ export type Database = {
           scenario: string
         }[]
       }
+      station_week_scores: {
+        Args: { _week_start?: string }
+        Returns: {
+          availability_score: number
+          code: string
+          name_ar: string
+          name_en: string
+          punctuality_score: number
+          rank: number
+          readings_score: number
+          reports_score: number
+          station_id: string
+          systems_score: number
+          total_score: number
+          week_end: string
+          week_start: string
+        }[]
+      }
       user_station: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {

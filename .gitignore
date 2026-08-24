@@ -30,3 +30,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+deploy/deploy.log
+deploy/events.log
+deploy/.monitor-state

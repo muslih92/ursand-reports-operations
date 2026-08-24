@@ -50,36 +50,42 @@ export function StationOfWeek() {
   ] as const;
 
   return (
-    <div className="rounded-lg border border-amber-400/50 bg-gradient-to-l from-amber-500/10 via-amber-400/5 to-transparent px-3 py-2 shadow-sm">
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/20 ring-1 ring-amber-400">
-          <Crown className="h-4 w-4 text-amber-500" />
+    <div className="rounded-lg border border-amber-400/50 bg-gradient-to-l from-amber-500/10 via-amber-400/5 to-transparent px-3 py-2.5 shadow-sm">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400/20 ring-1 ring-amber-400">
+          <Crown className="h-4.5 w-4.5 text-amber-500" />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
-            <Trophy className="h-3 w-3" />
-            {ar ? "المحطة المثالية للأسبوع" : "Station of the Week"}
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+            <Trophy className="h-3 w-3 shrink-0" />
+            <span className="truncate">{ar ? "المحطة المثالية" : "Station of the Week"}</span>
           </div>
-          <div className="truncate text-sm font-bold">
-            {label(winner)} <span className="text-xs text-muted-foreground">· {winner.code}</span>
+          <div className="truncate text-sm font-bold leading-tight">
+            {label(winner)} <span className="text-xs font-medium text-muted-foreground">· {winner.code}</span>
           </div>
         </div>
-        <div className="text-lg font-extrabold text-amber-600">{winner.total_score}</div>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="text-amber-700 hover:text-amber-800"
-          aria-label={ar ? "الترتيب" : "Ranking"}
-        >
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="text-base font-extrabold text-amber-600 sm:text-lg">{winner.total_score}</span>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={ar ? "التفاصيل والترتيب" : "Details & ranking"}
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-amber-400/60 bg-background/60 text-amber-700 transition-colors hover:bg-amber-400/15"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+          </button>
+        </div>
       </div>
 
-      {open && (
-        <>
-          <div className="mt-2 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+      <div
+        className={`grid transition-all duration-300 ease-out ${open ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+      >
+        <div className="overflow-hidden">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
             {metrics.map((m) => (
-              <div key={m.k} className="rounded-md bg-background/70 border px-1.5 py-1">
-                <div className="text-[10px] text-muted-foreground truncate">{ar ? m.ar : m.en}</div>
+              <div key={m.k} className="rounded-md bg-background/70 border px-2 py-1">
+                <div className="truncate text-[11px] text-muted-foreground">{ar ? m.ar : m.en}</div>
                 <div className="text-xs font-semibold">{(winner as any)[m.k]}%</div>
               </div>
             ))}
@@ -87,17 +93,17 @@ export function StationOfWeek() {
           {rest.length > 0 && (
             <ul className="mt-2 divide-y rounded-md border bg-background/60">
               {rest.map((r) => (
-                <li key={r.station_id} className="flex items-center gap-2 px-2 py-1 text-xs">
-                  <span className="w-4 text-center font-semibold text-muted-foreground">{r.rank}</span>
-                  <Medal className={`h-3 w-3 ${r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"}`} />
-                  <span className="flex-1 truncate">{label(r)} · {r.code}</span>
-                  <span className="font-semibold">{r.total_score}</span>
+                <li key={r.station_id} className="flex items-center gap-2 px-2 py-1.5 text-xs">
+                  <span className="w-4 shrink-0 text-center font-semibold text-muted-foreground">{r.rank}</span>
+                  <Medal className={`h-3 w-3 shrink-0 ${r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"}`} />
+                  <span className="min-w-0 flex-1 truncate">{label(r)} · {r.code}</span>
+                  <span className="shrink-0 font-semibold">{r.total_score}</span>
                 </li>
               ))}
             </ul>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1197,6 +1197,15 @@ export type Database = {
         }
         Returns: number
       }
+      security_test_report: {
+        Args: never
+        Returns: {
+          detail: string
+          expectation: string
+          passed: boolean
+          scenario: string
+        }[]
+      }
       user_station: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {

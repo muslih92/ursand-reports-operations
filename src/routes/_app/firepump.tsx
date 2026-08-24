@@ -140,6 +140,83 @@ const CHECKLIST = [
   { key: "c_sound", label: "ABNORMAL SOUND DURING RUNNING THE PUMP" },
 ];
 
+/* -------- ELECTRIC FIRE FIGHTING PUMP (PS1FG / PS2FG / PS3FG) -------- */
+
+/** Stations allowed to record the electric fire fighting pump test.
+ *  Add more station codes here when the pump is installed elsewhere. */
+const ELECTRIC_STATION_CODES = ["PS1FG", "PS2FG", "PS3FG"];
+
+const ELECTRIC_SECTIONS: SectionDef[] = [
+  {
+    key: "before",
+    title: "BEFORE STARTING",
+    titleAr: "قبل التشغيل",
+    hint: "Fill these items before running the Pump. Test Line Flowmeter: Upstream Valve → Mark Open/Close, Flowmeter → Mark Available/Not Available, Downstream Valve → Mark Open/Close. Electric Pump: Suction & Discharge valve → Mark Open/Close, Hour Meter Counter → Record hours before starting, Testing Mode → Select Auto/Manual.",
+    hintAr: "عبّئ هذه البنود قبل تشغيل المضخة: صمام الدخول/الخروج (فتح/إغلاق)، عدّاد التدفق (متوفر/غير متوفر)، صمامات السحب والطرد، عدّاد الساعات قبل التشغيل، ووضع الاختبار (أوتوماتيك/يدوي).",
+    fields: [
+      { key: "eb_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
+      { key: "eb_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
+      { key: "eb_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
+      { key: "eb_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
+      { key: "eb_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
+      { key: "eb_hourmeter", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
+      { key: "eb_mode", label: "TESTING MODE", kind: "auto_man" },
+    ],
+  },
+  {
+    key: "during",
+    title: "DURRING RUNNING",
+    titleAr: "أثناء التشغيل",
+    hint: "While the pump is operating. Flow & Valve Opening: Flowmeter → Record actual flow in m³/hr, Downstream valve → Confirm Partial Open. Electric Pump: Suction & Discharge Pressure → Record in bar, Starting Time → Record time in hours (Hrs).",
+    hintAr: "أثناء عمل المضخة: سجّل التدفق الفعلي (م³/س)، وتأكد أن صمام الخروج مفتوح جزئياً، وسجّل ضغط السحب والطرد بالبار، ووقت البدء بالساعات.",
+    fields: [
+      { key: "ed_flowmeter", group: "FLOW & VALVE OPENING", label: "FLOWMETER", kind: "text", unit: "m³/h" },
+      { key: "ed_downstream", group: "FLOW & VALVE OPENING", label: "DOWNSTREAM VALVE", kind: "partial" },
+      { key: "ed_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "text", unit: "BAR" },
+      { key: "ed_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "text", unit: "BAR" },
+      { key: "ed_start_time", label: "STARTING TIME", kind: "text", unit: "MIN" },
+    ],
+  },
+  {
+    key: "after",
+    title: "AFTER STOPPING",
+    titleAr: "بعد الإيقاف",
+    hint: "Immediately after stopping the pump. Test Line Flowmeter: Upstream valve → Mark Open/Close, Flowmeter → Mark Available/Not Available, Downstream valve → Mark Open/Close. Electric Pump: Suction & Discharge valve → Mark Open/Close, Hour Meter Counter → Record total running hours, Selector Mode → Select Auto/Manual, Stopping Time → Record time in hours (Hrs).",
+    hintAr: "مباشرة بعد إيقاف المضخة: حالة الصمامات، توفر عدّاد التدفق، إجمالي ساعات التشغيل، وضع المفتاح (أوتوماتيك/يدوي)، ووقت الإيقاف بالساعات.",
+    fields: [
+      { key: "ea_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
+      { key: "ea_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
+      { key: "ea_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
+      { key: "ea_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
+      { key: "ea_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
+      { key: "ea_hourmeter", group: "ELECTRIC PUMP", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
+      { key: "ea_selector", group: "ELECTRIC PUMP", label: "SELECTOR MODE", kind: "auto_man" },
+      { key: "ea_stop_time", label: "STOPPING TIME", kind: "text", unit: "Hrs" },
+    ],
+  },
+];
+
+const ELECTRIC_CHECKLIST = [
+  { key: "ec_auto", label: "ELECTRICAL PUMP SWITCH ON AUTO" },
+  { key: "ec_flow_switch", label: "FLOW SWITCH WORKING PROPERLY" },
+  { key: "ec_pressure_switch", label: "PRESSURE SWITCH WORKING PROPERLY" },
+  { key: "ec_sound", label: "ABNORMAL SOUND DURING RUNNING THE PUMP" },
+];
+
+type PumpType = "diesel" | "electric";
+
+function sectionsFor(type: PumpType) {
+  return type === "electric" ? ELECTRIC_SECTIONS : SECTIONS;
+}
+function checklistFor(type: PumpType) {
+  return type === "electric" ? ELECTRIC_CHECKLIST : CHECKLIST;
+}
+function titleFor(type: PumpType) {
+  return type === "electric" ? "ELECTRIC FIRE FIGTHING PUMP TEST RUN" : "DIESEL FIRE FIGTHING PUMP";
+}
+function systemFor(type: PumpType) {
+  return type === "electric" ? "FIRE FIGHTING" : "DIESEL FIRE FIGTHING PUMP";
+}
 
 interface CheckRow {
   answer: "YES" | "NO" | "";
@@ -149,13 +226,15 @@ interface CheckRow {
 interface TestData {
   values: Record<string, string>;
   checks: Record<string, CheckRow>;
+  pump_type?: PumpType;
 }
 
-function emptyData(): TestData {
+function emptyData(type: PumpType = "diesel"): TestData {
   const checks: Record<string, CheckRow> = {};
-  for (const c of CHECKLIST) checks[c.key] = { answer: "", remark: "" };
-  return { values: {}, checks };
+  for (const c of checklistFor(type)) checks[c.key] = { answer: "", remark: "" };
+  return { values: {}, checks, pump_type: type };
 }
+
 
 interface Station {
   id: string;
@@ -363,7 +442,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [operatorName, setOperatorName] = useState(profile?.full_name ?? "");
   const [supervisorName, setSupervisorName] = useState("");
   const [notes, setNotes] = useState("");
-  const [data, setData] = useState<TestData>(emptyData);
+  const [pumpType, setPumpType] = useState<PumpType>("diesel");
+  const [data, setData] = useState<TestData>(() => emptyData("diesel"));
   const [hydrated, setHydrated] = useState(false);
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
@@ -383,13 +463,17 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setSupervisorName(existing.supervisor_name ?? "");
     setNotes(existing.supervisor_notes ?? "");
     const raw = (existing.data ?? {}) as Partial<TestData>;
-    const base = emptyData();
+    const type: PumpType = raw.pump_type === "electric" ? "electric" : "diesel";
+    setPumpType(type);
+    const base = emptyData(type);
     setData({
       values: { ...base.values, ...(raw.values ?? {}) },
       checks: { ...base.checks, ...(raw.checks ?? {}) },
+      pump_type: type,
     });
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
+
 
   useEffect(() => {
     return () => {
@@ -404,6 +488,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     return m;
   }, [stations]);
   const station = stationMap[stationId];
+  const electricAllowed = !!station && ELECTRIC_STATION_CODES.includes(station.code.toUpperCase());
+  const sections = sectionsFor(pumpType);
+  const checklist = checklistFor(pumpType);
+
+  // Electric pump only exists at specific stations — fall back to diesel elsewhere.
+  useEffect(() => {
+    if (pumpType === "electric" && stationId && !electricAllowed) {
+      setPumpType("diesel");
+      setData((d) => ({ ...emptyData("diesel"), values: d.values }));
+    }
+  }, [pumpType, stationId, electricAllowed]);
+
+  const changePumpType = (type: PumpType) => {
+    setPumpType(type);
+    setData(() => emptyData(type));
+  };
+
+
 
   const setValue = (key: string, v: string) =>
     setData((d) => ({ ...d, values: { ...d.values, [key]: v } }));
@@ -416,11 +518,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const save = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
+      if (pumpType === "electric" && !electricAllowed)
+        throw new Error(
+          locale === "ar"
+            ? "اختبار المضخة الكهربائية متاح فقط لمحطات: " + ELECTRIC_STATION_CODES.join(", ")
+            : "Electric pump test is only available for: " + ELECTRIC_STATION_CODES.join(", "),
+        );
       const payload = {
         station_id: stationId,
         test_date: testDate,
         pump_tag: pumpTag || null,
-        data: JSON.parse(JSON.stringify(data)),
+        data: JSON.parse(JSON.stringify({ ...data, pump_type: pumpType })),
+
         supervisor_notes: notes || null,
         supervisor_name: supervisorName || null,
         operator_name: operatorName || null,
@@ -505,6 +614,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 supervisorName,
                 notes,
                 data,
+                pumpType,
               });
               const link = await triggerBlobDownload(file.blob, file.filename);
               setExcelDownload((p) => {
@@ -541,8 +651,8 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div>
             <div className="text-xs font-semibold tracking-wide text-muted-foreground print:text-black">WEEKLY TEST RUN LOGSHEET</div>
-            <h2 className="text-lg md:text-xl font-bold mt-1">DIESEL FIRE FIGTHING PUMP</h2>
-            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">DIESEL FIRE FIGTHING PUMP</span></div>
+            <h2 className="text-lg md:text-xl font-bold mt-1">{titleFor(pumpType)}</h2>
+            <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">{systemFor(pumpType)}</span></div>
 
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -559,7 +669,26 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
 
         {/* Meta */}
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
+          <Field label="Pump Type">
+            <select
+              value={pumpType}
+              onChange={(e) => changePumpType(e.target.value as PumpType)}
+              className="h-9 w-full rounded-lg border bg-background px-2 text-sm"
+            >
+              <option value="diesel">DIESEL FIRE FIGHTING PUMP</option>
+              <option value="electric" disabled={!electricAllowed}>
+                ELECTRIC FIRE FIGHTING PUMP
+              </option>
+            </select>
+            {!electricAllowed && (
+              <div className="text-[11px] text-muted-foreground mt-1 print:hidden">
+                {locale === "ar"
+                  ? "الكهربائية متاحة فقط لـ " + ELECTRIC_STATION_CODES.join("، ")
+                  : "Electric only for " + ELECTRIC_STATION_CODES.join(", ")}
+              </div>
+            )}
+          </Field>
           <Field label="Station">
             <select
               value={stationId}
@@ -586,7 +715,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
 
         {/* Sections */}
-        {SECTIONS.map((sec) => (
+        {sections.map((sec) => (
           <div key={sec.key} className="border rounded-lg overflow-hidden">
             <div className="bg-muted/60 px-4 py-2 border-b">
               <div className="font-bold text-sm">{sec.title}</div>
@@ -656,7 +785,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
               </tr>
             </thead>
             <tbody>
-              {CHECKLIST.map((c) => {
+              {checklist.map((c) => {
                 const row = data.checks[c.key] ?? { answer: "", remark: "" };
                 return (
                   <tr key={c.key} className="border-t">
@@ -751,8 +880,9 @@ async function exportFirePumpXlsx(opts: {
   supervisorName: string;
   notes: string;
   data: TestData;
+  pumpType: PumpType;
 }) {
-  const { station, testDate, pumpTag, operatorName, supervisorName, notes, data } = opts;
+  const { station, testDate, pumpTag, operatorName, supervisorName, notes, data, pumpType } = opts;
   const ExcelJS = (await import("exceljs")) as any;
   const Workbook = ExcelJS.Workbook ?? ExcelJS.default?.Workbook;
   if (!Workbook) throw new Error("Excel engine not loaded");
@@ -773,7 +903,7 @@ async function exportFirePumpXlsx(opts: {
 
   let r = 1;
   ws.mergeCells(`A${r}:D${r}`);
-  ws.getCell(`A${r}`).value = "WEEKLY TEST RUN LOGSHEET — DIESEL FIRE FIGTHING PUMP";
+  ws.getCell(`A${r}`).value = `WEEKLY TEST RUN LOGSHEET — ${titleFor(pumpType)}`;
   ws.getCell(`A${r}`).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
   ws.getCell(`A${r}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC00000" } };
   ws.getCell(`A${r}`).alignment = { horizontal: "center" };
@@ -783,6 +913,7 @@ async function exportFirePumpXlsx(opts: {
   const meta: [string, string][] = [
     ["Station", station ? `${station.code} - ${station.name_en}` : ""],
     ["Date", testDate],
+    ["Pump Type", pumpType === "electric" ? "ELECTRIC" : "DIESEL"],
     ["Pump / Tag", pumpTag],
     ["Operator", operatorName],
   ];
@@ -795,7 +926,7 @@ async function exportFirePumpXlsx(opts: {
   }
   r += 1;
 
-  for (const sec of SECTIONS) {
+  for (const sec of sectionsFor(pumpType)) {
     ws.mergeCells(`A${r}:D${r}`);
     const head = ws.getCell(`A${r}`);
     head.value = sec.title;
@@ -833,7 +964,7 @@ async function exportFirePumpXlsx(opts: {
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDCE6F1" } };
     c.border = border();
   });
-  for (const c of CHECKLIST) {
+  for (const c of checklistFor(pumpType)) {
     const row = ws.getRow(r++);
     const chk = data.checks[c.key] ?? { answer: "", remark: "" };
     row.values = [c.label, chk.answer === "YES" ? "✓" : "", chk.answer === "NO" ? "✓" : "", chk.remark];
@@ -865,6 +996,6 @@ async function exportFirePumpXlsx(opts: {
   const buffer = await wb.xlsx.writeBuffer();
   return {
     blob: createExcelBlob(buffer),
-    filename: `Fire_Pump_Test_${safeFilePart(station?.code)}_${testDate}.xlsx`,
+    filename: `${pumpType === "electric" ? "Electric" : "Diesel"}_Fire_Pump_Test_${safeFilePart(station?.code)}_${testDate}.xlsx`,
   };
 }

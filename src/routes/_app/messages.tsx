@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { notifyStation, notifyUsers, notifyStations } from "@/lib/notifications";
 import { toast } from "sonner";
-import { MessageSquare, Send, Reply } from "lucide-react";
+import { MessageSquare, Send, Reply, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/messages")({
   head: () => ({
@@ -237,6 +237,21 @@ function MessagesPage() {
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 
+  const remove = useMutation({
+    mutationFn: async (input: { id: string; replyIds?: string[] }) => {
+      const ids = [...(input.replyIds ?? []), input.id];
+      const { error } = await sb.from("station_messages").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(locale === "ar" ? "تم حذف المحادثة" : "Deleted");
+      qc.invalidateQueries({ queryKey: ["station-messages"] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
+  });
+
+  const confirmDelete = (msg: string) => window.confirm(msg);
+
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center gap-3">
@@ -416,6 +431,29 @@ function MessagesPage() {
                 <span className="font-medium text-foreground">{root.author_name}</span>
                 <span>· {root.author_role}</span>
                 <span dir="ltr">· {new Date(root.created_at).toLocaleString(locale === "ar" ? "ar-SA" : "en-GB")}</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (
+                        !confirmDelete(
+                          locale === "ar"
+                            ? "حذف المحادثة وجميع الردود نهائياً؟"
+                            : "Delete this thread and all its replies?",
+                        )
+                      )
+                        return;
+                      remove.mutate({ id: root.id, replyIds: replies.map((r) => r.id) });
+                    }}
+                    className="ms-auto inline-flex items-center gap-1 px-2 h-7 rounded-lg border text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    aria-label={locale === "ar" ? "حذف المحادثة" : "Delete thread"}
+                    title={locale === "ar" ? "حذف المحادثة" : "Delete thread"}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {locale === "ar" ? "حذف" : "Delete"}
+                  </button>
+                )}
               </div>
               {root.subject && <div className="font-semibold text-sm">{root.subject}</div>}
               <div className="text-sm whitespace-pre-line">{root.body}</div>
@@ -427,6 +465,21 @@ function MessagesPage() {
                       <div className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground">{r.author_name}</span> · {r.author_role} ·{" "}
                         <span dir="ltr">{new Date(r.created_at).toLocaleString(locale === "ar" ? "ar-SA" : "en-GB")}</span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            disabled={remove.isPending}
+                            onClick={() => {
+                              if (!confirmDelete(locale === "ar" ? "حذف هذا الرد؟" : "Delete this reply?")) return;
+                              remove.mutate({ id: r.id });
+                            }}
+                            className="ms-2 inline-flex items-center align-middle text-destructive hover:opacity-80 disabled:opacity-50"
+                            aria-label={locale === "ar" ? "حذف الرد" : "Delete reply"}
+                            title={locale === "ar" ? "حذف الرد" : "Delete reply"}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                       <div className="text-sm mt-1 whitespace-pre-line">{r.body}</div>
                     </div>

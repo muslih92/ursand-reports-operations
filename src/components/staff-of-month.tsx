@@ -47,64 +47,63 @@ function Card({ rows, kind }: { rows: Row[]; kind: "operator" | "supervisor" }) 
   const Icon = isOp ? Star : ShieldCheck;
 
   return (
-    <div className="rounded-xl border border-primary/30 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-2 ring-primary/50">
-          <Icon className="h-7 w-7 text-primary" />
+    <div className="rounded-lg border border-primary/30 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent px-3 py-2 shadow-sm">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-1 ring-primary/50">
+          <Icon className="h-4 w-4 text-primary" />
         </div>
-        <div className="min-w-[180px] flex-1">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
-            <Award className="h-4 w-4" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
+            <Award className="h-3 w-3" />
             {isOp
-              ? ar ? "الموظف المتميز لهذا الشهر" : "Employee of the Month"
-              : ar ? "المشرف المتميز لهذا الشهر" : "Supervisor of the Month"}
+              ? ar ? "الموظف المتميز للشهر" : "Employee of the Month"
+              : ar ? "المشرف المتميز للشهر" : "Supervisor of the Month"}
           </div>
-          <div className="text-xl font-bold">{winner.full_name}</div>
-          <div className="text-xs text-muted-foreground">
-            {winner.employee_no}
-            {winner.station_code ? ` · ${winner.station_code}` : ""} · {winner.month_start} → {winner.month_end}
+          <div className="truncate text-sm font-bold">
+            {winner.full_name}
+            {winner.station_code ? <span className="text-xs text-muted-foreground"> · {winner.station_code}</span> : null}
           </div>
         </div>
-        <div className="text-center">
-          <div className="text-3xl font-extrabold text-primary">{winner.total_score}</div>
-          <div className="text-[11px] text-muted-foreground">{ar ? "النقاط من 100" : "Score / 100"}</div>
-        </div>
+        <div className="text-lg font-extrabold text-primary">{winner.total_score}</div>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-sm text-primary hover:underline"
+          className="text-primary hover:opacity-80"
+          aria-label={ar ? "الترتيب" : "Ranking"}
         >
-          {ar ? "الترتيب" : "Ranking"}
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {METRICS[kind].map((m) => (
-          <div key={m.k} className="rounded-lg border bg-background/70 px-2 py-1.5">
-            <div className="truncate text-[11px] text-muted-foreground">{ar ? m.ar : m.en}</div>
-            <div className="text-sm font-semibold">{(winner as any)[m.k]}%</div>
+      {open && (
+        <>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {METRICS[kind].map((m) => (
+              <div key={m.k} className="rounded-md border bg-background/70 px-1.5 py-1">
+                <div className="truncate text-[10px] text-muted-foreground">{ar ? m.ar : m.en}</div>
+                <div className="text-xs font-semibold">{(winner as any)[m.k]}%</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {open && rest.length > 0 && (
-        <ul className="mt-3 divide-y rounded-lg border bg-background/60">
-          {rest.map((r) => (
-            <li key={r.user_id} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="w-6 text-center font-semibold text-muted-foreground">{r.rank}</span>
-              <Medal
-                className={`h-4 w-4 ${
-                  r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"
-                }`}
-              />
-              <span className="flex-1 truncate">
-                {r.full_name}
-                {r.station_code ? ` · ${r.station_code}` : ""}
-              </span>
-              <span className="font-semibold">{r.total_score}</span>
-            </li>
-          ))}
-        </ul>
+          {rest.length > 0 && (
+            <ul className="mt-2 divide-y rounded-md border bg-background/60">
+              {rest.map((r) => (
+                <li key={r.user_id} className="flex items-center gap-2 px-2 py-1 text-xs">
+                  <span className="w-4 text-center font-semibold text-muted-foreground">{r.rank}</span>
+                  <Medal
+                    className={`h-3 w-3 ${
+                      r.rank === 2 ? "text-slate-400" : r.rank === 3 ? "text-amber-700" : "text-muted-foreground/40"
+                    }`}
+                  />
+                  <span className="flex-1 truncate">
+                    {r.full_name}
+                    {r.station_code ? ` · ${r.station_code}` : ""}
+                  </span>
+                  <span className="font-semibold">{r.total_score}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
@@ -127,7 +126,7 @@ export function StaffOfMonth() {
   const supervisors = data.filter((r) => r.role === "supervisor");
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       <Card rows={operators} kind="operator" />
       <Card rows={supervisors} kind="supervisor" />
     </div>

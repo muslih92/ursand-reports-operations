@@ -742,7 +742,7 @@ function EntryView({
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_vars?: { silent?: boolean }) => {
       if (!stationId) throw new Error("no station");
       // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;

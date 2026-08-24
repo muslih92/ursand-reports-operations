@@ -1131,7 +1131,7 @@ function EntryView({
             </a>
           )}
           <button
-            onClick={() => save.mutate()}
+            onClick={() => save.mutate({ silent: false })}
             disabled={!canWrite || save.isPending}
             className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
           >

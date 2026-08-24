@@ -18,6 +18,7 @@ const dict: Dict = {
   "nav.firepump": { ar: "اختبار مضخات الحريق", en: "Fire Pump Test" },
   "nav.generator": { ar: "اختبار مولد الطوارئ", en: "Emergency Generator Test" },
   "nav.routine": { ar: "روتين المشرف", en: "Supervisor's Routine" },
+  "nav.controlCenter": { ar: "مركز التحكم", en: "Control Center" },
   "nav.trends": { ar: "الترند والرسوم البيانية", en: "Trends & Limits" },
   "nav.scada": { ar: "الترند وحدود التشغيل", en: "Trends & Limits" },
   "nav.messages": { ar: "التواصل مع المحطات", en: "Station Communication" },

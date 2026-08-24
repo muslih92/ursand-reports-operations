@@ -24,6 +24,7 @@ import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
 import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
 import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppControlCenterRouteImport } from './routes/_app/control-center'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
@@ -101,6 +102,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppControlCenterRoute = AppControlCenterRouteImport.update({
+  id: '/control-center',
+  path: '/control-center',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   id: '/availability',
   path: '/availability',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/availability': typeof AppAvailabilityRoute
+  '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
   '/firepump': typeof AppFirepumpRoute
   '/generator': typeof AppGeneratorRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/availability': typeof AppAvailabilityRoute
+  '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
   '/firepump': typeof AppFirepumpRoute
   '/generator': typeof AppGeneratorRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/_app/availability': typeof AppAvailabilityRoute
+  '/_app/control-center': typeof AppControlCenterRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/firepump': typeof AppFirepumpRoute
   '/_app/generator': typeof AppGeneratorRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/availability'
+    | '/control-center'
     | '/dashboard'
     | '/firepump'
     | '/generator'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/availability'
+    | '/control-center'
     | '/dashboard'
     | '/firepump'
     | '/generator'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/auth'
     | '/_app/availability'
+    | '/_app/control-center'
     | '/_app/dashboard'
     | '/_app/firepump'
     | '/_app/generator'
@@ -341,6 +353,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/control-center': {
+      id: '/_app/control-center'
+      path: '/control-center'
+      fullPath: '/control-center'
+      preLoaderRoute: typeof AppControlCenterRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/availability': {
       id: '/_app/availability'
       path: '/availability'
@@ -360,6 +379,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAvailabilityRoute: typeof AppAvailabilityRoute
+  AppControlCenterRoute: typeof AppControlCenterRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFirepumpRoute: typeof AppFirepumpRoute
   AppGeneratorRoute: typeof AppGeneratorRoute
@@ -376,6 +396,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAvailabilityRoute: AppAvailabilityRoute,
+  AppControlCenterRoute: AppControlCenterRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFirepumpRoute: AppFirepumpRoute,
   AppGeneratorRoute: AppGeneratorRoute,

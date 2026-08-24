@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp, MessageSquare } from "lucide-react";
+import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp, MessageSquare, Radio } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { to: "/generator", icon: Zap, key: "nav.generator" },
   { to: "/trends", icon: TrendingUp, key: "nav.trends" },
   { to: "/routine", icon: ClipboardCheck, key: "nav.routine", hideForOperator: true },
+  { to: "/control-center", icon: Radio, key: "nav.controlCenter", hideForOperator: true },
   { to: "/stations", icon: Building2, key: "nav.stations", adminOnly: true },
   { to: "/templates", icon: FileSpreadsheet, key: "nav.templates", adminOnly: true },
   { to: "/users", icon: Users, key: "nav.users", adminOnly: true, hideForManagement: true },

@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_app/firepump")({
 
 /* ============================ FORM MODEL ============================ */
 
-type FieldKind = "open_close" | "available" | "auto_man" | "partial" | "text";
+type FieldKind = "open_close" | "available" | "auto_man" | "auto_man_off" | "ok_notok" | "partial" | "text";
 
 interface FieldDef {
   key: string;
@@ -73,7 +73,9 @@ interface SectionDef {
 const OPTIONS: Record<Exclude<FieldKind, "text">, string[]> = {
   open_close: ["OPEN", "CLOSE"],
   available: ["AVAILABLE", "NOT AVAILABLE"],
-  auto_man: ["AUTO", "MANUAL"],
+  auto_man: ["AUTO", "MAN"],
+  auto_man_off: ["AUTO", "MANUAL", "OFF"],
+  ok_notok: ["OK", "NOT OK"],
   partial: ["PARTIAL OPEN", "OPEN", "CLOSE"],
 };
 
@@ -82,15 +84,18 @@ const SECTIONS: SectionDef[] = [
     key: "before",
     title: "BEFORE STARTING",
     titleAr: "قبل التشغيل",
-    hint: "Fill these items before running the pump",
-    hintAr: "عبّئ هذه البنود قبل تشغيل المضخة",
+    hint: "*Verify fuel level, lubrication oil, and cooling water  *Ensure all valves are in the correct standby positions  *Confirm diesel daily fuel tank 200L is adequate",
+    hintAr: "*تأكد من مستوى الوقود وزيت التزييت ومياه التبريد  *تأكد أن جميع الصمامات في وضع الاستعداد الصحيح  *تأكد أن خزان الديزل اليومي 200 لتر كافٍ",
     fields: [
       { key: "b_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
       { key: "b_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
       { key: "b_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
-      { key: "b_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
-      { key: "b_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
-      { key: "b_hourmeter", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
+      { key: "b_hourmeter", group: "DIESEL ENGINE PUMP", label: "HOUR METER COUNTER", kind: "text", unit: "HRS" },
+      { key: "b_battery", group: "DIESEL ENGINE PUMP", label: "BATTERY VOLT", kind: "text", unit: "VOLT" },
+      { key: "b_diesel_tank", group: "DIESEL ENGINE PUMP", label: "DIESEL TANK LEVEL", kind: "ok_notok" },
+      { key: "b_lube_oil", group: "DIESEL ENGINE PUMP", label: "LUBE OIL LEVEL", kind: "ok_notok" },
+      { key: "b_suction", group: "DIESEL ENGINE PUMP", label: "PUMP SUCTION VALVE", kind: "open_close" },
+      { key: "b_discharge", group: "DIESEL ENGINE PUMP", label: "PUMP DISCHARGE VALVE", kind: "open_close" },
       { key: "b_mode", label: "TESTING MODE", kind: "auto_man" },
     ],
   },
@@ -98,41 +103,43 @@ const SECTIONS: SectionDef[] = [
     key: "during",
     title: "DURING RUNNING",
     titleAr: "أثناء التشغيل",
-    hint: "While the pump is operating",
-    hintAr: "أثناء عمل المضخة",
+    hint: "Each row corresponds to a specific component. Record readings while the pump is running.",
+    hintAr: "كل سطر يخص مكوّناً محدداً. سجّل القراءات أثناء عمل المضخة.",
     fields: [
       { key: "d_flowmeter", group: "FLOW & VALVE OPENING", label: "FLOWMETER", kind: "text", unit: "m³/hr" },
       { key: "d_downstream", group: "FLOW & VALVE OPENING", label: "DOWNSTREAM VALVE", kind: "partial" },
-      { key: "d_suction", group: "ELECTRIC PUMP", label: "SUCTION PRESSURE", kind: "text", unit: "BAR" },
-      { key: "d_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE PRESSURE", kind: "text", unit: "BAR" },
-      { key: "d_start_time", label: "STARTING TIME", kind: "text", unit: "Hrs" },
+      { key: "d_suction", group: "DIESEL ENGINE PUMP", label: "SUCTION PRESSURE", kind: "text", unit: "BAR" },
+      { key: "d_discharge", group: "DIESEL ENGINE PUMP", label: "DISCHARGE PRESSURE", kind: "text", unit: "BAR" },
+      { key: "d_start_time", label: "TESTING MODE", kind: "text", unit: "HRS" },
     ],
   },
   {
     key: "after",
     title: "AFTER STOPPING",
     titleAr: "بعد الإيقاف",
-    hint: "Immediately after stopping the pump",
-    hintAr: "مباشرة بعد إيقاف المضخة",
+    hint: "Shut down pump according to standard procedure. Reset all valves to standby position. Record remarks (normal/abnormal). Initial/signature by the operator performing the test. Supervisor countersigns after review.",
+    hintAr: "أوقف المضخة حسب الإجراء القياسي، وأعد جميع الصمامات لوضع الاستعداد، وسجّل الملاحظات (طبيعي/غير طبيعي)، ويوقّع المشغل ثم يعتمد المشرف.",
     fields: [
       { key: "a_upstream", group: "TEST LINE FLOWMETER", label: "UPSTREAM VALVE", kind: "open_close" },
       { key: "a_flowmeter", group: "TEST LINE FLOWMETER", label: "FLOWMETER", kind: "available" },
       { key: "a_downstream", group: "TEST LINE FLOWMETER", label: "DOWNSTREAM VALVE", kind: "open_close" },
-      { key: "a_suction", group: "ELECTRIC PUMP", label: "SUCTION VALVE", kind: "open_close" },
-      { key: "a_discharge", group: "ELECTRIC PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
-      { key: "a_hourmeter", group: "ELECTRIC PUMP", label: "HOUR METER COUNTER", kind: "text", unit: "Hrs" },
-      { key: "a_selector", group: "ELECTRIC PUMP", label: "SELECTOR MODE", kind: "auto_man" },
-      { key: "a_stop_time", label: "STOPPING TIME", kind: "text", unit: "Hrs" },
+      { key: "a_hourmeter", group: "DIESEL ENGINE PUMP", label: "HOUR METER COUNTER", kind: "text", unit: "HRS" },
+      { key: "a_battery", group: "DIESEL ENGINE PUMP", label: "BATTERY VOLTAGE", kind: "text", unit: "VOLT" },
+      { key: "a_suction", group: "DIESEL ENGINE PUMP", label: "SUCTION VALVE", kind: "open_close" },
+      { key: "a_discharge", group: "DIESEL ENGINE PUMP", label: "DISCHARGE VALVE", kind: "open_close" },
+      { key: "a_selector", group: "DIESEL ENGINE PUMP", label: "SELECTOR MODE", kind: "auto_man_off" },
+      { key: "a_stop_time", label: "STOPPING TIME", kind: "text", unit: "HRS" },
     ],
   },
 ];
 
 const CHECKLIST = [
-  { key: "c_auto", label: "ELECTRICAL PUMP SWITCH ON AUTO" },
+  { key: "c_auto", label: "FIRE PUMP SWITCH ON AUTO" },
   { key: "c_flow_switch", label: "FLOW SWITCH WORKING PROPERLY" },
   { key: "c_pressure_switch", label: "PRESSURE SWITCH WORKING PROPERLY" },
   { key: "c_sound", label: "ABNORMAL SOUND DURING RUNNING THE PUMP" },
 ];
+
 
 interface CheckRow {
   answer: "YES" | "NO" | "";

@@ -590,6 +590,11 @@ function EntryView({
   const { data, isLoading } = useQuery({
     queryKey: ["reading-entry", templateId, date, stationId ?? "none"],
     enabled: !!stationId,
+    // Never let a background refetch land while the operator is typing.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const [tplRes, sectionsRes, fieldsRes, entryRes] = await Promise.all([
         supabase
@@ -987,6 +992,18 @@ function EntryView({
     lastAutoSavedRef.current = "";
     setAutoSavedAt(null);
   }, [draftKey]);
+
+  // Warn before leaving with values that have not reached the database yet.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (JSON.stringify(currentDraftRef.current) === lastAutoSavedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
 
 
 

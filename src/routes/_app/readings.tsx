@@ -891,7 +891,7 @@ function EntryView({
             : `Saved & verified: ${res?.saved ?? 0} readings`,
         );
       }
-      if ((res?.skippedLocked ?? 0) > 0 && !vars?.silent) {
+      if ((res?.skippedLocked ?? 0) > 0) {
         toast.warning(
           locale === "ar"
             ? `لم يتم حفظ ${res!.skippedLocked} قيمة لأن ورديتها مقفلة (انتهى الشفت). راجع المشرف.`
@@ -940,13 +940,15 @@ function EntryView({
       return;
     }
     if (snapshot === lastAutoSavedRef.current) return;
+    // While a save is in flight, wait: the effect re-runs when isPending flips
+    // back to false, so the newest edits are always persisted.
+    if (save.isPending) return;
     const id = window.setTimeout(() => {
-      if (save.isPending) return;
       lastAutoSavedRef.current = snapshot;
       save.mutate({ silent: true });
     }, 2000);
     return () => window.clearTimeout(id);
-  }, [draftData, hydrated, canWrite, stationId, restoredAt]);
+  }, [draftData, hydrated, canWrite, stationId, restoredAt, save.isPending]);
 
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {

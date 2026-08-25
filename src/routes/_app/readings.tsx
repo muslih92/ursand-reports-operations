@@ -590,6 +590,11 @@ function EntryView({
   const { data, isLoading } = useQuery({
     queryKey: ["reading-entry", templateId, date, stationId ?? "none"],
     enabled: !!stationId,
+    // Never let a background refetch land while the operator is typing.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const [tplRes, sectionsRes, fieldsRes, entryRes] = await Promise.all([
         supabase

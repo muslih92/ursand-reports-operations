@@ -209,6 +209,7 @@ function ReadingsPage() {
   }
   return (
     <EntryView
+      key={`${templateId}:${date}:${stationId ?? "none"}`}
       templateId={templateId}
       date={date}
       stationId={stationId}

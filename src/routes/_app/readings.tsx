@@ -809,6 +809,7 @@ function EntryView({
       const nowIso = new Date().toISOString();
       const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string }[] = [];
       const toDelete: string[] = [];
+      const toDeleteByKey: { fieldId: string; timeSlot: string }[] = [];
       let skippedLocked = 0;
 
       const handledKeys = new Set<string>();
@@ -837,6 +838,7 @@ function EntryView({
         if (trimmed === "") {
           const id = existing.get(key);
           if (id) toDelete.push(id);
+          else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
           continue;
         }
         const num = Number(trimmed);
@@ -850,6 +852,18 @@ function EntryView({
 
       if (toDelete.length > 0) {
         const { error } = await supabase.from("reading_values").delete().in("id", toDelete);
+        if (error) throw error;
+      }
+      // A value may have been created by the previous autosave while the
+      // operator was already clearing it. Delete by its stable composite key
+      // as well when the currently cached query does not know the row id yet.
+      for (const row of toDeleteByKey) {
+        const { error } = await supabase
+          .from("reading_values")
+          .delete()
+          .eq("entry_id", entryId!)
+          .eq("field_id", row.fieldId)
+          .eq("time_slot", row.timeSlot);
         if (error) throw error;
       }
       // write in chunks so large sheets never hit a request-size limit silently
@@ -889,7 +903,7 @@ function EntryView({
       }
 
 
-      return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
+      return { saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
     },
 
     onSuccess: (res, vars) => {

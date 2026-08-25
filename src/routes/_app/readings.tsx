@@ -993,6 +993,18 @@ function EntryView({
     setAutoSavedAt(null);
   }, [draftKey]);
 
+  // Warn before leaving with values that have not reached the database yet.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (JSON.stringify(currentDraftRef.current) === lastAutoSavedRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+
 
 
   const fieldsBySection = useMemo(() => {

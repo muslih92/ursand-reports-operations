@@ -209,6 +209,7 @@ function ReadingsPage() {
   }
   return (
     <EntryView
+      key={`${templateId}:${date}:${stationId ?? "none"}`}
       templateId={templateId}
       date={date}
       stationId={stationId}
@@ -675,7 +676,7 @@ function EntryView({
   const [operatorName, setOperatorName] = useState("");
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedKey, setHydratedKey] = useState("");
   const [activeMark, setActiveMark] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>("");
   const [restoredAt, setRestoredAt] = useState<number | null>(null);
@@ -695,7 +696,9 @@ function EntryView({
   const draftKey = `readings:${templateId}:${date}:${stationId ?? "none"}`;
 
   useEffect(() => {
-    if (!data) return;
+    // Hydrate a sheet only once. Background refetches after autosave must not
+    // overwrite newer values that the operator is still typing.
+    if (!data || hydratedKey === draftKey) return;
     const v: Record<string, string> = {};
     const s: Record<string, string> = {};
     const tokenSet = new Set<string>(STATUS_TOKENS as readonly string[]);
@@ -726,11 +729,17 @@ function EntryView({
     setStatuses(s);
     setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
-    setHydrated(true);
-  }, [data, profile?.full_name, draftKey]);
+    setHydratedKey(draftKey);
+  }, [data, profile?.full_name, draftKey, hydratedKey]);
 
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
-  const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(draftKey, draftData, hydrated && canWrite);
+  const currentDraftRef = useRef(draftData);
+  currentDraftRef.current = draftData;
+  const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(
+    draftKey,
+    draftData,
+    hydratedKey === draftKey && canWrite,
+  );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
   const lastAutoSavedRef = useRef<string>("");
 
@@ -746,8 +755,12 @@ function EntryView({
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
-    mutationFn: async (_vars?: { silent?: boolean }) => {
+    mutationFn: async (vars: {
+      silent?: boolean;
+      snapshot: { values: Record<string, string>; statuses: Record<string, string>; notes: string };
+    }) => {
       if (!stationId) throw new Error("no station");
+      const snapshot = vars.snapshot;
       // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;
       if (!entryId) {
@@ -760,7 +773,7 @@ function EntryView({
               entry_date: date,
               operator_id: profile?.id,
               operator_name: profile?.full_name ?? operatorName,
-              notes: notes || null,
+              notes: snapshot.notes || null,
             },
             { onConflict: "template_id,entry_date" },
           )
@@ -784,7 +797,7 @@ function EntryView({
           .from("reading_entries")
           .update({
             operator_name: profile?.full_name ?? operatorName,
-            notes: notes || null,
+            notes: snapshot.notes || null,
           })
           .eq("id", entryId);
         if (error) throw error;
@@ -797,12 +810,13 @@ function EntryView({
       const nowIso = new Date().toISOString();
       const toUpsert: { entry_id: string; field_id: string; time_slot: string; value: number | null; status: string | null; recorded_at: string }[] = [];
       const toDelete: string[] = [];
+      const toDeleteByKey: { fieldId: string; timeSlot: string }[] = [];
       let skippedLocked = 0;
 
       const handledKeys = new Set<string>();
 
       // 1) Fields with a row-level status: emit one row per slot with status token, value null.
-      for (const [fieldId, st] of Object.entries(statuses)) {
+      for (const [fieldId, st] of Object.entries(snapshot.statuses)) {
         if (!st) continue;
         for (const slot of data!.template.time_slots) {
           const key = `${fieldId}|${slot}`;
@@ -813,10 +827,10 @@ function EntryView({
       }
 
       // 2) Cells for fields without row status. Numeric → value; text → status.
-      for (const [key, raw] of Object.entries(values)) {
+      for (const [key, raw] of Object.entries(snapshot.values)) {
         if (handledKeys.has(key)) continue;
         const [field_id, time_slot] = key.split("|");
-        if (statuses[field_id]) continue;
+        if (snapshot.statuses[field_id]) continue;
         if (slotLocked(time_slot)) {
           if (raw.trim() !== "" && !existing.has(key)) skippedLocked++;
           continue; // shift closed → not editable
@@ -825,6 +839,7 @@ function EntryView({
         if (trimmed === "") {
           const id = existing.get(key);
           if (id) toDelete.push(id);
+          else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
           continue;
         }
         const num = Number(trimmed);
@@ -838,6 +853,18 @@ function EntryView({
 
       if (toDelete.length > 0) {
         const { error } = await supabase.from("reading_values").delete().in("id", toDelete);
+        if (error) throw error;
+      }
+      // A value may have been created by the previous autosave while the
+      // operator was already clearing it. Delete by its stable composite key
+      // as well when the currently cached query does not know the row id yet.
+      for (const row of toDeleteByKey) {
+        const { error } = await supabase
+          .from("reading_values")
+          .delete()
+          .eq("entry_id", entryId!)
+          .eq("field_id", row.fieldId)
+          .eq("time_slot", row.timeSlot);
         if (error) throw error;
       }
       // write in chunks so large sheets never hit a request-size limit silently
@@ -877,12 +904,18 @@ function EntryView({
       }
 
 
-      return { saved: toUpsert.length, deleted: toDelete.length, skippedLocked };
+      return { saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
     },
 
     onSuccess: (res, vars) => {
-      clearLocalDraft();
-      setRestoredAt(null);
+      const savedSnapshot = JSON.stringify(vars.snapshot);
+      lastAutoSavedRef.current = savedSnapshot;
+      // Never clear the safety draft when the operator typed more while this
+      // request was in flight; those newer values still need another save.
+      if (JSON.stringify(currentDraftRef.current) === savedSnapshot) {
+        clearLocalDraft();
+        setRestoredAt(null);
+      }
       setAutoSavedAt(Date.now());
       if (!vars?.silent) {
         toast.success(
@@ -905,7 +938,7 @@ function EntryView({
       qc.invalidateQueries({ queryKey: ["dash-stats"] });
 
       // 10% deviation alert -> station supervisors + management
-      const devs = collectDeviations(values, baseline ?? {}, data?.fields ?? [], locale);
+      const devs = collectDeviations(vars.snapshot.values, baseline ?? {}, data?.fields ?? [], locale);
       if (devs.length > 0 && stationId) {
         const lines = devs.slice(0, 6).map((d) => d.text).join("\n");
         const more = devs.length > 6 ? `\n… +${devs.length - 6}` : "";
@@ -933,7 +966,7 @@ function EntryView({
 
   // Automatic save to the database — no manual confirmation needed.
   useEffect(() => {
-    if (!hydrated || !canWrite || !stationId) return;
+    if (hydratedKey !== draftKey || !canWrite || !stationId) return;
     const snapshot = JSON.stringify(draftData);
     if (lastAutoSavedRef.current === "" && !restoredAt) {
       lastAutoSavedRef.current = snapshot;
@@ -944,11 +977,10 @@ function EntryView({
     // back to false, so the newest edits are always persisted.
     if (save.isPending) return;
     const id = window.setTimeout(() => {
-      lastAutoSavedRef.current = snapshot;
-      save.mutate({ silent: true });
+      save.mutate({ silent: true, snapshot: draftData });
     }, 2000);
     return () => window.clearTimeout(id);
-  }, [draftData, hydrated, canWrite, stationId, restoredAt, save.isPending]);
+  }, [draftData, hydratedKey, draftKey, canWrite, stationId, restoredAt, save.isPending]);
 
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {
@@ -992,7 +1024,7 @@ function EntryView({
     );
   }
 
-  if (isLoading || !data || !hydrated) {
+  if (isLoading || !data || hydratedKey !== draftKey) {
     return (
       <div className="space-y-4">
         <button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-primary">
@@ -1142,7 +1174,7 @@ function EntryView({
             </a>
           )}
           <button
-            onClick={() => save.mutate({ silent: false })}
+            onClick={() => save.mutate({ silent: false, snapshot: draftData })}
             disabled={!canWrite || save.isPending}
             className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
           >

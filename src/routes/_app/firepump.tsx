@@ -110,7 +110,7 @@ const SECTIONS: SectionDef[] = [
       { key: "d_downstream", group: "FLOW & VALVE OPENING", label: "DOWNSTREAM VALVE", kind: "partial" },
       { key: "d_suction", group: "DIESEL ENGINE PUMP", label: "SUCTION PRESSURE", kind: "text", unit: "BAR" },
       { key: "d_discharge", group: "DIESEL ENGINE PUMP", label: "DISCHARGE PRESSURE", kind: "text", unit: "BAR" },
-      { key: "d_start_time", label: "TESTING MODE", kind: "text", unit: "HRS" },
+      { key: "d_start_time", label: "STARTING TIME", kind: "text", unit: "HRS" },
     ],
   },
   {

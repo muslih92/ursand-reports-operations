@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import { usePersistentToggle } from "@/lib/use-persistent-toggle";
 import {
   Crown,
@@ -46,8 +47,11 @@ export function StationOfWeek() {
   const [open, toggle] = usePersistentToggle("card-open:station-of-week");
   const panelId = useId();
 
+  const { user } = useAuth();
+
   const { data, isLoading } = useQuery({
     queryKey: ["station-of-week"],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("station_week_scores" as any, {} as any);
       if (error) throw error;

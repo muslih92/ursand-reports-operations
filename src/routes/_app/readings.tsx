@@ -963,8 +963,11 @@ function EntryView({
       }
     },
 
-    onError: (e: unknown) => {
+    onError: (e: unknown, vars) => {
       const msg = e instanceof Error ? e.message : String(e);
+      // Remember the snapshot that failed so the autosave effect does not
+      // re-fire the same request forever (one toast per distinct failure).
+      failedSnapshotRef.current = JSON.stringify(vars?.snapshot ?? null);
       toast.error(msg);
     },
   });
@@ -978,6 +981,9 @@ function EntryView({
       return;
     }
     if (snapshot === lastAutoSavedRef.current) return;
+    // A snapshot that already failed is not retried automatically; the operator
+    // can keep typing (which produces a new snapshot) or press Save manually.
+    if (snapshot === failedSnapshotRef.current) return;
     // While a save is in flight, wait: the effect re-runs when isPending flips
     // back to false, so the newest edits are always persisted.
     if (save.isPending) return;
@@ -986,6 +992,7 @@ function EntryView({
     }, 2000);
     return () => window.clearTimeout(id);
   }, [draftData, hydratedKey, draftKey, canWrite, stationId, restoredAt, save.isPending]);
+
 
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {

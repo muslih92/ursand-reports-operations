@@ -747,6 +747,8 @@ function EntryView({
   );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
   const lastAutoSavedRef = useRef<string>("");
+  const failedSnapshotRef = useRef<string>("");
+
 
 
 

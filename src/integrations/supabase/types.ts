@@ -1197,6 +1197,15 @@ export type Database = {
         }
         Returns: number
       }
+      security_regression_report: {
+        Args: never
+        Returns: {
+          detail: string
+          expectation: string
+          passed: boolean
+          scenario: string
+        }[]
+      }
       security_test_report: {
         Args: never
         Returns: {

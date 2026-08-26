@@ -26,6 +26,7 @@ import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppControlCenterRouteImport } from './routes/_app/control-center'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
 const AuthRoute = AuthRouteImport.update({
@@ -112,6 +113,11 @@ const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   path: '/availability',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiPublicAdminSetPasswordRoute =
   ApiPublicAdminSetPasswordRouteImport.update({
     id: '/api/public/admin-set-password',
@@ -122,6 +128,7 @@ const ApiPublicAdminSetPasswordRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/audit': typeof AppAuditRoute
   '/_app/availability': typeof AppAvailabilityRoute
   '/_app/control-center': typeof AppControlCenterRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/audit'
     | '/availability'
     | '/control-center'
     | '/dashboard'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/audit'
     | '/availability'
     | '/control-center'
     | '/dashboard'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/auth'
+    | '/_app/audit'
     | '/_app/availability'
     | '/_app/control-center'
     | '/_app/dashboard'
@@ -367,6 +379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAvailabilityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/public/admin-set-password': {
       id: '/api/public/admin-set-password'
       path: '/api/public/admin-set-password'
@@ -378,6 +397,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
   AppAvailabilityRoute: typeof AppAvailabilityRoute
   AppControlCenterRoute: typeof AppControlCenterRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -395,6 +415,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
   AppAvailabilityRoute: AppAvailabilityRoute,
   AppControlCenterRoute: AppControlCenterRoute,
   AppDashboardRoute: AppDashboardRoute,

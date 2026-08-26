@@ -13,6 +13,7 @@ const dict: Dict = {
   "nav.stations": { ar: "المحطات", en: "Stations" },
   "nav.templates": { ar: "قوالب القراءات", en: "Reading Templates" },
   "nav.users": { ar: "المستخدمون", en: "Users" },
+  "nav.audit": { ar: "سجل التدقيق", en: "Audit Log" },
   "nav.reports": { ar: "التقارير", en: "Reports" },
   "nav.availability": { ar: "التقرير الصباحي اليومي", en: "Morning Daily Report (MDR)" },
   "nav.firepump": { ar: "اختبار مضخات الحريق", en: "Fire Pump Test" },

@@ -917,6 +917,7 @@ function EntryView({
     onSuccess: (res, vars) => {
       const savedSnapshot = JSON.stringify(vars.snapshot);
       lastAutoSavedRef.current = savedSnapshot;
+      failedSnapshotRef.current = "";
       // Never clear the safety draft when the operator typed more while this
       // request was in flight; those newer values still need another save.
       if (JSON.stringify(currentDraftRef.current) === savedSnapshot) {
@@ -999,6 +1000,7 @@ function EntryView({
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {
     lastAutoSavedRef.current = "";
+    failedSnapshotRef.current = "";
     setAutoSavedAt(null);
   }, [draftKey]);
 

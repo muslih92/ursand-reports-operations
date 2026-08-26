@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { to: "/stations", icon: Building2, key: "nav.stations", adminOnly: true },
   { to: "/templates", icon: FileSpreadsheet, key: "nav.templates", adminOnly: true },
   { to: "/users", icon: Users, key: "nav.users", adminOnly: true, hideForManagement: true },
+  { to: "/audit", icon: ShieldCheck, key: "nav.audit", adminOnly: true, hideForManagement: true },
 ];
 
 

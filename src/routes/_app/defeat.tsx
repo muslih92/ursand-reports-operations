@@ -92,6 +92,42 @@ function DefeatPage() {
     },
   });
 
+  // Overview across all stations the user can see
+  const { data: allRows = [] } = useQuery({
+    queryKey: ["defeat-records", "overview"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("defeat_records")
+        .select("id, station_id, defeat_number, area_system, date_issued, date_released")
+        .order("date_issued", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Pick<
+        DefeatRow,
+        "id" | "station_id" | "defeat_number" | "area_system" | "date_issued" | "date_released"
+      >[];
+    },
+  });
+
+  const overview = (stations ?? [])
+    .map((s) => {
+      const list = allRows.filter((r) => r.station_id === s.id);
+      const open = list.filter((r) => !r.date_released || !String(r.date_released).trim());
+      const last = list
+        .map((r) => r.date_issued)
+        .filter(Boolean)
+        .sort()
+        .slice(-1)[0];
+      return { station: s, total: list.length, open: open.length, last: last ?? null };
+    })
+    .filter((o) => o.total > 0)
+    .sort((a, b) => b.open - a.open || b.total - a.total);
+
+  const totals = overview.reduce(
+    (acc, o) => ({ total: acc.total + o.total, open: acc.open + o.open }),
+    { total: 0, open: 0 },
+  );
+
+
   const add = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error(ar ? "اختر المحطة" : "Select a station");
@@ -116,7 +152,7 @@ function DefeatPage() {
     onSuccess: () => {
       toast.success(ar ? "تمت الإضافة" : "Record added");
       setDraft(emptyDraft);
-      qc.invalidateQueries({ queryKey: ["defeat-records", stationId] });
+      qc.invalidateQueries({ queryKey: ["defeat-records"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -127,7 +163,7 @@ function DefeatPage() {
       if (error) throw error;
     },
     onError: (e: Error) => toast.error(e.message),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["defeat-records", stationId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["defeat-records"] }),
   });
 
   const remove = useMutation({
@@ -137,7 +173,7 @@ function DefeatPage() {
     },
     onSuccess: () => {
       toast.success(ar ? "تم الحذف" : "Deleted");
-      qc.invalidateQueries({ queryKey: ["defeat-records", stationId] });
+      qc.invalidateQueries({ queryKey: ["defeat-records"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -278,6 +314,64 @@ function DefeatPage() {
           {ar ? "طباعة" : "Print"}
         </button>
       </div>
+
+      <section className="rounded-xl border bg-card p-4 space-y-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-semibold flex-1">
+            {ar ? "ملخص جميع المحطات" : "All stations overview"}
+          </h2>
+          <span className="text-xs rounded-full border px-2 py-0.5">
+            {ar ? "محطات" : "Stations"}: {overview.length}
+          </span>
+          <span className="text-xs rounded-full border px-2 py-0.5">
+            {ar ? "إجمالي السجلات" : "Total records"}: {totals.total}
+          </span>
+          <span className="text-xs rounded-full border px-2 py-0.5 border-destructive text-destructive">
+            {ar ? "غير مُعادة" : "Not released"}: {totals.open}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/60">
+              <tr>
+                <th className="p-2 text-start">{ar ? "المحطة" : "Station"}</th>
+                <th className="p-2 text-start w-28">{ar ? "السجلات" : "Records"}</th>
+                <th className="p-2 text-start w-32">{ar ? "غير مُعادة" : "Open"}</th>
+                <th className="p-2 text-start w-36">{ar ? "آخر إصدار" : "Last issued"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.map((o) => (
+                <tr
+                  key={o.station.id}
+                  onClick={() => setStationId(o.station.id)}
+                  className={`border-t cursor-pointer hover:bg-accent/60 ${
+                    o.station.id === stationId ? "bg-accent/40" : ""
+                  }`}
+                >
+                  <td className="p-2 font-medium">
+                    {o.station.code} — {ar ? o.station.name_ar : o.station.name_en}
+                  </td>
+                  <td className="p-2">{o.total}</td>
+                  <td className={`p-2 ${o.open > 0 ? "text-destructive font-semibold" : ""}`}>
+                    {o.open}
+                  </td>
+                  <td className="p-2">{o.last ?? "—"}</td>
+                </tr>
+              ))}
+              {overview.length === 0 && (
+                <tr className="border-t">
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    {ar ? "لا توجد سجلات في أي محطة" : "No records in any station"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
 
       <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3 print:hidden">
         <label className="text-sm space-y-1">

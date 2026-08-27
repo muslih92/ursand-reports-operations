@@ -60,7 +60,8 @@ const emptyDraft: Draft = {
 function DefeatPage() {
   const { locale, dir } = useI18n();
   const ar = locale === "ar";
-  const { profile, user, isAdmin } = useAuth();
+  const { profile, user, isAdmin, hasRole } = useAuth();
+  const canEdit = isAdmin || hasRole("supervisor");
   const qc = useQueryClient();
   const { scopedStationId, canPickStation } = useStationScope();
   const { data: stations } = useScopedStations();
@@ -215,6 +216,7 @@ function DefeatPage() {
   };
 
   const cell =
+    (canEdit ? "" : "pointer-events-none opacity-80 ") +
     "w-full rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
@@ -284,7 +286,7 @@ function DefeatPage() {
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
               <th className="p-2 w-40 text-start">Date Released</th>
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
-              {isAdmin && <th className="p-2 w-10 print:hidden" />}
+              {canEdit && isAdmin && <th className="p-2 w-10 print:hidden" />}
             </tr>
           </thead>
           <tbody>
@@ -363,7 +365,7 @@ function DefeatPage() {
                     }
                   />
                 </td>
-                {isAdmin && (
+                {canEdit && isAdmin && (
                   <td className="p-2 print:hidden">
                     <button
                       onClick={() => remove.mutate(r.id)}
@@ -378,7 +380,7 @@ function DefeatPage() {
             ))}
             {rows.length === 0 && (
               <tr className="border-t">
-                <td colSpan={isAdmin ? 9 : 8} className="p-6 text-center text-muted-foreground">
+                <td colSpan={canEdit && isAdmin ? 9 : 8} className="p-6 text-center text-muted-foreground">
                   {ar ? "لا توجد سجلات بعد" : "No records yet"}
                 </td>
               </tr>
@@ -387,6 +389,7 @@ function DefeatPage() {
         </table>
       </div>
 
+      {canEdit && (
       <div className="rounded-xl border bg-card p-4 space-y-3 print:hidden">
         <div className="font-semibold">{ar ? "إضافة سجل جديد" : "Add new record"}</div>
         <div className="grid gap-3 md:grid-cols-4">
@@ -436,6 +439,7 @@ function DefeatPage() {
           {ar ? "إضافة" : "Add"}
         </button>
       </div>
+      )}
     </div>
   );
 }

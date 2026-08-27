@@ -68,6 +68,65 @@ export type Database = {
         }
         Relationships: []
       }
+      defeat_records: {
+        Row: {
+          area_system: string | null
+          created_at: string
+          created_by: string | null
+          date_issued: string | null
+          date_released: string | null
+          defeat_duration: string | null
+          defeat_number: string | null
+          id: string
+          issued_signature: string | null
+          released_signature: string | null
+          remarks: string | null
+          sl_no: number
+          station_id: string
+          updated_at: string
+        }
+        Insert: {
+          area_system?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_issued?: string | null
+          date_released?: string | null
+          defeat_duration?: string | null
+          defeat_number?: string | null
+          id?: string
+          issued_signature?: string | null
+          released_signature?: string | null
+          remarks?: string | null
+          sl_no?: number
+          station_id: string
+          updated_at?: string
+        }
+        Update: {
+          area_system?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_issued?: string | null
+          date_released?: string | null
+          defeat_duration?: string | null
+          defeat_number?: string | null
+          id?: string
+          issued_signature?: string | null
+          released_signature?: string | null
+          remarks?: string | null
+          sl_no?: number
+          station_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "defeat_records_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_availability_entries: {
         Row: {
           created_at: string

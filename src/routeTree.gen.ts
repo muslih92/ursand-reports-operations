@@ -19,6 +19,7 @@ import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppRoutineRouteImport } from './routes/_app/routine'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
+import { Route as AppPowerbiRouteImport } from './routes/_app/powerbi'
 import { Route as AppMessagesRouteImport } from './routes/_app/messages'
 import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
 import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
@@ -76,6 +77,11 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppReadingsRoute = AppReadingsRouteImport.update({
   id: '/readings',
   path: '/readings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPowerbiRoute = AppPowerbiRouteImport.update({
+  id: '/powerbi',
+  path: '/powerbi',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMessagesRoute = AppMessagesRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
   '/messages': typeof AppMessagesRoute
+  '/powerbi': typeof AppPowerbiRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/generator': typeof AppGeneratorRoute
   '/incidents': typeof AppIncidentsRoute
   '/messages': typeof AppMessagesRoute
+  '/powerbi': typeof AppPowerbiRoute
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_app/generator': typeof AppGeneratorRoute
   '/_app/incidents': typeof AppIncidentsRoute
   '/_app/messages': typeof AppMessagesRoute
+  '/_app/powerbi': typeof AppPowerbiRoute
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/routine': typeof AppRoutineRoute
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
     | '/generator'
     | '/incidents'
     | '/messages'
+    | '/powerbi'
     | '/readings'
     | '/reports'
     | '/routine'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/generator'
     | '/incidents'
     | '/messages'
+    | '/powerbi'
     | '/readings'
     | '/reports'
     | '/routine'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/_app/generator'
     | '/_app/incidents'
     | '/_app/messages'
+    | '/_app/powerbi'
     | '/_app/readings'
     | '/_app/reports'
     | '/_app/routine'
@@ -330,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReadingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/powerbi': {
+      id: '/_app/powerbi'
+      path: '/powerbi'
+      fullPath: '/powerbi'
+      preLoaderRoute: typeof AppPowerbiRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/messages': {
       id: '/_app/messages'
       path: '/messages'
@@ -405,6 +424,7 @@ interface AppRouteChildren {
   AppGeneratorRoute: typeof AppGeneratorRoute
   AppIncidentsRoute: typeof AppIncidentsRoute
   AppMessagesRoute: typeof AppMessagesRoute
+  AppPowerbiRoute: typeof AppPowerbiRoute
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRoutineRoute: typeof AppRoutineRoute
@@ -423,6 +443,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGeneratorRoute: AppGeneratorRoute,
   AppIncidentsRoute: AppIncidentsRoute,
   AppMessagesRoute: AppMessagesRoute,
+  AppPowerbiRoute: AppPowerbiRoute,
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,
   AppRoutineRoute: AppRoutineRoute,

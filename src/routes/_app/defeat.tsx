@@ -152,7 +152,7 @@ function DefeatPage() {
     onSuccess: () => {
       toast.success(ar ? "تمت الإضافة" : "Record added");
       setDraft(emptyDraft);
-      qc.invalidateQueries({ queryKey: ["defeat-records", stationId] });
+      qc.invalidateQueries({ queryKey: ["defeat-records"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -163,7 +163,7 @@ function DefeatPage() {
       if (error) throw error;
     },
     onError: (e: Error) => toast.error(e.message),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["defeat-records", stationId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["defeat-records"] }),
   });
 
   const remove = useMutation({
@@ -173,7 +173,7 @@ function DefeatPage() {
     },
     onSuccess: () => {
       toast.success(ar ? "تم الحذف" : "Deleted");
-      qc.invalidateQueries({ queryKey: ["defeat-records", stationId] });
+      qc.invalidateQueries({ queryKey: ["defeat-records"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

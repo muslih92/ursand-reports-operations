@@ -315,6 +315,64 @@ function DefeatPage() {
         </button>
       </div>
 
+      <section className="rounded-xl border bg-card p-4 space-y-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-semibold flex-1">
+            {ar ? "ملخص جميع المحطات" : "All stations overview"}
+          </h2>
+          <span className="text-xs rounded-full border px-2 py-0.5">
+            {ar ? "محطات" : "Stations"}: {overview.length}
+          </span>
+          <span className="text-xs rounded-full border px-2 py-0.5">
+            {ar ? "إجمالي السجلات" : "Total records"}: {totals.total}
+          </span>
+          <span className="text-xs rounded-full border px-2 py-0.5 border-destructive text-destructive">
+            {ar ? "غير مُعادة" : "Not released"}: {totals.open}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/60">
+              <tr>
+                <th className="p-2 text-start">{ar ? "المحطة" : "Station"}</th>
+                <th className="p-2 text-start w-28">{ar ? "السجلات" : "Records"}</th>
+                <th className="p-2 text-start w-32">{ar ? "غير مُعادة" : "Open"}</th>
+                <th className="p-2 text-start w-36">{ar ? "آخر إصدار" : "Last issued"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.map((o) => (
+                <tr
+                  key={o.station.id}
+                  onClick={() => setStationId(o.station.id)}
+                  className={`border-t cursor-pointer hover:bg-accent/60 ${
+                    o.station.id === stationId ? "bg-accent/40" : ""
+                  }`}
+                >
+                  <td className="p-2 font-medium">
+                    {o.station.code} — {ar ? o.station.name_ar : o.station.name_en}
+                  </td>
+                  <td className="p-2">{o.total}</td>
+                  <td className={`p-2 ${o.open > 0 ? "text-destructive font-semibold" : ""}`}>
+                    {o.open}
+                  </td>
+                  <td className="p-2">{o.last ?? "—"}</td>
+                </tr>
+              ))}
+              {overview.length === 0 && (
+                <tr className="border-t">
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    {ar ? "لا توجد سجلات في أي محطة" : "No records in any station"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+
       <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3 print:hidden">
         <label className="text-sm space-y-1">
           <span className="text-muted-foreground">{ar ? "المحطة" : "Station"}</span>

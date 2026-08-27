@@ -97,7 +97,7 @@ function PowerBiPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const url = draftUrl.trim();
+      const url = normalizeEmbedUrl(draftUrl);
       if (url && !isAllowedEmbedUrl(url)) {
         throw new Error(
           ar

@@ -145,22 +145,46 @@ function DefeatPage() {
   const exportExcel = async () => {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Defeat Issue Record");
+    wb.creator = "WTCO";
+    const ws = wb.addWorksheet("Defeat Issue Record", {
+      pageSetup: {
+        paperSize: 9,
+        orientation: "landscape",
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        horizontalCentered: true,
+        margins: { left: 0.3, right: 0.3, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+      },
+      headerFooter: {
+        oddFooter: "&L&F&CPage &P of &N&R&D",
+      },
+      views: [{ state: "frozen", ySplit: 5 }],
+    });
+
+    const thin = { style: "thin" as const };
+    const box = { top: thin, left: thin, bottom: thin, right: thin };
+
     ws.mergeCells("A1:D1");
     ws.getCell("A1").value = "KINGDOM OF SAUDI ARABIA";
     ws.mergeCells("A2:D2");
     ws.getCell("A2").value = "WATER TRANSMISSION COMPANY";
-    ws.mergeCells("E1:H1");
+    ws.mergeCells("E1:I1");
     ws.getCell("E1").value = "DEFEAT ISSUE RECORD";
-    ws.mergeCells("E2:H2");
+    ws.mergeCells("E2:I2");
     ws.getCell("E2").value = "CONTROL ROOM";
     ["A1", "A2", "E1", "E2"].forEach((c) => {
       ws.getCell(c).font = { bold: true, size: 12 };
       ws.getCell(c).alignment = { horizontal: "center", vertical: "middle" };
+      ws.getCell(c).border = box;
     });
-    ws.mergeCells("A3:H3");
-    ws.getCell("A3").value = `STATION: ${station?.code ?? ""}`;
+    ws.mergeCells("A3:F3");
+    ws.getCell("A3").value = `STATION: ${station?.code ?? ""}${station?.name_en ? ` - ${station.name_en}` : ""}`;
     ws.getCell("A3").font = { bold: true };
+    ws.mergeCells("G3:I3");
+    ws.getCell("G3").value = `PRINTED: ${new Date().toISOString().slice(0, 10)}`;
+    ws.getCell("G3").alignment = { horizontal: "right" };
+    ws.getRow(4).height = 6;
 
     const header = [
       "Sl#",
@@ -171,19 +195,18 @@ function DefeatPage() {
       "Supervisor Signature",
       "Date Released",
       "Supervisor Signature",
+      "Remarks",
     ];
     const hr = ws.addRow(header);
+    hr.height = 32;
     hr.font = { bold: true };
     hr.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     hr.eachCell((c) => {
-      c.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
+      c.border = box;
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
     });
+    const headerRowNumber = hr.number;
+    ws.pageSetup.printTitlesRow = `${headerRowNumber}:${headerRowNumber}`;
 
     rows.forEach((r) => {
       const row = ws.addRow([
@@ -195,25 +218,39 @@ function DefeatPage() {
         r.issued_signature ?? "",
         r.date_released ?? "",
         r.released_signature ?? "",
+        r.remarks ?? "",
       ]);
       row.alignment = { vertical: "middle", wrapText: true };
-      row.eachCell((c) => {
-        c.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
-        };
+      row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      [5, 7].forEach((i) => {
+        row.getCell(i).alignment = { horizontal: "center", vertical: "middle" };
+      });
+      row.eachCell({ includeEmpty: true }, (c) => {
+        c.border = box;
       });
     });
 
+    // keep a printable frame even with few records
+    for (let i = rows.length; i < 12; i++) {
+      const row = ws.addRow(["", "", "", "", "", "", "", "", ""]);
+      row.eachCell({ includeEmpty: true }, (c) => {
+        c.border = box;
+      });
+    }
+
+    const widths = [6, 20, 44, 16, 14, 20, 14, 20, 30];
     ws.columns.forEach((c, i) => {
-      c.width = i === 2 ? 48 : i === 0 ? 6 : 18;
+      c.width = widths[i] ?? 16;
     });
+    ws.autoFilter = {
+      from: { row: headerRowNumber, column: 1 },
+      to: { row: headerRowNumber, column: header.length },
+    };
 
     const blob = createExcelBlob(await wb.xlsx.writeBuffer());
     await triggerBlobDownload(blob, `Defeat_Record_${safeFilePart(station?.code, "Station")}.xlsx`);
   };
+
 
   const cell =
     (canEdit ? "" : "pointer-events-none opacity-80 ") +

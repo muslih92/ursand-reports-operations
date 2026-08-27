@@ -35,6 +35,29 @@ interface PowerBiSetting {
   title?: string;
 }
 
+/** Converts a Power BI share link (…/groups/<id>/reports/<id>?ctid=…) into an embeddable reportEmbed URL. */
+function normalizeEmbedUrl(raw: string) {
+  const url = raw.trim();
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)powerbi\.com$/.test(u.hostname)) return url;
+    if (u.pathname.includes("/reportEmbed")) return url;
+    const m = u.pathname.match(/\/groups\/([^/]+)\/reports\/([^/]+)/i);
+    if (!m) return url;
+    const [, groupId, reportId] = m;
+    const embed = new URL("https://app.powerbi.com/reportEmbed");
+    embed.searchParams.set("reportId", reportId);
+    if (groupId && groupId.toLowerCase() !== "me") embed.searchParams.set("groupId", groupId);
+    embed.searchParams.set("autoAuth", "true");
+    const ctid = u.searchParams.get("ctid");
+    if (ctid) embed.searchParams.set("ctid", ctid);
+    return embed.toString();
+  } catch {
+    return url;
+  }
+}
+
 function isAllowedEmbedUrl(url: string) {
   try {
     const u = new URL(url);

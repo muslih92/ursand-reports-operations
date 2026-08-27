@@ -92,6 +92,42 @@ function DefeatPage() {
     },
   });
 
+  // Overview across all stations the user can see
+  const { data: allRows = [] } = useQuery({
+    queryKey: ["defeat-records", "overview"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("defeat_records")
+        .select("id, station_id, defeat_number, area_system, date_issued, date_released")
+        .order("date_issued", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Pick<
+        DefeatRow,
+        "id" | "station_id" | "defeat_number" | "area_system" | "date_issued" | "date_released"
+      >[];
+    },
+  });
+
+  const overview = (stations ?? [])
+    .map((s) => {
+      const list = allRows.filter((r) => r.station_id === s.id);
+      const open = list.filter((r) => !r.date_released || !String(r.date_released).trim());
+      const last = list
+        .map((r) => r.date_issued)
+        .filter(Boolean)
+        .sort()
+        .slice(-1)[0];
+      return { station: s, total: list.length, open: open.length, last: last ?? null };
+    })
+    .filter((o) => o.total > 0)
+    .sort((a, b) => b.open - a.open || b.total - a.total);
+
+  const totals = overview.reduce(
+    (acc, o) => ({ total: acc.total + o.total, open: acc.open + o.open }),
+    { total: 0, open: 0 },
+  );
+
+
   const add = useMutation({
     mutationFn: async () => {
       if (!stationId) throw new Error(ar ? "اختر المحطة" : "Select a station");

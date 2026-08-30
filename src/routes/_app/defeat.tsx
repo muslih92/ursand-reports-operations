@@ -572,6 +572,13 @@ function DefeatPage() {
             value={draft.date_released ?? ""}
             onChange={(e) => setDraft({ ...draft, date_released: e.target.value })}
           />
+          <textarea
+            rows={2}
+            className={`${cell} md:col-span-4`}
+            placeholder={ar ? "ملاحظات / Remarks" : "Remarks"}
+            value={draft.remarks ?? ""}
+            onChange={(e) => setDraft({ ...draft, remarks: e.target.value })}
+          />
         </div>
         <button
           onClick={() => add.mutate()}

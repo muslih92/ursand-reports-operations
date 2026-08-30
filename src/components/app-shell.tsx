@@ -122,6 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <img src={logo.url} alt="WTCO" className="h-8 w-8" />
           <div className="flex-1 font-semibold text-sm truncate">{t("app.name")}</div>
           <NotificationBell compact />
+          <WatchStationsButton compact />
           <button onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="p-2 rounded hover:bg-accent">
             <Languages className="h-4 w-4" />
           </button>

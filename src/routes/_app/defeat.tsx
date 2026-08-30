@@ -406,7 +406,7 @@ function DefeatPage() {
       </div>
 
       <div className="rounded-xl border bg-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[1000px]">
+        <table className="w-full text-sm min-w-[1200px]">
           <thead className="bg-muted/60">
             <tr>
               <th className="p-2 w-12 text-start">Sl#</th>

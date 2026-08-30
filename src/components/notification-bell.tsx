@@ -34,7 +34,12 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-2 end-0 w-[320px] max-h-[420px] overflow-auto rounded-xl border bg-card shadow-lg">
+          <div
+            className={cn(
+              "fixed z-50 w-[min(420px,calc(100vw-1.5rem))] max-h-[70vh] overflow-y-auto overflow-x-hidden overscroll-contain rounded-xl border bg-card shadow-lg",
+              compact ? "top-16 inset-x-3 mx-auto" : "bottom-20 start-3 md:start-4",
+            )}
+          >
             <div className="flex items-center justify-between px-3 py-2 border-b">
               <span className="text-sm font-semibold">
                 {locale === "ar" ? "الإشعارات" : "Notifications"}
@@ -61,10 +66,10 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
                   <div className={cn("px-3 py-2.5", !n.read && "bg-primary/5")}>
                     <div className="flex items-start gap-2">
                       {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium leading-snug">{n.title}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium leading-snug break-words [overflow-wrap:anywhere]">{n.title}</div>
                         {n.body && (
-                          <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">
+                          <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line break-words [overflow-wrap:anywhere]">
                             {n.body}
                           </div>
                         )}

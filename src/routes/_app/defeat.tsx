@@ -406,7 +406,7 @@ function DefeatPage() {
       </div>
 
       <div className="rounded-xl border bg-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[1000px]">
+        <table className="w-full text-sm min-w-[1200px]">
           <thead className="bg-muted/60">
             <tr>
               <th className="p-2 w-12 text-start">Sl#</th>
@@ -417,6 +417,7 @@ function DefeatPage() {
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
               <th className="p-2 w-40 text-start">Date Released</th>
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
+              <th className="p-2 w-48 text-start">Remarks</th>
               {canEdit && isAdmin && <th className="p-2 w-10 print:hidden" />}
             </tr>
           </thead>
@@ -496,6 +497,17 @@ function DefeatPage() {
                     }
                   />
                 </td>
+                <td className="p-2">
+                  <textarea
+                    rows={2}
+                    className={cell}
+                    defaultValue={r.remarks ?? ""}
+                    onBlur={(e) =>
+                      e.target.value !== (r.remarks ?? "") &&
+                      update.mutate({ id: r.id, patch: { remarks: e.target.value || null } })
+                    }
+                  />
+                </td>
                 {canEdit && isAdmin && (
                   <td className="p-2 print:hidden">
                     <button
@@ -511,7 +523,7 @@ function DefeatPage() {
             ))}
             {rows.length === 0 && (
               <tr className="border-t">
-                <td colSpan={canEdit && isAdmin ? 9 : 8} className="p-6 text-center text-muted-foreground">
+                <td colSpan={canEdit && isAdmin ? 10 : 9} className="p-6 text-center text-muted-foreground">
                   {ar ? "لا توجد سجلات بعد" : "No records yet"}
                 </td>
               </tr>
@@ -559,6 +571,13 @@ function DefeatPage() {
             placeholder="Date Released"
             value={draft.date_released ?? ""}
             onChange={(e) => setDraft({ ...draft, date_released: e.target.value })}
+          />
+          <textarea
+            rows={2}
+            className={`${cell} md:col-span-4`}
+            placeholder={ar ? "ملاحظات / Remarks" : "Remarks"}
+            value={draft.remarks ?? ""}
+            onChange={(e) => setDraft({ ...draft, remarks: e.target.value })}
           />
         </div>
         <button

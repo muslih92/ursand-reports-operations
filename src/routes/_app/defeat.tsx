@@ -417,6 +417,7 @@ function DefeatPage() {
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
               <th className="p-2 w-40 text-start">Date Released</th>
               <th className="p-2 w-28 text-start">Supervisor Signature</th>
+              <th className="p-2 w-48 text-start">Remarks</th>
               {canEdit && isAdmin && <th className="p-2 w-10 print:hidden" />}
             </tr>
           </thead>

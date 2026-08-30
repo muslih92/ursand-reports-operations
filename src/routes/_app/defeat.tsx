@@ -523,7 +523,7 @@ function DefeatPage() {
             ))}
             {rows.length === 0 && (
               <tr className="border-t">
-                <td colSpan={canEdit && isAdmin ? 9 : 8} className="p-6 text-center text-muted-foreground">
+                <td colSpan={canEdit && isAdmin ? 10 : 9} className="p-6 text-center text-muted-foreground">
                   {ar ? "لا توجد سجلات بعد" : "No records yet"}
                 </td>
               </tr>

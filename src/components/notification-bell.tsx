@@ -8,8 +8,21 @@ import { cn } from "@/lib/utils";
 export function NotificationBell({ compact = false }: { compact?: boolean }) {
   const { locale } = useI18n();
   const [open, setOpen] = useState(false);
-  const { data: items = [] } = useNotifications();
+  const { data: raw = [] } = useNotifications();
   const { markRead, markAllRead } = useNotificationActions();
+
+  // The event date is the date mentioned in the notification (e.g. 2026-08-30),
+  // falling back to the creation date when the text carries none.
+  const eventDate = (n: { title: string; body: string | null; created_at: string }) => {
+    const m = `${n.title} ${n.body ?? ""}`.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : new Date(n.created_at).toISOString().slice(0, 10);
+  };
+
+  // Collapse repeated notifications with identical content (same event, re-sent on each save).
+  const items = raw.filter((n, i) => {
+    const key = `${n.kind}|${n.title}|${n.body ?? ""}`;
+    return raw.findIndex((o) => `${o.kind}|${o.title}|${o.body ?? ""}` === key) === i;
+  });
   const unread = items.filter((n) => !n.read).length;
 
   return (
@@ -73,8 +86,11 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
                             {n.body}
                           </div>
                         )}
-                        <div className="text-[10px] text-muted-foreground mt-1" dir="ltr">
-                          {new Date(n.created_at).toLocaleString(locale === "ar" ? "ar-SA" : "en-GB")}
+                        <div className="text-[10px] text-muted-foreground mt-1 flex flex-wrap gap-x-2" dir="ltr">
+                          <span className="font-medium">{eventDate(n)}</span>
+                          <span className="opacity-70">
+                            {new Date(n.created_at).toLocaleTimeString(locale === "ar" ? "ar-SA" : "en-GB")}
+                          </span>
                         </div>
                       </div>
                     </div>

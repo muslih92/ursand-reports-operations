@@ -86,8 +86,11 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
                             {n.body}
                           </div>
                         )}
-                        <div className="text-[10px] text-muted-foreground mt-1" dir="ltr">
-                          {new Date(n.created_at).toLocaleString(locale === "ar" ? "ar-SA" : "en-GB")}
+                        <div className="text-[10px] text-muted-foreground mt-1 flex flex-wrap gap-x-2" dir="ltr">
+                          <span className="font-medium">{eventDate(n)}</span>
+                          <span className="opacity-70">
+                            {new Date(n.created_at).toLocaleTimeString(locale === "ar" ? "ar-SA" : "en-GB")}
+                          </span>
                         </div>
                       </div>
                     </div>

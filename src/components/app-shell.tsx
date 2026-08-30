@@ -7,6 +7,7 @@ const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
 import { ChangePasswordButton } from "@/components/change-password-dialog";
 import { NotificationBell } from "@/components/notification-bell";
+import { WatchStationsButton } from "@/components/watch-stations-dialog";
 import { useNotifications } from "@/lib/notifications";
 
 

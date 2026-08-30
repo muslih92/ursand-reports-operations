@@ -132,9 +132,25 @@ export const updateUser = createServerFn({ method: "POST" })
       }
     }
     if (data.role) {
-      await db.from("user_roles").delete().eq("user_id", data.id);
-      const { error } = await db.from("user_roles").insert({ user_id: data.id, role: data.role });
-      if (error) throw new Error(error.message);
+      const { data: currentRoles, error: readRoleError } = await db
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.id);
+      if (readRoleError) throw new Error(readRoleError.message);
+
+      const roleIsUnchanged = (currentRoles ?? []).some((item) => item.role === data.role);
+      const hasOnlySelectedRole = roleIsUnchanged && currentRoles?.length === 1;
+      if (!hasOnlySelectedRole) {
+        if (data.id === context.userId) {
+          throw new Error("لا يمكن تغيير صلاحية حساب المسؤول المستخدم حالياً");
+        }
+        const { error: deleteRoleError } = await db.from("user_roles").delete().eq("user_id", data.id);
+        if (deleteRoleError) throw new Error(deleteRoleError.message);
+        const { error: insertRoleError } = await db
+          .from("user_roles")
+          .insert({ user_id: data.id, role: data.role });
+        if (insertRoleError) throw new Error(insertRoleError.message);
+      }
     }
     if (data.new_password) {
       if (admin) {

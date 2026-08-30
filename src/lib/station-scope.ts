@@ -35,9 +35,11 @@ export function useStationScope() {
     },
   });
 
-  const allowedStationIds = unrestricted
-    ? []
-    : Array.from(new Set([profile?.station_id, ...(extra ?? [])].filter(Boolean) as string[]));
+  const allowedStationIds = watching
+    ? watchIds
+    : unrestricted
+      ? []
+      : Array.from(new Set([profile?.station_id, ...(extra ?? [])].filter(Boolean) as string[]));
 
   const scopedStationId = allowedStationIds.length === 1 ? allowedStationIds[0]! : null;
   return {

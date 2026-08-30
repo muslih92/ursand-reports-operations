@@ -91,6 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="shrink-0 p-3 border-t space-y-2 bg-sidebar">
           <NotificationBell />
+          <WatchStationsButton />
           <button
             onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
             className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent transition"

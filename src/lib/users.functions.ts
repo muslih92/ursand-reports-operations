@@ -144,13 +144,37 @@ export const updateUser = createServerFn({ method: "POST" })
         if (data.id === context.userId) {
           throw new Error("لا يمكن تغيير صلاحية حساب المسؤول المستخدم حالياً");
         }
-        const { error: deleteRoleError } = await db.from("user_roles").delete().eq("user_id", data.id);
-        if (deleteRoleError) throw new Error(deleteRoleError.message);
-        const { error: insertRoleError } = await db
+        // Add the target role FIRST, so a failure can never leave the account
+        // without any role (which previously stripped Admin permanently).
+        if (!roleIsUnchanged) {
+          const { error: insertRoleError } = await db
+            .from("user_roles")
+            .insert({ user_id: data.id, role: data.role });
+          if (insertRoleError) throw new Error(insertRoleError.message);
+        }
+        // Then remove only the other roles.
+        const { error: deleteRoleError } = await db
           .from("user_roles")
-          .insert({ user_id: data.id, role: data.role });
-        if (insertRoleError) throw new Error(insertRoleError.message);
+          .delete()
+          .eq("user_id", data.id)
+          .neq("role", data.role);
+        if (deleteRoleError) throw new Error(deleteRoleError.message);
+
+        // Safety net: confirm the role still exists after the cleanup.
+        const { data: afterRoles } = await db
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.id);
+        if (!(afterRoles ?? []).some((item) => item.role === data.role)) {
+          const { error: restoreError } = await db
+            .from("user_roles")
+            .insert({ user_id: data.id, role: data.role });
+          if (restoreError) {
+            throw new Error("تعذر حفظ الصلاحية — لم يتم تغيير صلاحية الحساب");
+          }
+        }
       }
+
     }
     if (data.new_password) {
       if (admin) {

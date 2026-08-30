@@ -497,6 +497,17 @@ function DefeatPage() {
                     }
                   />
                 </td>
+                <td className="p-2">
+                  <textarea
+                    rows={2}
+                    className={cell}
+                    defaultValue={r.remarks ?? ""}
+                    onBlur={(e) =>
+                      e.target.value !== (r.remarks ?? "") &&
+                      update.mutate({ id: r.id, patch: { remarks: e.target.value || null } })
+                    }
+                  />
+                </td>
                 {canEdit && isAdmin && (
                   <td className="p-2 print:hidden">
                     <button

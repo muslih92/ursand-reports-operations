@@ -24,7 +24,7 @@ export function useStationScope() {
 
   const { data: extra } = useQuery({
     queryKey: ["profile-stations", user?.id ?? "none"],
-    enabled: !!user?.id && !unrestricted,
+    enabled: !!user?.id && !unrestricted && !watching,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profile_stations")

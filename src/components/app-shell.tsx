@@ -7,6 +7,7 @@ const logo = { url: "/wtco-logo.png" };
 import type { ReactNode } from "react";
 import { ChangePasswordButton } from "@/components/change-password-dialog";
 import { NotificationBell } from "@/components/notification-bell";
+import { WatchStationsButton } from "@/components/watch-stations-dialog";
 import { useNotifications } from "@/lib/notifications";
 
 
@@ -91,6 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="shrink-0 p-3 border-t space-y-2 bg-sidebar">
           <NotificationBell />
+          <WatchStationsButton />
           <button
             onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
             className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent transition"
@@ -120,6 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <img src={logo.url} alt="WTCO" className="h-8 w-8" />
           <div className="flex-1 font-semibold text-sm truncate">{t("app.name")}</div>
           <NotificationBell compact />
+          <WatchStationsButton compact />
           <button onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="p-2 rounded hover:bg-accent">
             <Languages className="h-4 w-4" />
           </button>

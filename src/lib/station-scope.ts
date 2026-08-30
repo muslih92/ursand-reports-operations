@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { useStationWatch } from "@/lib/station-watch";
 
 export interface ScopedStation {
   id: string;
@@ -16,11 +17,15 @@ export interface ScopedStation {
  */
 export function useStationScope() {
   const { profile, isAdmin, hasRole, user } = useAuth();
-  const unrestricted = isAdmin || hasRole("management") || hasRole("viewer");
+  const { watchIds } = useStationWatch();
+  const unrestrictedRole = isAdmin || hasRole("management") || hasRole("viewer");
+  // An unrestricted user that picked monitoring stations narrows the app to them.
+  const watching = unrestrictedRole && watchIds.length > 0;
+  const unrestricted = unrestrictedRole && !watching;
 
   const { data: extra } = useQuery({
     queryKey: ["profile-stations", user?.id ?? "none"],
-    enabled: !!user?.id && !unrestricted,
+    enabled: !!user?.id && !unrestricted && !watching,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profile_stations")
@@ -31,9 +36,11 @@ export function useStationScope() {
     },
   });
 
-  const allowedStationIds = unrestricted
-    ? []
-    : Array.from(new Set([profile?.station_id, ...(extra ?? [])].filter(Boolean) as string[]));
+  const allowedStationIds = watching
+    ? watchIds
+    : unrestricted
+      ? []
+      : Array.from(new Set([profile?.station_id, ...(extra ?? [])].filter(Boolean) as string[]));
 
   const scopedStationId = allowedStationIds.length === 1 ? allowedStationIds[0]! : null;
   return {

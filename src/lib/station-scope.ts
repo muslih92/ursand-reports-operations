@@ -16,7 +16,11 @@ export interface ScopedStation {
  */
 export function useStationScope() {
   const { profile, isAdmin, hasRole, user } = useAuth();
-  const unrestricted = isAdmin || hasRole("management") || hasRole("viewer");
+  const { watchIds } = useStationWatch();
+  const unrestrictedRole = isAdmin || hasRole("management") || hasRole("viewer");
+  // An unrestricted user that picked monitoring stations narrows the app to them.
+  const watching = unrestrictedRole && watchIds.length > 0;
+  const unrestricted = unrestrictedRole && !watching;
 
   const { data: extra } = useQuery({
     queryKey: ["profile-stations", user?.id ?? "none"],

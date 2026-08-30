@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="text-xs text-muted-foreground truncate">{t("app.short")}</div>
           </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {items.map((n) => {
             const Icon = n.icon;
             const active = pathname === n.to || pathname.startsWith(n.to + "/");
@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3 border-t space-y-2">
+        <div className="shrink-0 p-3 border-t space-y-2 bg-sidebar">
           <NotificationBell />
           <button
             onClick={() => setLocale(locale === "ar" ? "en" : "ar")}

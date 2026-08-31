@@ -408,6 +408,20 @@ function RoutinePage() {
         <h1 className="text-2xl font-bold flex-1">
           {ar ? "روتين المشرف اليومي" : "Supervisor's Routine"}
         </h1>
+        {isAdmin && existing?.id && (
+          <button
+            onClick={() => {
+              const id = existing.id;
+              if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+              remove.mutate(id, { onSuccess: () => setView("list") });
+            }}
+            disabled={remove.isPending}
+            className="inline-flex items-center gap-2 rounded-lg border border-destructive/40 text-destructive px-3 h-9 text-sm hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            {ar ? "حذف" : "Delete"}
+          </button>
+        )}
         <button
           onClick={() => window.print()}
           className="inline-flex items-center gap-2 rounded-lg border px-3 h-9 text-sm hover:bg-accent"

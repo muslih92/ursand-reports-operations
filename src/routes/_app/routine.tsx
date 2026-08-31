@@ -132,7 +132,7 @@ const weekdayOf = (iso: string) => new Date(`${iso}T00:00:00`).getDay();
 function RoutinePage() {
   const { locale, dir } = useI18n();
   const ar = locale === "ar";
-  const { profile, user } = useAuth();
+  const { profile, user, isAdmin } = useAuth();
   const qc = useQueryClient();
   const { scopedStationId, canPickStation } = useStationScope();
   const { data: stations } = useScopedStations();

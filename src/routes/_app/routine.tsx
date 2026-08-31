@@ -141,6 +141,22 @@ function RoutinePage() {
   const [stationId, setStationId] = useState<string>("");
   const [items, setItems] = useState<ItemState[]>([]);
   const [notes, setNotes] = useState("");
+  const [view, setView] = useState<"list" | "form">("list");
+
+  const { data: records, isFetching: listLoading } = useQuery({
+    queryKey: ["supervisor-routine-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("supervisor_routines")
+        .select("id, station_id, routine_date, weekday, supervisor_name, items, notes, stations(code, name_en, name_ar)")
+        .order("routine_date", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data ?? []) as unknown as (RoutineRow & {
+        stations: { code: string; name_en: string; name_ar: string } | null;
+      })[];
+    },
+  });
 
   useEffect(() => {
     if (scopedStationId) setStationId(scopedStationId);

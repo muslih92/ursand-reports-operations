@@ -263,8 +263,37 @@ export async function buildElementPdf(opts: {
       filter: none !important;
     }
     .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
+    /* Flex/grid layouts are unreliable in html2canvas and were overlapping.
+       Flatten them into predictable block flow so nothing can collide. */
+    .pdf-export-root { font-size: 11.5px !important; }
+    .pdf-export-root [class*="flex"], .pdf-export-root [class*="grid"] {
+      display: block !important;
+      gap: 0 !important;
+    }
+    .pdf-export-root [class*="flex"] > *, .pdf-export-root [class*="grid"] > * {
+      display: block !important;
+      max-width: 100% !important;
+      margin: 0 0 4px 0 !important;
+      float: none !important;
+    }
+    .pdf-export-root td [class*="flex"] > * { margin-bottom: 2px !important; }
+    .pdf-export-root img {
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      max-width: 120px !important;
+      max-height: 52px !important;
+      margin: 0 0 4px 0 !important;
+    }
+    .pdf-export-root h1, .pdf-export-root h2, .pdf-export-root h3 {
+      margin: 0 0 4px 0 !important;
+      font-size: 15px !important;
+      line-height: 1.35 !important;
+    }
+    .pdf-export-root br { display: block !important; }
     .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th,
     .pdf-export-root [data-pdf-value] { page-break-inside: avoid; break-inside: avoid; }
+
 
     .pdf-export-root thead, .pdf-export-root thead *,
     .pdf-export-root .pdf-title-band, .pdf-export-root .pdf-title-band * {

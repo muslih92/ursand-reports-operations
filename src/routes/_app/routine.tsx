@@ -246,9 +246,134 @@ function RoutinePage() {
 
   const doneCount = items.filter((i) => i.status === "done").length;
 
+  const summary = useMemo(() => {
+    const map = new Map<
+      string,
+      { code: string; name: string; count: number; last: string; lastDone: string }
+    >();
+    for (const r of records ?? []) {
+      const code = r.stations?.code ?? "—";
+      const name = ar ? (r.stations?.name_ar ?? "") : (r.stations?.name_en ?? "");
+      const its = (r.items ?? []) as ItemState[];
+      const done = `${its.filter((i) => i.status === "done").length}/${its.length}`;
+      const cur = map.get(r.station_id);
+      if (!cur) map.set(r.station_id, { code, name, count: 1, last: r.routine_date, lastDone: done });
+      else {
+        cur.count += 1;
+        if (r.routine_date > cur.last) {
+          cur.last = r.routine_date;
+          cur.lastDone = done;
+        }
+      }
+    }
+    return [...map.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [records, ar]);
+
+  if (view === "list") {
+    return (
+      <div dir={dir} className="space-y-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <ClipboardCheck className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold flex-1">
+            {ar ? "روتين المشرف اليومي" : "Supervisor's Routine"}
+          </h1>
+          <button
+            onClick={() => {
+              setDate(todayISO());
+              setView("form");
+            }}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 h-9 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            {ar ? "سجل جديد" : "New entry"}
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {summary.map((s) => (
+            <div key={s.code} className="rounded-xl border bg-card p-4">
+              <div className="font-bold">{s.code}</div>
+              <div className="text-xs text-muted-foreground truncate">{s.name}</div>
+              <div className="mt-2 text-sm">
+                {ar ? "عدد السجلات" : "Records"}: <span className="font-semibold">{s.count}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {ar ? "آخر سجل" : "Last"}: {s.last} · {s.lastDone}
+              </div>
+            </div>
+          ))}
+          {summary.length === 0 && !listLoading && (
+            <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground sm:col-span-2 lg:col-span-4">
+              {ar ? "لا توجد سجلات محفوظة بعد." : "No saved routines yet."}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card overflow-x-auto">
+          <table className="w-full text-sm min-w-[720px]">
+            <thead className="bg-muted/60">
+              <tr>
+                <th className="p-3 text-start">{ar ? "التاريخ" : "Date"}</th>
+                <th className="p-3 text-start">{ar ? "المحطة" : "Station"}</th>
+                <th className="p-3 text-start">{ar ? "اليوم" : "Day"}</th>
+                <th className="p-3 text-start">{ar ? "المشرف" : "Supervisor"}</th>
+                <th className="p-3 text-center">{ar ? "المنفذ" : "Done"}</th>
+                <th className="p-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {(records ?? []).map((r) => {
+                const its = (r.items ?? []) as ItemState[];
+                const d = DAYS.find((x) => x.weekday === r.weekday);
+                return (
+                  <tr key={r.id} className="border-t">
+                    <td className="p-3">{r.routine_date}</td>
+                    <td className="p-3 font-medium">{r.stations?.code ?? "—"}</td>
+                    <td className="p-3">{d ? (ar ? d.ar : d.en) : "—"}</td>
+                    <td className="p-3">{r.supervisor_name ?? "—"}</td>
+                    <td className="p-3 text-center">
+                      {its.filter((i) => i.status === "done").length}/{its.length}
+                    </td>
+                    <td className="p-3 text-end">
+                      <button
+                        onClick={() => {
+                          setStationId(r.station_id);
+                          setDate(r.routine_date);
+                          setView("form");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border px-3 h-8 text-xs hover:bg-accent"
+                      >
+                        <ListChecks className="h-3.5 w-3.5" />
+                        {ar ? "فتح" : "Open"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {listLoading && (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                    {ar ? "جارٍ التحميل..." : "Loading..."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div dir={dir} className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 print:hidden">
+        <button
+          onClick={() => setView("list")}
+          className="inline-flex items-center gap-2 rounded-lg border px-3 h-9 text-sm hover:bg-accent"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {ar ? "رجوع" : "Back"}
+        </button>
         <ClipboardCheck className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold flex-1">
           {ar ? "روتين المشرف اليومي" : "Supervisor's Routine"}

@@ -18,11 +18,19 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
     return m ? m[1] : new Date(n.created_at).toISOString().slice(0, 10);
   };
 
-  // Collapse repeated notifications with identical content (same event, re-sent on each save).
-  const items = raw.filter((n, i) => {
-    const key = `${n.kind}|${n.title}|${n.body ?? ""}`;
-    return raw.findIndex((o) => `${o.kind}|${o.title}|${o.body ?? ""}` === key) === i;
-  });
+  // Collapse only true duplicates: same station, same content, same minute
+  // (one event re-sent on repeated saves). Different stations or later alerts stay visible.
+  const dedupKey = (n: { kind: string; title: string; body: string | null; station_id: string | null; created_at: string }) =>
+    `${n.kind}|${n.title}|${n.body ?? ""}|${n.station_id ?? ""}|${new Date(n.created_at).toISOString().slice(0, 16)}`;
+  const items = raw.filter((n, i) => raw.findIndex((o) => dedupKey(o) === dedupKey(n)) === i);
+  // Any unread notification counts, even if its row was collapsed in the list.
+  const hiddenUnread = raw.filter((n) => !n.read && !items.includes(n));
+  if (hiddenUnread.length > 0) {
+    for (const n of hiddenUnread) {
+      if (!items.some((x) => dedupKey(x) === dedupKey(n) && !x.read)) items.push(n);
+    }
+    items.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  }
   const unread = items.filter((n) => !n.read).length;
 
   return (

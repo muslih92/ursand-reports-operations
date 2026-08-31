@@ -140,10 +140,13 @@ export const updateUser = createServerFn({ method: "POST" })
 
       const roleIsUnchanged = (currentRoles ?? []).some((item) => item.role === data.role);
       const hasOnlySelectedRole = roleIsUnchanged && currentRoles?.length === 1;
-      if (!hasOnlySelectedRole) {
-        if (data.id === context.userId) {
-          throw new Error("لا يمكن تغيير صلاحية حساب المسؤول المستخدم حالياً");
-        }
+      // Editing your own account is allowed as long as the selected role is one
+      // you already hold — only an actual role change is blocked for self-edits.
+      const selfEdit = data.id === context.userId;
+      if (selfEdit && !roleIsUnchanged) {
+        throw new Error("لا يمكن تغيير صلاحية حساب المسؤول المستخدم حالياً");
+      }
+      if (!hasOnlySelectedRole && !selfEdit) {
         // Add the target role FIRST, so a failure can never leave the account
         // without any role (which previously stripped Admin permanently).
         if (!roleIsUnchanged) {

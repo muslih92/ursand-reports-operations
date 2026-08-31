@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
-import { ClipboardCheck, Printer, Save, Plus, ArrowLeft, ListChecks } from "lucide-react";
+import { ClipboardCheck, Printer, Save, Plus, ArrowLeft, ListChecks, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/routine")({
   head: () => ({
@@ -132,7 +132,7 @@ const weekdayOf = (iso: string) => new Date(`${iso}T00:00:00`).getDay();
 function RoutinePage() {
   const { locale, dir } = useI18n();
   const ar = locale === "ar";
-  const { profile, user } = useAuth();
+  const { profile, user, isAdmin } = useAuth();
   const qc = useQueryClient();
   const { scopedStationId, canPickStation } = useStationScope();
   const { data: stations } = useScopedStations();
@@ -244,6 +244,24 @@ function RoutinePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("supervisor_routines").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(ar ? "تم الحذف" : "Deleted");
+      qc.invalidateQueries({ queryKey: ["supervisor-routine-list"] });
+      qc.invalidateQueries({ queryKey: ["supervisor-routine", stationId, date] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const askDelete = (id: string) => {
+    if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+    remove.mutate(id);
+  };
+
   const doneCount = items.filter((i) => i.status === "done").length;
 
   const summary = useMemo(() => {
@@ -335,17 +353,29 @@ function RoutinePage() {
                       {its.filter((i) => i.status === "done").length}/{its.length}
                     </td>
                     <td className="p-3 text-end">
-                      <button
-                        onClick={() => {
-                          setStationId(r.station_id);
-                          setDate(r.routine_date);
-                          setView("form");
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border px-3 h-8 text-xs hover:bg-accent"
-                      >
-                        <ListChecks className="h-3.5 w-3.5" />
-                        {ar ? "فتح" : "Open"}
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setStationId(r.station_id);
+                            setDate(r.routine_date);
+                            setView("form");
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border px-3 h-8 text-xs hover:bg-accent"
+                        >
+                          <ListChecks className="h-3.5 w-3.5" />
+                          {ar ? "فتح" : "Open"}
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => askDelete(r.id)}
+                            disabled={remove.isPending}
+                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 text-destructive px-3 h-8 text-xs hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {ar ? "حذف" : "Delete"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -378,6 +408,20 @@ function RoutinePage() {
         <h1 className="text-2xl font-bold flex-1">
           {ar ? "روتين المشرف اليومي" : "Supervisor's Routine"}
         </h1>
+        {isAdmin && existing?.id && (
+          <button
+            onClick={() => {
+              const id = existing.id;
+              if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+              remove.mutate(id, { onSuccess: () => setView("list") });
+            }}
+            disabled={remove.isPending}
+            className="inline-flex items-center gap-2 rounded-lg border border-destructive/40 text-destructive px-3 h-9 text-sm hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            {ar ? "حذف" : "Delete"}
+          </button>
+        )}
         <button
           onClick={() => window.print()}
           className="inline-flex items-center gap-2 rounded-lg border px-3 h-9 text-sm hover:bg-accent"

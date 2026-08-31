@@ -244,6 +244,24 @@ function RoutinePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("supervisor_routines").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(ar ? "تم الحذف" : "Deleted");
+      qc.invalidateQueries({ queryKey: ["supervisor-routine-list"] });
+      qc.invalidateQueries({ queryKey: ["supervisor-routine", stationId, date] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const askDelete = (id: string) => {
+    if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+    remove.mutate(id);
+  };
+
   const doneCount = items.filter((i) => i.status === "done").length;
 
   const summary = useMemo(() => {

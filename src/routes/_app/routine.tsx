@@ -239,6 +239,7 @@ function RoutinePage() {
     onSuccess: () => {
       toast.success(ar ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["supervisor-routine", stationId, date] });
+      qc.invalidateQueries({ queryKey: ["supervisor-routine-list"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

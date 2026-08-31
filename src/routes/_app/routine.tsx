@@ -353,17 +353,29 @@ function RoutinePage() {
                       {its.filter((i) => i.status === "done").length}/{its.length}
                     </td>
                     <td className="p-3 text-end">
-                      <button
-                        onClick={() => {
-                          setStationId(r.station_id);
-                          setDate(r.routine_date);
-                          setView("form");
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border px-3 h-8 text-xs hover:bg-accent"
-                      >
-                        <ListChecks className="h-3.5 w-3.5" />
-                        {ar ? "فتح" : "Open"}
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setStationId(r.station_id);
+                            setDate(r.routine_date);
+                            setView("form");
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border px-3 h-8 text-xs hover:bg-accent"
+                        >
+                          <ListChecks className="h-3.5 w-3.5" />
+                          {ar ? "فتح" : "Open"}
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => askDelete(r.id)}
+                            disabled={remove.isPending}
+                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 text-destructive px-3 h-8 text-xs hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {ar ? "حذف" : "Delete"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

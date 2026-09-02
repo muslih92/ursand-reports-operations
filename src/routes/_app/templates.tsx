@@ -461,7 +461,7 @@ function TemplateEditor({
               <input
                 value={slots}
                 onChange={(e) => setSlots(e.target.value)}
-                placeholder="08:00, 16:00, 20:00, 04:00"
+                placeholder="04:00, 08:00, 16:00, 20:00"
                 className="h-10 w-full rounded-lg border bg-background px-2 font-mono"
               />
               <button

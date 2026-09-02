@@ -34,7 +34,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "form-action 'self'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https:",
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.app https://app.powerbi.com",
     "frame-src 'self' https://app.powerbi.com https://*.powerbi.com",

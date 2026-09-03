@@ -27,6 +27,7 @@ import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
 import { Route as AppDefeatRouteImport } from './routes/_app/defeat'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppControlCenterRouteImport } from './routes/_app/control-center'
+import { Route as AppChecklistRouteImport } from './routes/_app/checklist'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
@@ -120,6 +121,11 @@ const AppControlCenterRoute = AppControlCenterRouteImport.update({
   path: '/control-center',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChecklistRoute = AppChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   id: '/availability',
   path: '/availability',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
+  '/checklist': typeof AppChecklistRoute
   '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
   '/defeat': typeof AppDefeatRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
+  '/checklist': typeof AppChecklistRoute
   '/control-center': typeof AppControlCenterRoute
   '/dashboard': typeof AppDashboardRoute
   '/defeat': typeof AppDefeatRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/availability': typeof AppAvailabilityRoute
+  '/_app/checklist': typeof AppChecklistRoute
   '/_app/control-center': typeof AppControlCenterRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/defeat': typeof AppDefeatRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/audit'
     | '/availability'
+    | '/checklist'
     | '/control-center'
     | '/dashboard'
     | '/defeat'
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/audit'
     | '/availability'
+    | '/checklist'
     | '/control-center'
     | '/dashboard'
     | '/defeat'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/audit'
     | '/_app/availability'
+    | '/_app/checklist'
     | '/_app/control-center'
     | '/_app/dashboard'
     | '/_app/defeat'
@@ -410,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppControlCenterRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/checklist': {
+      id: '/_app/checklist'
+      path: '/checklist'
+      fullPath: '/checklist'
+      preLoaderRoute: typeof AppChecklistRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/availability': {
       id: '/_app/availability'
       path: '/availability'
@@ -437,6 +456,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppAvailabilityRoute: typeof AppAvailabilityRoute
+  AppChecklistRoute: typeof AppChecklistRoute
   AppControlCenterRoute: typeof AppControlCenterRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDefeatRoute: typeof AppDefeatRoute
@@ -457,6 +477,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppAvailabilityRoute: AppAvailabilityRoute,
+  AppChecklistRoute: AppChecklistRoute,
   AppControlCenterRoute: AppControlCenterRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDefeatRoute: AppDefeatRoute,

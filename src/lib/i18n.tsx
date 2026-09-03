@@ -26,6 +26,7 @@ const dict: Dict = {
   "nav.scada": { ar: "الترند وحدود التشغيل", en: "Trends & Limits" },
   "nav.messages": { ar: "التواصل مع المحطات", en: "Station Communication" },
 
+  "nav.checklist": { ar: "قائمة فحص المحطة", en: "Station Checklist" },
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },

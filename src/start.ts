@@ -37,7 +37,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.lovable.app https://app.powerbi.com",
-    "frame-src 'self' https://app.powerbi.com https://*.powerbi.com",
+    "frame-src 'self' https://app.powerbi.com https://*.powerbi.com https://falgimajid-art.github.io",
     "worker-src 'self' blob:",
     "upgrade-insecure-requests",
   ].join("; "),

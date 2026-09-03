@@ -42,7 +42,7 @@ function ChecklistPage() {
         </div>
         <button
           onClick={() => setReloadKey((k) => k + 1)}
-          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+          className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           {ar ? "تحديث" : "Refresh"}
@@ -51,7 +51,7 @@ function ChecklistPage() {
           href={CHECKLIST_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+          className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
           {ar ? "فتح في تبويب جديد" : "Open in new tab"}
@@ -61,20 +61,20 @@ function ChecklistPage() {
             const el = document.getElementById("checklist-frame");
             void el?.requestFullscreen?.();
           }}
-          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+          className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
         >
           <Maximize2 className="h-4 w-4" />
           {ar ? "ملء الشاشة" : "Fullscreen"}
         </button>
       </div>
 
-      <div className="rounded-xl border overflow-hidden bg-card">
+      <div className="rounded-xl border border-primary/20 overflow-hidden bg-card shadow-sm">
         <iframe
           id="checklist-frame"
           key={reloadKey}
           src={CHECKLIST_URL}
           title={ar ? "قائمة فحص المحطة" : "Station Checklist"}
-          className="w-full h-[calc(100vh-14rem)] min-h-[520px] border-0 bg-white"
+          className="w-full h-[calc(100vh-14rem)] min-h-[520px] border-0 bg-background"
           allowFullScreen
         />
       </div>

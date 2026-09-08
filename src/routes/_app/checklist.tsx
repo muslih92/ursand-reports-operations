@@ -63,6 +63,11 @@ function ChecklistPage() {
     if (role) u.searchParams.set("role", role);
     u.searchParams.set("lang", locale);
     u.searchParams.set("embedded", "1");
+    // Tell the checklist page the visitor is already signed in on our side,
+    // so it can skip its own login screen.
+    u.searchParams.set("no_login", "1");
+    u.searchParams.set("skip_login", "1");
+    u.searchParams.set("auth", "wtco");
     return u.toString();
   }, [station, profile?.full_name, profile?.employee_no, role, locale, ar]);
 

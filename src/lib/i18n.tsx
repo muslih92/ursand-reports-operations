@@ -22,7 +22,6 @@ const dict: Dict = {
   "nav.defeat": { ar: "سجل إبطال الحماية", en: "Defeat Record" },
   "nav.controlCenter": { ar: "مركز التحكم", en: "Control Center" },
   "nav.powerbi": { ar: "لوحة Power BI", en: "Power BI" },
-  "nav.analytics": { ar: "التحليلات التشغيلية", en: "Operational Analytics" },
   "nav.trends": { ar: "الترند والرسوم البيانية", en: "Trends & Limits" },
   "nav.scada": { ar: "الترند وحدود التشغيل", en: "Trends & Limits" },
   "nav.messages": { ar: "التواصل مع المحطات", en: "Station Communication" },

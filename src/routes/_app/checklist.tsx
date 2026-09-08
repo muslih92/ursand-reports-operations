@@ -48,10 +48,14 @@ function ChecklistPage() {
   const station = stations.find((s) => s.id === stationId) ?? null;
   const role = roles[0] ?? "";
 
+  // The checklist site expects codes like "ps1c" (lowercase, no separators).
+  const slug = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, "");
+
   const src = useMemo(() => {
     const u = new URL(CHECKLIST_URL);
     if (station) {
-      u.searchParams.set("station", station.code);
+      u.searchParams.set("station", slug(station.code));
+      u.searchParams.set("station_code", station.code);
       u.searchParams.set("station_name", ar ? station.name_ar : station.name_en);
     }
     if (profile?.full_name) u.searchParams.set("user", profile.full_name);
@@ -67,7 +71,14 @@ function ChecklistPage() {
     frameRef.current?.contentWindow?.postMessage(
       {
         type: "WTCO_CONTEXT",
-        station: station ? { code: station.code, name_en: station.name_en, name_ar: station.name_ar } : null,
+        station: station
+          ? {
+              code: slug(station.code),
+              raw_code: station.code,
+              name_en: station.name_en,
+              name_ar: station.name_ar,
+            }
+          : null,
         user: profile
           ? { full_name: profile.full_name, employee_no: profile.employee_no, role }
           : null,
@@ -76,6 +87,22 @@ function ChecklistPage() {
       "*",
     );
   };
+
+  // The checklist page announces itself with WTCO_CHECKLIST_READY — resend then,
+  // and keep re-sending whenever the selected station / user / language changes.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      const t = (e.data as { type?: string } | null)?.type;
+      if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") pushContext();
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  });
+
+  useEffect(() => {
+    pushContext();
+     
+  }, [stationId, locale, profile?.employee_no]);
 
   return (
     <div className="space-y-4">

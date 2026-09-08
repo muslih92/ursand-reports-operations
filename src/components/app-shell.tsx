@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { to: "/incidents", icon: AlertTriangle, key: "nav.incidents", hideForOperator: true },
   { to: "/trends", icon: TrendingUp, key: "nav.trends" },
   { to: "/control-center", icon: Radio, key: "nav.controlCenter", hideForOperator: true },
+  { to: "/analytics", icon: PieChart, key: "nav.analytics", hideForOperator: true },
   { to: "/powerbi", icon: BarChart3, key: "nav.powerbi", hideForOperator: true },
   { to: "/messages", icon: MessageSquare, key: "nav.messages" },
   { to: "/checklist", icon: ListChecks, key: "nav.checklist" },

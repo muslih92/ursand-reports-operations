@@ -30,7 +30,6 @@ import { Route as AppControlCenterRouteImport } from './routes/_app/control-cent
 import { Route as AppChecklistRouteImport } from './routes/_app/checklist'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
-import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
 const AuthRoute = AuthRouteImport.update({
@@ -137,11 +136,6 @@ const AppAuditRoute = AppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AppRoute,
-} as any)
 const ApiPublicAdminSetPasswordRoute =
   ApiPublicAdminSetPasswordRouteImport.update({
     id: '/api/public/admin-set-password',
@@ -152,7 +146,6 @@ const ApiPublicAdminSetPasswordRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/checklist': typeof AppChecklistRoute
@@ -176,7 +169,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/analytics': typeof AppAnalyticsRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/checklist': typeof AppChecklistRoute
@@ -202,7 +194,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/availability': typeof AppAvailabilityRoute
   '/_app/checklist': typeof AppChecklistRoute
@@ -228,7 +219,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/analytics'
     | '/audit'
     | '/availability'
     | '/checklist'
@@ -252,7 +242,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/analytics'
     | '/audit'
     | '/availability'
     | '/checklist'
@@ -277,7 +266,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/auth'
-    | '/_app/analytics'
     | '/_app/audit'
     | '/_app/availability'
     | '/_app/checklist'
@@ -455,13 +443,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/analytics': {
-      id: '/_app/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/api/public/admin-set-password': {
       id: '/api/public/admin-set-password'
       path: '/api/public/admin-set-password'
@@ -473,7 +454,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppAuditRoute: typeof AppAuditRoute
   AppAvailabilityRoute: typeof AppAvailabilityRoute
   AppChecklistRoute: typeof AppChecklistRoute
@@ -495,7 +475,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAnalyticsRoute: AppAnalyticsRoute,
   AppAuditRoute: AppAuditRoute,
   AppAvailabilityRoute: AppAvailabilityRoute,
   AppChecklistRoute: AppChecklistRoute,

@@ -496,6 +496,27 @@ export type Database = {
           },
         ]
       }
+      ops_daily: {
+        Row: {
+          day: string
+          model: string
+          updated_at: string
+          values: Json
+        }
+        Insert: {
+          day: string
+          model: string
+          updated_at?: string
+          values?: Json
+        }
+        Update: {
+          day?: string
+          model?: string
+          updated_at?: string
+          values?: Json
+        }
+        Relationships: []
+      }
       profile_stations: {
         Row: {
           created_at: string

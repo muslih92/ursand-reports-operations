@@ -369,7 +369,12 @@
             <select id="editItemsStation" class="wtc-input" style="margin-bottom:10px;"></select>
             <label style="display:block;font-size:10px;font-weight:700;color:#5a7fa0;margin-bottom:6px;">⚙️ النظام (تابع للمحطة المختارة):</label>
             <select id="editItemsSystem" class="wtc-input"></select>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button id="btnAddSystem" style="flex:1;padding:9px;border-radius:10px;font-size:10px;font-weight:700;background:#ecfdf5;border:1.5px dashed rgba(16,185,129,.45);color:#047857;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;">+ إضافة نظام للمحطة</button>
+                <button id="btnDelSystem" style="flex:1;padding:9px;border-radius:10px;font-size:10px;font-weight:700;background:#fee2e2;border:1.5px dashed rgba(220,38,38,.4);color:#991b1b;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;">🗑 حذف النظام من المحطة</button>
+            </div>
         </div>
+
         <div id="editItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
         <button id="btnAddItem" style="width:100%;padding:11px;border-radius:12px;font-size:11px;font-weight:700;background:#f0f8ff;border:1.5px dashed rgba(0,95,142,.3);color:#0077B6;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;margin-bottom:16px;">+ إضافة نقطة جديدة</button>
         <button id="btnSaveItems" class="btn-primary">💾 حفظ التعديلات لهذا النظام</button>
@@ -780,6 +785,37 @@ function getAllSystemNames() {
     return Object.keys(set).sort();
 }
 
+// ── أنظمة المحطات القابلة للتعديل من الأدمن ────────────────────────────────
+// تُخزَّن في نفس جدول wtc_items بمفتاح خاص: __SYS__:<كود المحطة>
+function sysListKey(code){ return '__SYS__:' + code; }
+function stationCodeOf(name){
+    return Object.keys(STATIONS).find(function(k){ return STATIONS[k].name === name; }) || name;
+}
+function getStationSystemsOverride(code){
+    var v = ITEM_OVERRIDES[sysListKey(code)];
+    return (v && v.length) ? v : null;
+}
+function setStationSystems(code, systems){
+    ITEM_OVERRIDES[sysListKey(code)] = systems.slice();
+    try { localStorage.setItem('wtc_sys_' + code, JSON.stringify(systems)); } catch(e){}
+    pushItemsToSupabase(sysListKey(code), systems);
+}
+// استرجاع أي قوائم أنظمة محفوظة محلياً (احتياط عند تعذّر الاتصال)
+function loadLocalSystemLists(){
+    Object.keys(STATIONS).forEach(function(code){
+        if(getStationSystemsOverride(code)) return;
+        try {
+            var raw = localStorage.getItem('wtc_sys_' + code);
+            if(raw){
+                var arr = JSON.parse(raw);
+                if(arr && arr.length) ITEM_OVERRIDES[sysListKey(code)] = arr;
+            }
+        } catch(e){}
+    });
+}
+
+
+
 // تحميل نقاط الفحص المخصصة (إن وُجدت) من Supabase
 function loadItemOverrides(callback) {
     var url = SUPA_URL + '/rest/v1/wtc_items?select=*';
@@ -794,8 +830,9 @@ function loadItemOverrides(callback) {
             if(arr && arr.length) overrides[r.system] = arr;
         });
         ITEM_OVERRIDES = overrides;
+        loadLocalSystemLists();
         if(callback) callback();
-    }).catch(function(e){ console.error('Supabase load items error:', e); if(callback) callback(); });
+    }).catch(function(e){ console.error('Supabase load items error:', e); loadLocalSystemLists(); if(callback) callback(); });
 }
 
 // حفظ نقاط فحص نظام معيّن في Supabase
@@ -824,6 +861,8 @@ var state = {
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function getSystems(st) {
     var code = Object.keys(STATIONS).find(function(k){ return STATIONS[k].name === st; }) || st;
+    var ov = getStationSystemsOverride(code);
+    if(ov) return ov;
     if(STATION_SYSTEMS[code] && STATION_SYSTEMS[code].length > 0) return STATION_SYSTEMS[code];
     return st && st.includes('FG') ? ['AIR COMPERSSOR SYSTEM','BOOSTER PUMP HOUSE','COOLING WATER SYSTEM','ELECTRICAL VSD BULDING','EMERGENCY GENERATOR','HV, MV, LV, VSD TRANSFORMERS','HVAC AND CHILLERS','INLET SURGE VESSEL SYSTEM','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','OUTLET SURGE VESSEL SYSTEM','PRESSURE RELIEF SYSTEM','TANK FARM AREA','UTILITY & FIRE DIESEL PUPM SYSTEM'] : ['AIR CONDITIONING&VENTILATION SYS-1','COOLING WATER SYSTEM','DRINKING AND UTILITY','ELECTRICAL BUILDING CABLE CELLAER','EMERGENCY GENERATOR','FLOW CONTROL VALVE MAIN','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','PRESSUR CONTROL VALVE','SEWAGE SYSTEM','STATION BATTERIES ROOM','SURGE RELIEF SYSTEM','UNIT CONTROL&FEEDBACK EQUIPMENT','STATION CONRROL ROOM','SCRAPER'];
 }
@@ -1209,6 +1248,36 @@ function _renderEditItemsUI(sc) {
         _renderEditItemsList(document.getElementById('screens'));
     };
     node.getElementById('btnSaveItems').onclick = saveEditedItems;
+
+    // إضافة / حذف نظام للمحطة المختارة (للأدمن فقط)
+    var btnAddSys = node.getElementById('btnAddSystem');
+    var btnDelSys = node.getElementById('btnDelSystem');
+    btnAddSys.onclick = function(){
+        var name = (prompt('اسم النظام الجديد للمحطة: ' + state.editStation) || '').trim();
+        if(!name) return;
+        var code = stationCodeOf(state.editStation);
+        var list = getSystems(state.editStation).slice();
+        if(list.indexOf(name) !== -1){ alert('⚠️ هذا النظام موجود مسبقاً في المحطة.'); return; }
+        list.push(name);
+        setStationSystems(code, list);
+        state.editSystem = name;
+        alert('✅ تمت إضافة النظام: ' + name);
+        render();
+    };
+    btnDelSys.onclick = function(){
+        var sys = state.editSystem;
+        if(!sys) return;
+        var code = stationCodeOf(state.editStation);
+        var list = getSystems(state.editStation).slice();
+        if(list.length <= 1){ alert('⚠️ يجب أن تحتوي المحطة على نظام واحد على الأقل.'); return; }
+        if(!confirm('حذف النظام "' + sys + '" من محطة ' + state.editStation + '؟\nلن تُحذف السجلات المسجّلة سابقاً.')) return;
+        list = list.filter(function(s){ return s !== sys; });
+        setStationSystems(code, list);
+        state.editSystem = list[0];
+        alert('🗑 تم حذف النظام من المحطة.');
+        render();
+    };
+
     node.getElementById('btnBackEditItems').onclick = function(){ state.screen='adminSel'; render(); };
 
     sc.appendChild(node);

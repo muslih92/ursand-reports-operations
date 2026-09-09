@@ -1032,7 +1032,7 @@ function _renderSystemsUI(sc) {
     node.getElementById('kpiBar').style.width = k+'%';
     var _lo = node.getElementById('btnLogout');
     if (_lo) {
-      if (window.CTX && CTX.role) { _lo.parentNode.removeChild(_lo); }
+      if (window.WTCO_CTX_ROLE) { _lo.parentNode.removeChild(_lo); }
       else { _lo.onclick = function(){ state.screen='select'; render(); }; }
     }
 

@@ -5,7 +5,10 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 
-const CHECKLIST_URL = "https://falgimajid-art.github.io/STATIONCHECKLIST/";
+const CHECKLIST_URL =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/checklist/index.html`
+    : "/checklist/index.html";
 
 export const Route = createFileRoute("/_app/checklist")({
   head: () => ({

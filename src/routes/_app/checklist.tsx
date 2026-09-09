@@ -177,21 +177,25 @@ function ChecklistPage() {
         ? `\n\nالملاحظات:\n` + remarks.map((r) => `• ${r.system}: ${r.note ?? ""} (${r.time ?? ""})`).join("\n")
         : "");
     try {
-      const { error } = await supabase.from("checklist_reports").insert({
-        station_id: stationId,
-        report_date: payload.date ?? new Date().toISOString().slice(0, 10),
-        shift: payload.shift ?? "",
-        operator_id: profile?.id ?? null,
-        operator_name: profile?.full_name ?? null,
-        employee_no: profile?.employee_no ?? null,
-        ok_count: s.ok,
-        remark_count: s.remark,
-        na_count: s.na,
-        total_count: s.total,
-        completion_pct: pct,
-        items,
-        remarks,
-      });
+      const { error } = await supabase.from("checklist_reports").upsert(
+        {
+          station_id: stationId,
+          report_date: payload.date ?? new Date().toISOString().slice(0, 10),
+          shift: payload.shift ?? "",
+          operator_id: profile?.id ?? null,
+          operator_name: profile?.full_name ?? null,
+          employee_no: profile?.employee_no ?? null,
+          ok_count: s.ok,
+          remark_count: s.remark,
+          na_count: s.na,
+          total_count: s.total,
+          completion_pct: pct,
+          items,
+          remarks,
+          submitted_at: new Date().toISOString(),
+        },
+        { onConflict: "station_id,report_date,shift" },
+      );
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["checklist-reports"] });
       try {

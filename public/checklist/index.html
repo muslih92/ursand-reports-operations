@@ -1950,11 +1950,19 @@ function printSummary() {
       info.textContent = 'تم فحص ' + done + ' من ' + total + (complete ? ' — القائمة مكتملة ✅' : '');
       info.style.color = complete ? '#0b6b53' : '#b45309';
     }
+    var sentKey = state.station + '|' + state.date + '|' + state.shift;
+    var alreadySent = window.__wtcoSubmittedKey === sentKey;
+    if (info && alreadySent) {
+      info.textContent = 'تم اعتماد تقرير هذه الوردية وإرساله ✅ — أي تعديل يتطلب إعادة الإرسال';
+      info.style.color = '#0b6b53';
+    }
     if (btn && !btn.disabled) {
-      btn.textContent = complete
-        ? '📤 إرسال التقرير النهائي للمشرف'
-        : '📤 إرسال التقرير للمشرف (غير مكتمل)';
-      btn.style.opacity = complete ? '1' : '.85';
+      btn.textContent = alreadySent
+        ? '🔄 إعادة إرسال التقرير بعد التعديل'
+        : complete
+          ? '📤 إرسال التقرير النهائي للمشرف'
+          : '📤 إرسال التقرير للمشرف (غير مكتمل)';
+      btn.style.opacity = complete || alreadySent ? '1' : '.85';
     }
   }
 
@@ -2002,11 +2010,12 @@ function printSummary() {
       var b = window.__wtcoSendBtn;
       if (b) {
         b.disabled = false;
-        b.textContent = d.ok ? '✅ تم إرسال التقرير للمشرف' : '📤 إرسال التقرير النهائي للمشرف';
+        b.textContent = d.ok ? '🔄 إعادة إرسال التقرير بعد التعديل' : '📤 إرسال التقرير النهائي للمشرف';
       }
       if (d.ok) {
+        window.__wtcoSubmittedKey = state.station + '|' + state.date + '|' + state.shift;
         var info = document.getElementById('wtcoSendInfo');
-        if (info) { info.textContent = 'تم استلام التقرير لدى المشرف ✅'; info.style.color = '#0b6b53'; }
+        if (info) { info.textContent = 'تم اعتماد تقرير هذه الوردية وإرساله ✅ — أي تعديل يتطلب إعادة الإرسال'; info.style.color = '#0b6b53'; }
       } else {
         alert('تعذّر إرسال التقرير: ' + (d.error || 'خطأ غير معروف'));
       }

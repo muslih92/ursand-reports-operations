@@ -830,8 +830,9 @@ function loadItemOverrides(callback) {
             if(arr && arr.length) overrides[r.system] = arr;
         });
         ITEM_OVERRIDES = overrides;
+        loadLocalSystemLists();
         if(callback) callback();
-    }).catch(function(e){ console.error('Supabase load items error:', e); if(callback) callback(); });
+    }).catch(function(e){ console.error('Supabase load items error:', e); loadLocalSystemLists(); if(callback) callback(); });
 }
 
 // حفظ نقاط فحص نظام معيّن في Supabase

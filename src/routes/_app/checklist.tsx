@@ -416,7 +416,7 @@ function ChecklistPage() {
                     {isAdmin && (
                       <td className="p-2 text-center">
                         <button
-                          onClick={() => void removeReport(r.id)}
+                          onClick={(e) => { e.stopPropagation(); void removeReport(r.id); }}
                           className="p-1.5 rounded text-destructive hover:bg-destructive/10"
                           aria-label={ar ? "حذف" : "Delete"}
                         >
@@ -425,6 +425,50 @@ function ChecklistPage() {
                       </td>
                     )}
                   </tr>
+                  {openId === r.id && (
+                    <tr className="bg-muted/20">
+                      <td colSpan={isAdmin ? 9 : 8} className="p-3">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {((r.items as unknown as ChecklistItem[]) ?? []).map((it, i) => (
+                            <div
+                              key={i}
+                              className="rounded-lg border bg-background p-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold">{it.system}</span>
+                                <span
+                                  className={
+                                    it.status === "no_obs"
+                                      ? "text-emerald-600 font-bold"
+                                      : it.status === "remark"
+                                        ? "text-amber-600 font-bold"
+                                        : it.status === "na"
+                                          ? "text-muted-foreground"
+                                          : "text-destructive"
+                                  }
+                                >
+                                  {it.status === "no_obs"
+                                    ? ar ? "سليم" : "OK"
+                                    : it.status === "remark"
+                                      ? ar ? "ملاحظة" : "Remark"
+                                      : it.status === "na"
+                                        ? ar ? "غير منطبق" : "N/A"
+                                        : ar ? "معلّق" : "Pending"}
+                                  {it.time ? ` · ${it.time}` : ""}
+                                </span>
+                              </div>
+                              {it.note ? (
+                                <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                  {it.note}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </>
                 ))}
               </tbody>
             </table>

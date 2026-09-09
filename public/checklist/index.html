@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#001F3A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WTC CheckList">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" id="pwaManifest">
+    <title>STATION CHECK LIST — WTC</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --wtc-dark:  #001F3A;
+            --wtc-navy:  #003B5C;
+            --wtc-blue:  #0077B6;
+            --wtc-cyan:  #00B4D8;
+            --wtc-light: #90E0EF;
+            --wtc-bg:    #F0F8FF;
+            --wtc-accent:#00CFE8;
+        }
+        * { font-family: 'IBM Plex Sans Arabic', sans-serif; box-sizing: border-box; margin:0; padding:0; }
+        body { background: var(--wtc-bg); color: #0d2137; -webkit-font-smoothing: antialiased; padding-bottom: env(safe-area-inset-bottom); }
+
+        /* ── Header ── */
+        .wtc-header {
+            background: linear-gradient(135deg, var(--wtc-dark) 0%, var(--wtc-navy) 60%, var(--wtc-blue) 100%);
+            border-bottom: 1px solid rgba(0,180,216,.18);
+            position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 16px;
+            padding-top: calc(10px + env(safe-area-inset-top));
+            box-shadow: 0 2px 16px rgba(0,30,60,.3);
+        }
+        .wtc-header-logo { height:36px; object-fit:contain; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:4px; }
+        .wtc-header-name { font-size:11px; font-weight:700; color:#90E0EF; }
+        .wtc-header-sub  { font-size:7px; font-weight:300; color:rgba(144,224,239,.55); letter-spacing:.18em; text-transform:uppercase; margin-top:2px; }
+
+        /* ── Cards ── */
+        .card { background:white; border:1.5px solid rgba(0,95,142,.1); border-radius:22px; box-shadow:0 4px 24px rgba(0,59,92,.08); }
+        .card-dark { background:linear-gradient(135deg,var(--wtc-dark),var(--wtc-navy)); border:1px solid rgba(0,180,216,.15); border-radius:20px; box-shadow:0 6px 24px rgba(0,30,60,.3); position:relative; overflow:hidden; }
+        .card-dark::before { content:''; position:absolute; top:-40px; right:-40px; width:120px; height:120px; background:radial-gradient(circle,rgba(0,180,216,.18),transparent 70%); border-radius:50%; }
+
+        /* ── Inputs ── */
+        .wtc-input { width:100%; padding:13px 16px; border:1.5px solid rgba(0,95,142,.18); border-radius:13px; font-size:12px; font-family:'IBM Plex Sans Arabic',sans-serif; background:rgba(240,248,255,.7); color:var(--wtc-navy); text-align:center; outline:none; transition:all .2s; }
+        .wtc-input:focus { border-color:var(--wtc-blue); background:white; box-shadow:0 0 0 3px rgba(0,119,182,.12); }
+        select.wtc-input { cursor:pointer; }
+        textarea.wtc-input { text-align:right; resize:none; }
+
+        /* ── Buttons ── */
+        .btn-primary { width:100%; padding:14px 20px; background:linear-gradient(135deg,var(--wtc-navy),var(--wtc-blue)); color:white; border:none; border-radius:13px; font-size:12px; font-weight:700; font-family:'IBM Plex Sans Arabic',sans-serif; cursor:pointer; transition:all .25s; box-shadow:0 4px 18px rgba(0,95,142,.35); }
+        .btn-primary:hover { transform:translateY(-1px); }
+        .btn-primary:active { transform:scale(.98); }
+        .btn-save { width:100%; padding:16px 20px; background:linear-gradient(135deg,#065f46,#059669); color:white; border:none; border-radius:13px; font-size:13px; font-weight:700; font-family:'IBM Plex Sans Arabic',sans-serif; cursor:pointer; transition:all .25s; box-shadow:0 4px 18px rgba(5,150,105,.4); display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-save:active { transform:scale(.98); }
+        .btn-back { background:white; padding:8px 13px; border-radius:11px; font-size:10px; font-weight:700; color:#64748b; border:1.5px solid rgba(0,95,142,.12); cursor:pointer; font-family:'IBM Plex Sans Arabic',sans-serif; transition:all .2s; }
+        .btn-send-all { width:100%; padding:15px 20px; background:linear-gradient(135deg,#1e3a5f,#0077B6); color:white; border:none; border-radius:13px; font-size:12px; font-weight:700; cursor:pointer; transition:all .25s; box-shadow:0 4px 18px rgba(0,95,142,.35); display:flex; align-items:center; justify-content:center; gap:8px; font-family:'IBM Plex Sans Arabic',sans-serif; }
+        .btn-send-all:disabled { background:linear-gradient(135deg,#94a3b8,#64748b); box-shadow:none; cursor:not-allowed; opacity:.6; }
+
+        /* ── Status buttons ── */
+        .s-btn { padding:12px 6px; border-radius:13px; font-size:10px; font-weight:700; text-align:center; border:1.5px solid rgba(0,95,142,.1); background:#f0f8ff; color:#475569; cursor:pointer; transition:all .2s; font-family:'IBM Plex Sans Arabic',sans-serif; }
+        .s-btn.ok  { background:#064e3b; color:white; border-color:#064e3b; }
+        .s-btn.rem { background:#92400e; color:white; border-color:#78350f; }
+        .s-btn.na  { background:#1e3a5f; color:white; border-color:#1e3a5f; }
+
+        /* ── System cards ── */
+        .sys-card { background:white; border:1.5px solid rgba(0,95,142,.1); border-radius:15px; padding:13px 15px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:all .2s; box-shadow:0 1px 4px rgba(0,59,92,.05); width:100%; }
+        .sys-card:active { transform:scale(.99); }
+        .sys-card.ok  { border-color:rgba(16,185,129,.3);  background:rgba(240,253,244,.7); }
+        .sys-card.rem { border-color:rgba(245,158,11,.35); background:rgba(255,251,235,.7); }
+        .sys-card.na  { border-color:rgba(59,130,246,.25); background:rgba(239,246,255,.7); }
+
+        /* ── Badges ── */
+        .badge { display:inline-block; padding:3px 9px; border-radius:99px; font-size:9px; font-weight:700; }
+        .b-ok   { background:#d1fae5; color:#065f46; }
+        .b-rem  { background:#fef3c7; color:#92400e; }
+        .b-na   { background:#dbeafe; color:#1e40af; }
+        .b-pend { background:#fee2e2; color:#991b1b; }
+        .line-badge { display:inline-block; font-size:8px; font-weight:700; padding:3px 9px; border-radius:6px; background:rgba(0,180,216,.12); color:var(--wtc-cyan); border:1px solid rgba(0,180,216,.2); letter-spacing:.08em; }
+
+        /* ── Progress ── */
+        .prog-fill { background:linear-gradient(90deg,var(--wtc-blue),var(--wtc-cyan)); height:100%; border-radius:99px; transition:width .6s cubic-bezier(.4,0,.2,1); }
+
+        /* ── Sticky save bar ── */
+        .save-bar { position:fixed; bottom:0; right:0; width:100%; padding:14px; padding-bottom:calc(14px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.95); backdrop-filter:blur(12px); border-top:1px solid rgba(0,95,142,.1); box-shadow:0 -4px 20px rgba(0,30,60,.08); z-index:40; }
+
+        /* ── Modal ── */
+        .overlay { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(0,15,40,.75); backdrop-filter:blur(6px); }
+
+        /* ── Toast ── */
+        .toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:#0f172a; color:white; padding:10px 22px; border-radius:50px; font-size:11px; font-weight:600; z-index:9000; opacity:0; pointer-events:none; transition:opacity .3s; white-space:nowrap; border:1px solid rgba(0,180,216,.25); }
+        .toast.show { opacity:1; }
+
+        /* ── Complete banner ── */
+        .complete-banner { background:linear-gradient(135deg,#065f46,#059669); border-radius:15px; padding:14px 16px; margin-bottom:12px; display:flex; align-items:center; gap:12px; border:1px solid rgba(5,150,105,.3); }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width:3px; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,95,142,.25); border-radius:99px; }
+
+        /* ── Copyright ── */
+        .copyright { text-align:center; padding:20px 0 8px; font-size:9px; color:#94a3b8; letter-spacing:.1em; }
+
+        .pad { padding:16px; max-width:480px; margin:0 auto; }
+
+        /* ── Admin sys btn ── */
+        .admin-sys-btn { width:100%; padding:11px 13px; border-radius:15px; border:1.5px solid; display:flex; justify-content:space-between; align-items:center; font-size:11px; text-align:right; cursor:pointer; font-family:'IBM Plex Sans Arabic',sans-serif; transition:all .2s; }
+
+        /* ── PWA install ── */
+        #pwaInstall { display:none; position:fixed; bottom:80px; left:16px; right:16px; z-index:300; background:linear-gradient(135deg,var(--wtc-dark),var(--wtc-navy)); color:white; border-radius:16px; padding:14px 16px; box-shadow:0 8px 30px rgba(0,30,60,.4); border:1px solid rgba(0,180,216,.2); flex-direction:row; align-items:center; gap:12px; }
+
+        /* ── Sync dot ── */
+        .sync-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; display:inline-block; box-shadow:0 0 0 2px rgba(34,197,94,.25); animation:pulse-dot 2s infinite; flex-shrink:0; }
+        @keyframes pulse-dot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+    </style>
+</head>
+<body>
+
+<!-- PWA Manifest -->
+<script>
+(function(){
+    var m={name:"WTC Field CheckList",short_name:"WTC Ops",description:"منظومة WTC الميدانية",start_url:"./",display:"standalone",background_color:"#001F3A",theme_color:"#001F3A",orientation:"portrait",icons:[{src:"https://cdn.phototourl.com/free/2026-05-25-531ef0be-b99a-4016-a928-effa7a2c41ac.png",sizes:"192x192",type:"image/png"},{src:"https://cdn.phototourl.com/free/2026-05-25-531ef0be-b99a-4016-a928-effa7a2c41ac.png",sizes:"512x512",type:"image/png"}]};
+    var blob=new Blob([JSON.stringify(m)],{type:'application/json'});
+    document.getElementById('pwaManifest').href=URL.createObjectURL(blob);
+})();
+</script>
+
+<!-- PWA Install Banner -->
+<div id="pwaInstall">
+    <span style="font-size:26px;">📲</span>
+    <div style="flex:1;"><div style="font-size:12px;font-weight:700;">ثبّت التطبيق على جهازك</div><div style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px;">وصول سريع بدون متصفح</div></div>
+    <button id="pwaInstallBtn" style="background:var(--wtc-cyan);color:#001F3A;border:none;border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">تثبيت</button>
+    <button id="pwaCloseBtn"   style="background:rgba(255,255,255,.1);color:white;border:none;border-radius:10px;padding:8px 10px;font-size:11px;cursor:pointer;">✕</button>
+</div>
+
+<!-- HEADER -->
+<header class="wtc-header">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="https://cdn.phototourl.com/free/2026-05-25-531ef0be-b99a-4016-a928-effa7a2c41ac.png" alt="WTC" class="wtc-header-logo" onerror="this.style.display='none'">
+        <div>
+            <div class="wtc-header-name">شركة نقل المياه (WTTCO) — الجبيل</div>
+            <div class="wtc-header-sub">STATION CHECK LIST · FIELD OPS 2026</div>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+        <span class="sync-dot" id="syncDot"></span>
+        <span style="font-size:9px;color:rgba(255,255,255,.6);" id="syncLbl">live</span>
+    </div>
+</header>
+
+<!-- APP -->
+<div id="app"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════════════════
+var STATIONS = [
+    {code:'ps1ab', line:'AB LINES', name:'PS1 AB'},
+    {code:'ps2ab', line:'AB LINES', name:'PS2 AB'},
+    {code:'ps3ab', line:'AB LINES', name:'PS3 AB'},
+    {code:'ps4ab', line:'AB LINES', name:'PS4 AB'},
+    {code:'ps5ab', line:'AB LINES', name:'PS5 AB'},
+    {code:'ps6ab', line:'AB LINES', name:'PS6 AB'},
+    {code:'hptab', line:'AB LINES', name:'HPT AB'},
+    {code:'ps1c',  line:'C LINES',  name:'PS1 C'},
+    {code:'ps2c',  line:'C LINES',  name:'PS2 C'},
+    {code:'ps3c',  line:'C LINES',  name:'PS3 C'},
+    {code:'hptc',  line:'C LINES',  name:'HPT C'},
+    {code:'ps1fg', line:'FG LINES', name:'PS1 FG'},
+    {code:'ps2fg', line:'FG LINES', name:'PS2 FG'},
+    {code:'ps3fg', line:'FG LINES', name:'PS3 FG'},
+    {code:'hptfg', line:'FG LINES', name:'HPT FG'}
+];
+
+var SYS_ABC = [
+    'AIR CONDITIONING & VENTILATION SYS-1',
+    'AIR CONDITIONING & VENTILATION SYS-2',
+    'COOLING WATER SYSTEM',
+    'DRINKING AND UTILITY',
+    'ELECTRICAL BUILDING CABLE CELLAR',
+    'EMERGENCY GENERATOR',
+    'FLOW CONTROL VALVE MAIN',
+    'LOW VOLTAGE ROOM',
+    'MAIN PUMP HOUSE',
+    'MEDIUM VOLTAGE ROOM',
+    'PRESSURE CONTROL VALVE',
+    'SEWAGE SYSTEM',
+    'STATION BATTERIES ROOM',
+    'SURGE RELIEF SYSTEM',
+    'UNIT CONTROL & FEEDBACK EQUIPMENT',
+    'Scraper'
+];
+var SYS_FG = [
+    'AIR COMPRESSOR SYSTEM',
+    'BOOSTER PUMP HOUSE',
+    'COOLING WATER SYSTEM',
+    'ELECTRICAL VSD BUILDING',
+    'EMERGENCY GENERATOR',
+    'HV, MV, LV, VSD TRANSFORMERS',
+    'HVAC AND CHILLERS',
+    'INLET SURGE VESSEL SYSTEM',
+    'LOW VOLTAGE ROOM',
+    'MAIN PUMP HOUSE',
+    'MEDIUM VOLTAGE ROOM',
+    'OUTLET SURGE VESSEL SYSTEM',
+    'PRESSURE RELIEF SYSTEM',
+    'TANK FARM AREA',
+    'UTILITY & FIRE DIESEL PUMP SYSTEM'
+];
+
+// ══════════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════════
+var S = {
+    screen:   'stations',   // stations | systems | checklist
+    station:  null,         // {code, line, name}
+    system:   '',
+    shift:    getShift(),
+    date:     today(),
+    status:   'no_obs',
+    note:     '',
+    images:   [],
+    logs:     JSON.parse(localStorage.getItem('wtc_logs')||'[]'),
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════════
+function today()    { return new Date().toISOString().split('T')[0]; }
+function getShift() { var h=new Date().getHours(); return (h>=6&&h<18)?'صباحي':'مسائي'; }
+function getSystems(st){ return st && st.includes('FG') ? SYS_FG : SYS_ABC; }
+
+function getLog(sys, st, sh, dt) {
+    st=st||S.station.name; sh=sh||S.shift; dt=dt||S.date;
+    return S.logs.find(function(l){ return l.station===st&&l.system===sys&&l.shift===sh&&l.date===dt; });
+}
+function kpi(stName) {
+    var sys=getSystems(stName||S.station.name);
+    if(!sys.length) return 0;
+    return Math.round(sys.filter(function(s){ return !!getLog(s,stName); }).length/sys.length*100);
+}
+function allDone(stName, sh, dt) {
+    stName=stName||S.station.name; sh=sh||S.shift; dt=dt||S.date;
+    return getSystems(stName).every(function(s){ return !!getLog(s,stName,sh,dt); });
+}
+function saveLogs() { localStorage.setItem('wtc_logs',JSON.stringify(S.logs)); }
+
+function formatDateAr(ds) {
+    try { return new Date(ds+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); }
+    catch(e){ return ds; }
+}
+function nowTime() { return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+function showToast(msg, dur) {
+    var t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, dur||2400);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  RENDER ROUTER
+// ══════════════════════════════════════════════════════════════════
+function render() {
+    var app=document.getElementById('app');
+    app.innerHTML='';
+    if      (S.screen==='stations')  renderStations(app);
+    else if (S.screen==='systems')   renderSystems(app);
+    else if (S.screen==='checklist') renderChecklist(app);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SCREEN 1 — اختيار المحطة (مباشرة بدون login)
+// ══════════════════════════════════════════════════════════════════
+function renderStations(app) {
+    var h=new Date().getHours(), isNight=(h>=18||h<6);
+    var wrap=document.createElement('div');
+    wrap.className='pad';
+    wrap.style.cssText='min-height:calc(100vh - 56px);background:'+(isNight
+        ?'linear-gradient(180deg,#001e3c,#002d55 35%,#0d2137 65%,#F0F8FF)'
+        :'linear-gradient(180deg,#e0f2fe,#F0F8FF 50%)');
+
+    // Banner
+    var banner=document.createElement('div');
+    banner.style.cssText='border-radius:18px;padding:16px 18px;margin-bottom:20px;position:relative;overflow:hidden;background:'+(isNight?'linear-gradient(135deg,#001F3A,#003B5C)':'linear-gradient(135deg,#0077B6,#00B4D8)')+';color:white;border:'+(isNight?'1px solid rgba(0,180,216,.18)':'none');
+    banner.innerHTML=
+        '<div style="position:relative;z-index:1;">'+
+        '<div style="font-size:20px;margin-bottom:4px;">'+(isNight?'🌙':'☀️')+'</div>'+
+        '<div style="font-size:14px;font-weight:700;">اختر المحطة</div>'+
+        '<div style="font-size:10px;opacity:.75;margin-top:3px;">'+(isNight?'الوردية المسائية':'الوردية الصباحية')+' · '+formatDateAr(S.date)+'</div>'+
+        '</div>'+
+        '<div style="position:absolute;top:-18px;left:-18px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.06);"></div>';
+    wrap.appendChild(banner);
+
+    // Group by line
+    var lines={};
+    STATIONS.forEach(function(st){
+        if(!lines[st.line]) lines[st.line]=[];
+        lines[st.line].push(st);
+    });
+
+    Object.keys(lines).forEach(function(line){
+        // line header
+        var lh=document.createElement('div');
+        lh.style.cssText='font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:.1em;text-transform:uppercase;margin:14px 0 8px;';
+        lh.textContent='📍 '+line;
+        wrap.appendChild(lh);
+
+        var grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+
+        lines[line].forEach(function(st){
+            var pct=kpi(st.name);
+            var done=allDone(st.name);
+            var btn=document.createElement('button');
+            btn.style.cssText='padding:14px 12px;border-radius:15px;border:1.5px solid '+(done?'rgba(16,185,129,.35)':'rgba(0,95,142,.12)')+';background:'+(done?'rgba(240,253,244,.9)':'white')+';cursor:pointer;font-family:inherit;text-align:right;transition:all .2s;box-shadow:0 2px 8px rgba(0,30,60,.06);';
+            btn.innerHTML=
+                '<div style="font-size:13px;font-weight:700;color:#003B5C;margin-bottom:6px;">'+st.name+'</div>'+
+                '<div style="font-size:8px;color:#64748b;margin-bottom:8px;">'+st.line+'</div>'+
+                '<div style="background:rgba(0,95,142,.07);height:4px;border-radius:99px;overflow:hidden;">'+
+                  '<div style="height:100%;background:linear-gradient(90deg,#0077B6,#00B4D8);width:'+pct+'%;transition:width .5s;"></div>'+
+                '</div>'+
+                '<div style="font-size:9px;color:#64748b;margin-top:4px;font-weight:600;">'+(done?'✅ مكتمل':pct+'%')+'</div>';
+            btn.onclick=function(){ S.station=st; S.shift=getShift(); S.date=today(); S.screen='systems'; render(); };
+            grid.appendChild(btn);
+        });
+        wrap.appendChild(grid);
+    });
+
+    var copy=document.createElement('div');
+    copy.className='copyright';
+    copy.textContent='by: MAJED M. FALQI';
+    wrap.appendChild(copy);
+
+    app.appendChild(wrap);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SCREEN 2 — قائمة الأنظمة
+// ══════════════════════════════════════════════════════════════════
+function renderSystems(app) {
+    var wrap=document.createElement('div');
+    wrap.className='pad';
+    wrap.style.paddingBottom='100px';
+
+    // Top row
+    var top=document.createElement('div');
+    top.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;';
+    var titleDiv=document.createElement('div');
+    titleDiv.innerHTML=
+        '<span style="display:inline-block;font-size:8px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(0,180,216,.12);color:var(--wtc-cyan);border:1px solid rgba(0,180,216,.2);">'+S.station.line+'</span>'+
+        '<div style="font-size:20px;font-weight:700;color:#003B5C;margin-top:4px;">'+S.station.name+'</div>'+
+        '<div style="font-size:9px;color:#64748b;margin-top:2px;">📅 '+formatDateAr(S.date)+'</div>';
+    var backBtn=document.createElement('button');
+    backBtn.className='btn-back';
+    backBtn.textContent='↩ المحطات';
+    backBtn.onclick=function(){ S.screen='stations'; render(); };
+    top.appendChild(titleDiv); top.appendChild(backBtn);
+    wrap.appendChild(top);
+
+    // KPI card
+    var k=kpi();
+    var kpiCard=document.createElement('div');
+    kpiCard.className='card-dark';
+    kpiCard.style.padding='16px'; kpiCard.style.marginBottom='14px';
+    kpiCard.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1;margin-bottom:12px;">'+
+        '<div>'+
+        '<div style="font-size:9px;color:#90e0ef;font-weight:600;">'+(S.shift==='صباحي'?'☀️':'🌙')+' الوردية '+(S.shift==='صباحي'?'الصباحية':'المسائية')+'</div>'+
+        '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px;">'+S.station.name+'</div>'+
+        '</div>'+
+        '<div style="background:rgba(0,30,60,.5);padding:10px 16px;border-radius:13px;text-align:center;border:1px solid rgba(0,180,216,.2);">'+
+        '<div style="font-size:8px;color:#90e0ef;">مؤشر الفحص</div>'+
+        '<div style="font-size:24px;font-weight:700;color:#00CFE8;" id="kpiNum">'+k+'%</div>'+
+        '</div></div>'+
+        '<div style="width:100%;background:rgba(255,255,255,.08);height:4px;border-radius:99px;overflow:hidden;position:relative;z-index:1;">'+
+        '<div style="height:100%;background:linear-gradient(90deg,#0077B6,#00CFE8);width:'+k+'%;transition:width .6s;"></div>'+
+        '</div>';
+    wrap.appendChild(kpiCard);
+
+    // Complete banner
+    if(allDone()){
+        var cb=document.createElement('div');
+        cb.className='complete-banner';
+        cb.innerHTML='<span style="font-size:24px;">✅</span><div><div style="font-size:12px;font-weight:700;color:white;">اكتمل فحص جميع الأنظمة!</div><div style="font-size:10px;color:rgba(255,255,255,.75);margin-top:2px;">اضغط "إرسال التقرير النهائي" أدناه</div></div>';
+        wrap.appendChild(cb);
+    }
+
+    // Hint
+    var hint=document.createElement('div');
+    hint.style.cssText='background:rgba(0,119,182,.07);border:1px solid rgba(0,119,182,.14);border-radius:13px;padding:8px 12px;font-size:10px;color:#005F8E;font-weight:600;text-align:center;margin-bottom:12px;';
+    hint.textContent='⚙️ اضغط على أي نظام لتسجيل حالته ثم اضغط حفظ';
+    wrap.appendChild(hint);
+
+    // Systems list
+    var lbl=document.createElement('div');
+    lbl.style.cssText='font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;';
+    lbl.textContent='⚙️ أنظمة المحطة الميدانية:';
+    wrap.appendChild(lbl);
+
+    var list=document.createElement('div');
+    list.style.cssText='display:flex;flex-direction:column;gap:8px;';
+    getSystems(S.station.name).forEach(function(sys){
+        var log=getLog(sys);
+        var cls='sys-card'+(log?(log.status==='remark'?' rem':(log.status==='na'?' na':' ok')):'');
+        var btn=document.createElement('button');
+        btn.className=cls;
+        btn.innerHTML=
+            '<div style="display:flex;flex-direction:column;gap:2px;width:70%;text-align:right;">'+
+            '<span style="font-size:11px;font-weight:600;color:#1e3a5f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+sys+'</span>'+
+            (log?'<span style="font-size:9px;color:#64748b;">🕒 '+log.time+'</span>':'')+
+            '</div>'+
+            '<span class="badge '+(log?(log.status==='no_obs'?'b-ok':(log.status==='na'?'b-na':'b-rem')):'b-pend')+'">'+(log?(log.status==='no_obs'?'✓ سليم':(log.status==='na'?'N/A':'⚠️ ملاحظة')):'⏳ معلق')+'</span>';
+        btn.onclick=function(){ openChecklist(sys); };
+        list.appendChild(btn);
+    });
+    wrap.appendChild(list);
+
+    var copy=document.createElement('div');
+    copy.className='copyright';
+    copy.textContent='by: MAJED M. FALQI';
+    wrap.appendChild(copy);
+
+    app.appendChild(wrap);
+
+    // Sticky bottom — send all
+    var bar=document.createElement('div');
+    bar.className='save-bar';
+    var inner=document.createElement('div');
+    inner.style.cssText='max-width:480px;margin:0 auto;';
+    var sendBtn=document.createElement('button');
+    sendBtn.className='btn-send-all';
+    sendBtn.disabled=!allDone();
+    sendBtn.innerHTML='<svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> إرسال التقرير النهائي للمشرف';
+    sendBtn.onclick=doSendAll;
+    inner.appendChild(sendBtn);
+    bar.appendChild(inner);
+    document.body.appendChild(bar);
+    // cleanup bar on next render
+    S._barEl=bar;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SCREEN 3 — تسجيل حالة النظام
+// ══════════════════════════════════════════════════════════════════
+function renderChecklist(app) {
+    var wrap=document.createElement('div');
+    wrap.className='pad';
+    wrap.style.paddingBottom='90px';
+
+    // Top
+    var top=document.createElement('div');
+    top.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;';
+    var backBtn=document.createElement('button');
+    backBtn.className='btn-back';
+    backBtn.textContent='↩ الأنظمة';
+    backBtn.onclick=function(){ cleanupBar(); S.screen='systems'; render(); };
+    var stBadge=document.createElement('span');
+    stBadge.style.cssText='font-size:10px;background:#001F3A;color:#00CFE8;font-weight:700;padding:6px 13px;border-radius:8px;';
+    stBadge.textContent=S.station.name;
+    top.appendChild(backBtn); top.appendChild(stBadge);
+    wrap.appendChild(top);
+
+    // System name card
+    var sysCard=document.createElement('div');
+    sysCard.className='card';
+    sysCard.style.cssText='padding:14px 16px;margin-bottom:12px;';
+    sysCard.innerHTML=
+        '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">النظام الحالي</div>'+
+        '<div style="font-size:12px;font-weight:700;color:#003B5C;">'+S.system+'</div>'+
+        '<div style="font-size:9px;color:#64748b;margin-top:4px;">📅 '+formatDateAr(S.date)+' · '+(S.shift==='صباحي'?'☀️ صباحي':'🌙 مسائي')+'</div>';
+    wrap.appendChild(sysCard);
+
+    // Check items card
+    var checkCard=document.createElement('div');
+    checkCard.className='card';
+    checkCard.style.cssText='padding:16px;margin-bottom:12px;';
+    checkCard.innerHTML=
+        '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid rgba(0,95,142,.08);padding-bottom:8px;margin-bottom:12px;">📋 Check Items (Read Only)</div>'+
+        '<p style="font-size:11px;font-weight:500;color:#1e3a5f;background:rgba(0,95,142,.04);padding:13px;border-radius:11px;border:1px solid rgba(0,95,142,.07);text-align:left;line-height:2;direction:ltr;margin:0;">'+
+        '1- Check if the system unit status is normal and running without active alarms.<br>'+
+        '2- Check if any leakage, abnormal noise, or high temperature is detected in the zone.'+
+        '</p>';
+    wrap.appendChild(checkCard);
+
+    // Status card
+    var stCard=document.createElement('div');
+    stCard.className='card';
+    stCard.style.padding='16px';
+    stCard.innerHTML=
+        '<div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;">🎯 النتيجة الإجمالية للنظام:</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">'+
+        '<button class="s-btn" id="sOk">✓ No Obs</button>'+
+        '<button class="s-btn" id="sRem">⚠️ Remark</button>'+
+        '<button class="s-btn" id="sNa">N/A</button>'+
+        '</div>'+
+        '<div id="remarkBox" style="display:none;border-top:1px solid rgba(0,95,142,.08);padding-top:12px;">'+
+        '<div style="margin-bottom:10px;">'+
+        '<label style="display:block;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px;">📝 تفاصيل الخلل الميداني (إجباري):</label>'+
+        '<textarea id="noteArea" class="wtc-input" rows="3" placeholder="يرجى وصف المشكلة بدقة..."></textarea>'+
+        '</div>'+
+        '<div>'+
+        '<label style="display:block;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px;">📸 صور الإثبات (بحد أقصى 4 صور):</label>'+
+        '<input type="file" accept="image/*" multiple id="imgInput" style="font-size:11px;color:#64748b;width:100%;">'+
+        '<div id="imgGrid" style="margin-top:10px;display:none;grid-template-columns:1fr 1fr;gap:8px;padding:10px;background:rgba(0,95,142,.04);border-radius:13px;border:1px solid rgba(0,95,142,.07);"></div>'+
+        '<p id="imgMax" style="display:none;font-size:10px;color:#dc2626;margin-top:6px;font-weight:600;">تم الوصول للحد الأقصى (4 صور).</p>'+
+        '</div></div>';
+    wrap.appendChild(stCard);
+    app.appendChild(wrap);
+
+    // Restore state
+    updateStatusUI(S.status);
+    if(S.note) document.getElementById('noteArea').value=S.note;
+    refreshImgGrid();
+
+    document.getElementById('sOk').onclick  = function(){ setStatus('no_obs'); };
+    document.getElementById('sRem').onclick = function(){ setStatus('remark'); };
+    document.getElementById('sNa').onclick  = function(){ setStatus('na'); };
+    document.getElementById('imgInput').onchange = handleImgUpload;
+
+    // Save bar
+    var bar=document.createElement('div');
+    bar.className='save-bar';
+    var inner=document.createElement('div');
+    inner.style.cssText='max-width:480px;margin:0 auto;';
+    var saveBtn=document.createElement('button');
+    saveBtn.className='btn-save';
+    saveBtn.innerHTML='<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> حفظ';
+    saveBtn.onclick=doSave;
+    inner.appendChild(saveBtn);
+    bar.appendChild(inner);
+    document.body.appendChild(bar);
+    S._barEl=bar;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ACTIONS
+// ══════════════════════════════════════════════════════════════════
+function cleanupBar() {
+    if(S._barEl && S._barEl.parentNode) { S._barEl.parentNode.removeChild(S._barEl); S._barEl=null; }
+}
+
+function openChecklist(sys) {
+    cleanupBar();
+    S.system=sys;
+    var log=getLog(sys);
+    if(log){ S.status=log.status; S.note=log.note; S.images=[...(log.images||[])]; }
+    else   { S.status='no_obs'; S.note=''; S.images=[]; }
+    S.screen='checklist';
+    render();
+}
+
+function setStatus(s) {
+    S.status=s;
+    updateStatusUI(s);
+    var box=document.getElementById('remarkBox');
+    if(box) box.style.display=(s==='remark')?'block':'none';
+}
+
+function updateStatusUI(s) {
+    ['sOk','sRem','sNa'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(el) el.className='s-btn';
+    });
+    var map={no_obs:'sOk',remark:'sRem',na:'sNa'};
+    var css={no_obs:'ok',remark:'rem',na:'na'};
+    var el=document.getElementById(map[s]);
+    if(el) el.className='s-btn '+css[s];
+    var box=document.getElementById('remarkBox');
+    if(box) box.style.display=(s==='remark')?'block':'none';
+}
+
+function handleImgUpload(e) {
+    var files=e.target.files;
+    if(!files||!files.length) return;
+    var rem=4-S.images.length;
+    if(rem<=0){ alert('لقد وصلت للحد الأقصى (4 صور).'); return; }
+    for(var i=0;i<Math.min(files.length,rem);i++){
+        (function(f){
+            var r=new FileReader();
+            r.onload=function(ev){ S.images.push(ev.target.result); refreshImgGrid(); };
+            r.readAsDataURL(f);
+        })(files[i]);
+    }
+    e.target.value='';
+}
+
+function refreshImgGrid() {
+    var grid=document.getElementById('imgGrid');
+    var maxP=document.getElementById('imgMax');
+    var inp=document.getElementById('imgInput');
+    if(!grid) return;
+    grid.innerHTML='';
+    if(S.images.length>0){
+        grid.style.display='grid';
+        S.images.forEach(function(src,idx){
+            var wrap=document.createElement('div');
+            wrap.style.position='relative';
+            var img=document.createElement('img');
+            img.src=src;
+            img.style.cssText='width:100%;height:110px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,95,142,.12);';
+            var del=document.createElement('button');
+            del.textContent='✕';
+            del.style.cssText='position:absolute;top:4px;right:4px;background:#dc2626;color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:10px;cursor:pointer;';
+            del.onclick=function(){ S.images.splice(idx,1); refreshImgGrid(); };
+            wrap.appendChild(img); wrap.appendChild(del);
+            grid.appendChild(wrap);
+        });
+    } else { grid.style.display='none'; }
+    if(maxP) maxP.style.display=S.images.length>=4?'block':'none';
+    if(inp)  inp.style.display =S.images.length>=4?'none':'block';
+}
+
+// ── SAVE — حفظ نظام واحد فقط ──────────────────────────────────────
+function doSave() {
+    var note=(document.getElementById('noteArea')||{}).value||S.note||'';
+    note=note.trim();
+    if(S.status==='remark'){
+        if(!note){ alert('⚠️ يجب كتابة تفاصيل الخلل الميداني.'); return; }
+        if(!S.images.length){ alert('📸 يجب إرفاق صورة واحدة على الأقل.'); return; }
+    }
+    S.note=note;
+    var now=new Date();
+    var entry={
+        station: S.station.name,
+        line:    S.station.line,
+        system:  S.system,
+        shift:   S.shift,
+        date:    S.date,
+        time:    nowTime(),
+        savedAt: now.toISOString(),
+        status:  S.status,
+        note:    S.status==='no_obs'?'لا يوجد ملاحظات':S.note,
+        images:  [...S.images]
+    };
+    // Replace existing
+    S.logs=S.logs.filter(function(l){
+        return !(l.station===entry.station&&l.system===entry.system&&l.shift===entry.shift&&l.date===entry.date);
+    });
+    S.logs.unshift(entry);
+    saveLogs();
+
+    cleanupBar();
+    showToast('✅ تم حفظ: '+S.system);
+    S.screen='systems';
+    render();
+
+    if(allDone()){
+        setTimeout(function(){ showToast('🎉 اكتمل الفحص! اضغط إرسال التقرير النهائي', 3500); },600);
+    }
+}
+
+// ── SEND ALL — إرسال كل الأنظمة للمشرف ────────────────────────────
+function doSendAll() {
+    if(!allDone()){ alert('⚠️ لم تكتمل جميع الأنظمة بعد.'); return; }
+    var logs=S.logs.filter(function(l){ return l.station===S.station.name&&l.shift===S.shift&&l.date===S.date; });
+    showFinalModal(logs);
+}
+
+function showFinalModal(logs) {
+    var overlay=document.createElement('div');
+    overlay.className='overlay';
+    var box=document.createElement('div');
+    box.className='card';
+    box.style.cssText='width:100%;max-width:440px;padding:22px;max-height:88vh;overflow-y:auto;';
+    var ok =logs.filter(function(l){ return l.status==='no_obs'; }).length;
+    var rem=logs.filter(function(l){ return l.status==='remark'; }).length;
+    var na =logs.filter(function(l){ return l.status==='na'; }).length;
+    var remRows=logs.filter(function(l){ return l.status==='remark'; }).map(function(l){
+        return '<div style="padding:7px 0;border-bottom:1px solid rgba(0,95,142,.06);font-size:10px;"><strong>'+l.system+'</strong><br><span style="color:#92400e;">'+l.note+'</span><br><span style="color:#94a3b8;font-size:9px;">🕒 '+l.time+'</span></div>';
+    }).join('');
+    box.innerHTML=
+        '<div style="text-align:center;margin-bottom:18px;">'+
+        '<div style="font-size:36px;margin-bottom:8px;">📋</div>'+
+        '<div style="font-size:14px;font-weight:700;color:#003B5C;">التقرير النهائي للمحطة</div>'+
+        '<div style="font-size:11px;color:#64748b;margin-top:4px;">'+S.station.name+' · '+formatDateAr(S.date)+' · '+(S.shift==='صباحي'?'☀️ صباحي':'🌙 مسائي')+'</div>'+
+        '</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">'+
+        '<div style="text-align:center;background:#d1fae5;border-radius:13px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#065f46;">'+ok+'</div><div style="font-size:9px;color:#065f46;font-weight:600;">سليم</div></div>'+
+        '<div style="text-align:center;background:#fef3c7;border-radius:13px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#92400e;">'+rem+'</div><div style="font-size:9px;color:#92400e;font-weight:600;">ملاحظة</div></div>'+
+        '<div style="text-align:center;background:#dbeafe;border-radius:13px;padding:12px;"><div style="font-size:22px;font-weight:700;color:#1e40af;">'+na+'</div><div style="font-size:9px;color:#1e40af;font-weight:600;">N/A</div></div>'+
+        '</div>'+
+        (rem>0?
+            '<div style="background:rgba(0,95,142,.04);border:1px solid rgba(0,95,142,.08);border-radius:12px;padding:12px;margin-bottom:14px;">'+
+            '<div style="font-size:10px;font-weight:700;color:#003B5C;margin-bottom:8px;">⚠️ الأنظمة ذات الملاحظات:</div>'+
+            remRows+'</div>':
+            '<div style="background:#d1fae5;border-radius:11px;padding:10px;text-align:center;font-size:11px;color:#065f46;font-weight:600;margin-bottom:14px;">✅ جميع الأنظمة سليمة — لا ملاحظات</div>')+
+        '<div style="background:linear-gradient(135deg,rgba(0,59,92,.07),rgba(0,119,182,.07));border-radius:11px;padding:10px;font-size:10px;color:#003B5C;font-weight:600;text-align:center;margin-bottom:14px;">✅ تم حفظ التقرير محلياً وإشعار المشرف</div>'+
+        '<button onclick="this.closest(\'.overlay\').remove()" class="btn-primary">إغلاق</button>';
+    overlay.appendChild(box);
+    overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PWA
+// ══════════════════════════════════════════════════════════════════
+var pwaPrompt=null;
+window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault(); pwaPrompt=e;
+    document.getElementById('pwaInstall').style.display='flex';
+});
+document.getElementById('pwaInstallBtn').onclick=function(){
+    if(!pwaPrompt) return;
+    pwaPrompt.prompt();
+    pwaPrompt.userChoice.then(function(){ document.getElementById('pwaInstall').style.display='none'; });
+};
+document.getElementById('pwaCloseBtn').onclick=function(){
+    document.getElementById('pwaInstall').style.display='none';
+};
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.navigator.standalone){
+    setTimeout(function(){
+        var b=document.getElementById('pwaInstall');
+        b.style.display='flex';
+        b.querySelector('#pwaInstallBtn').textContent='كيف؟';
+        b.querySelector('#pwaInstallBtn').onclick=function(){
+            alert('لتثبيت على iOS:\n1- افتح في Safari\n2- اضغط زر المشاركة ⬆️\n3- "إضافة إلى الشاشة الرئيسية"');
+        };
+    },3500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  WTCO CONTEXT — ربط تلقائي مع النظام الخارجي
+//  يشتغل بـ 3 طرق:
+//   1) URL params  ?station=ps1c&user=محمد&role=operator
+//   2) postMessage من iframe/نظام WTCO
+//   3) window.WTCO_CTX مباشرة من نظام ثاني في نفس الصفحة
+// ══════════════════════════════════════════════════════════════════
+(function () {
+
+    // ── تطبيق السياق على حالة التطبيق ─────────────────────────────
+    function applyCtx(ctx) {
+        if (!ctx) return;
+        window.WTCO_CTX = ctx;
+
+        // 1) تحديد المحطة تلقائياً
+        var stationCode = (ctx.station || '').toLowerCase().replace(/\s+/g, '');
+        var matched = null;
+
+        // حاول مطابقة الكود المباشر أولاً (ps1c, ps1ab …)
+        matched = STATIONS.find(function (st) {
+            return st.code === stationCode ||
+                   st.name.toLowerCase().replace(/\s+/g,'') === stationCode;
+        });
+
+        // إن ما لقى، حاول بالاسم الكامل أو station_name
+        if (!matched && ctx.station_name) {
+            var sn = ctx.station_name.toLowerCase().replace(/\s+/g,'');
+            matched = STATIONS.find(function (st) {
+                return st.name.toLowerCase().replace(/\s+/g,'') === sn;
+            });
+        }
+
+        if (matched) {
+            S.station = matched;
+            S.shift   = getShift();
+            S.date    = today();
+            S.screen  = 'systems';   // ← يقفز مباشرة لقائمة الأنظمة
+        }
+
+        // 2) حفظ بيانات المستخدم في الحالة
+        S.ctx = {
+            user:        ctx.user        || '',
+            employee_no: ctx.employee_no || '',
+            role:        ctx.role        || '',
+            lang:        ctx.lang        || 'ar',
+            embedded:    !!ctx.embedded
+        };
+
+        // 3) تحديث الهيدر بالاسم والمحطة
+        updateCtxHeader();
+
+        // 4) إعادة الرسم
+        render();
+    }
+
+    // ── تحديث الهيدر ───────────────────────────────────────────────
+    function updateCtxHeader() {
+        var ctx = S.ctx || {};
+        var nameEl = document.querySelector('.wtc-header-name');
+        var subEl  = document.querySelector('.wtc-header-sub');
+        if (nameEl && ctx.user) {
+            nameEl.textContent = ctx.user + (ctx.employee_no ? '  ·  #' + ctx.employee_no : '');
+        }
+        if (subEl && ctx.role) {
+            subEl.textContent = ctx.role + (S.station ? '  ·  ' + S.station.name : '');
+        }
+    }
+
+    // ── 1) من URL Params ────────────────────────────────────────────
+    var p = new URLSearchParams(location.search);
+    if (p.get('station') || p.get('user') || p.get('station_name')) {
+        applyCtx({
+            station:     p.get('station')      || '',
+            station_name:p.get('station_name') || '',
+            user:        p.get('user')         || '',
+            employee_no: p.get('employee_no')  || '',
+            role:        p.get('role')         || '',
+            lang:        p.get('lang')         || 'ar',
+            embedded:    p.get('embedded') === '1'
+        });
+    }
+
+    // ── 2) من postMessage (نظام WTCO أو iframe) ─────────────────────
+    window.addEventListener('message', function (e) {
+        if (!e.data || e.data.type !== 'WTCO_CONTEXT') return;
+        applyCtx({
+            station:      e.data.station && (e.data.station.code || e.data.station.name_ar || ''),
+            station_name: e.data.station && (
+                            (e.data.lang === 'ar' ? e.data.station.name_ar : e.data.station.name_en) ||
+                            e.data.station.name || ''
+                          ),
+            user:         e.data.user && (e.data.user.full_name || e.data.user.name || ''),
+            employee_no:  e.data.user && (e.data.user.employee_no || e.data.user.badge || ''),
+            role:         e.data.user && e.data.user.role,
+            lang:         e.data.lang || 'ar',
+            embedded:     true
+        });
+    });
+
+    // ── 3) إن كان WTCO_CTX موجود مسبقاً في الصفحة ──────────────────
+    if (window.WTCO_CTX && !p.get('station')) {
+        applyCtx(window.WTCO_CTX);
+    }
+
+    // ── إخفاء عناصر الدخول عند التضمين ─────────────────────────────
+    if (p.get('embedded') === '1') {
+        var loginEl = document.getElementById('login') ||
+                      document.querySelector('.login-screen');
+        if (loginEl) loginEl.style.display = 'none';
+    }
+
+    // ── تصدير للنظام الخارجي: إشعار بأن الصفحة جاهزة ───────────────
+    try {
+        window.parent.postMessage({ type: 'WTCO_CHECKLIST_READY', version: '2.0' }, '*');
+    } catch(e) {}
+
+})();
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT — يبدأ مباشرة بدون splash ولا login
+// ══════════════════════════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>

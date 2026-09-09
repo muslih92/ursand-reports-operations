@@ -10,11 +10,13 @@ import { notifyStation } from "@/lib/notifications";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 
 interface ChecklistItem {
+  [key: string]: string | undefined;
   system: string;
   status?: string;
   note?: string;
   time?: string;
 }
+
 
 interface ChecklistSubmit {
   type: string;

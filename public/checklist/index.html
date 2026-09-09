@@ -660,7 +660,46 @@ function doSendAll() {
     if(!allDone()){ alert('⚠️ لم تكتمل جميع الأنظمة بعد.'); return; }
     var logs=S.logs.filter(function(l){ return l.station===S.station.name&&l.shift===S.shift&&l.date===S.date; });
     showFinalModal(logs);
+    // إرسال فعلي للنظام (يقوم بإشعار المشرف)
+    try {
+        var ctx = window.WTCO_CTX || {};
+        var payload = {
+            type: 'WTCO_CHECKLIST_SUBMIT',
+            station: ctx.station || { name: S.station.name },
+            user: ctx.user || null,
+            date: S.date,
+            shift: S.shift,
+            summary: {
+                ok: logs.filter(function(l){ return l.status==='no_obs'; }).length,
+                remark: logs.filter(function(l){ return l.status==='remark'; }).length,
+                na: logs.filter(function(l){ return l.status==='na'; }).length,
+                total: logs.length
+            },
+            remarks: logs.filter(function(l){ return l.status==='remark'; }).map(function(l){
+                return { system: l.system, note: l.note, time: l.time };
+            }),
+            logs: logs
+        };
+        if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+        else if (window.opener) window.opener.postMessage(payload, '*');
+    } catch (e) { /* ignore */ }
 }
+
+// نتيجة الإرسال القادمة من النظام
+window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d || d.type !== 'WTCO_SUBMIT_RESULT') return;
+    var el = document.getElementById('sendStatus');
+    if (!el) return;
+    if (d.ok) {
+        el.style.color = '#065f46';
+        el.textContent = '✅ تم إرسال التقرير النهائي وإشعار المشرف';
+    } else {
+        el.style.color = '#b91c1c';
+        el.textContent = '⚠️ تعذّر إرسال التقرير للمشرف: ' + (d.error || 'خطأ غير معروف');
+    }
+});
+
 
 function showFinalModal(logs) {
     var overlay=document.createElement('div');
@@ -690,7 +729,7 @@ function showFinalModal(logs) {
             '<div style="font-size:10px;font-weight:700;color:#003B5C;margin-bottom:8px;">⚠️ الأنظمة ذات الملاحظات:</div>'+
             remRows+'</div>':
             '<div style="background:#d1fae5;border-radius:11px;padding:10px;text-align:center;font-size:11px;color:#065f46;font-weight:600;margin-bottom:14px;">✅ جميع الأنظمة سليمة — لا ملاحظات</div>')+
-        '<div style="background:linear-gradient(135deg,rgba(0,59,92,.07),rgba(0,119,182,.07));border-radius:11px;padding:10px;font-size:10px;color:#003B5C;font-weight:600;text-align:center;margin-bottom:14px;">✅ تم حفظ التقرير محلياً وإشعار المشرف</div>'+
+        '<div id="sendStatus" style="background:linear-gradient(135deg,rgba(0,59,92,.07),rgba(0,119,182,.07));border-radius:11px;padding:10px;font-size:10px;color:#003B5C;font-weight:600;text-align:center;margin-bottom:14px;">⏳ جارٍ إرسال التقرير للمشرف…</div>'+
         '<button onclick="this.closest(\'.overlay\').remove()" class="btn-primary">إغلاق</button>';
     overlay.appendChild(box);
     overlay.onclick=function(e){ if(e.target===overlay) overlay.remove(); };

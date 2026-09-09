@@ -340,6 +340,16 @@ function ChecklistPage() {
           <h2 className="font-bold text-sm flex-1">
             {ar ? "سجل قوائم الفحص اليومية" : "Daily checklist records"}
           </h2>
+          {stations.length > 1 && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={allStations}
+                onChange={(e) => setAllStations(e.target.checked)}
+              />
+              {ar ? "كل محطاتي" : "All my stations"}
+            </label>
+          )}
           <input
             type="date"
             value={listDate}

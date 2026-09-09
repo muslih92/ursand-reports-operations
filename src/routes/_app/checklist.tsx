@@ -231,6 +231,8 @@ function ChecklistPage() {
       );
       if (error) throw error;
       await qc.invalidateQueries({ queryKey: ["checklist-reports"] });
+      void pushReports(payload.date);
+
       try {
         await notifyStation({
           stationId,

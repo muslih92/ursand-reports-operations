@@ -1248,6 +1248,36 @@ function _renderEditItemsUI(sc) {
         _renderEditItemsList(document.getElementById('screens'));
     };
     node.getElementById('btnSaveItems').onclick = saveEditedItems;
+
+    // إضافة / حذف نظام للمحطة المختارة (للأدمن فقط)
+    var btnAddSys = node.getElementById('btnAddSystem');
+    var btnDelSys = node.getElementById('btnDelSystem');
+    btnAddSys.onclick = function(){
+        var name = (prompt('اسم النظام الجديد للمحطة: ' + state.editStation) || '').trim();
+        if(!name) return;
+        var code = stationCodeOf(state.editStation);
+        var list = getSystems(state.editStation).slice();
+        if(list.indexOf(name) !== -1){ alert('⚠️ هذا النظام موجود مسبقاً في المحطة.'); return; }
+        list.push(name);
+        setStationSystems(code, list);
+        state.editSystem = name;
+        alert('✅ تمت إضافة النظام: ' + name);
+        render();
+    };
+    btnDelSys.onclick = function(){
+        var sys = state.editSystem;
+        if(!sys) return;
+        var code = stationCodeOf(state.editStation);
+        var list = getSystems(state.editStation).slice();
+        if(list.length <= 1){ alert('⚠️ يجب أن تحتوي المحطة على نظام واحد على الأقل.'); return; }
+        if(!confirm('حذف النظام "' + sys + '" من محطة ' + state.editStation + '؟\nلن تُحذف السجلات المسجّلة سابقاً.')) return;
+        list = list.filter(function(s){ return s !== sys; });
+        setStationSystems(code, list);
+        state.editSystem = list[0];
+        alert('🗑 تم حذف النظام من المحطة.');
+        render();
+    };
+
     node.getElementById('btnBackEditItems').onclick = function(){ state.screen='adminSel'; render(); };
 
     sc.appendChild(node);

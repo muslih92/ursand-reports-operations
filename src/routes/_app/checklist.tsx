@@ -329,6 +329,89 @@ function ChecklistPage() {
           allowFullScreen
         />
       </div>
+
+      <div className="rounded-xl border bg-card shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 border-b p-3">
+          <h2 className="font-bold text-sm flex-1">
+            {ar ? "سجل قوائم الفحص اليومية" : "Daily checklist records"}
+          </h2>
+          <input
+            type="date"
+            value={listDate}
+            onChange={(e) => setListDate(e.target.value)}
+            className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        {reports.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            {ar ? "لا توجد تقارير محفوظة في هذا اليوم" : "No saved reports for this day"}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs">
+                <tr>
+                  <th className="p-2 text-start">{ar ? "المحطة" : "Station"}</th>
+                  <th className="p-2 text-start">{ar ? "الوردية" : "Shift"}</th>
+                  <th className="p-2 text-start">{ar ? "المشغّل" : "Operator"}</th>
+                  <th className="p-2">{ar ? "سليم" : "OK"}</th>
+                  <th className="p-2">{ar ? "ملاحظات" : "Remarks"}</th>
+                  <th className="p-2">{ar ? "غير منطبق" : "N/A"}</th>
+                  <th className="p-2">{ar ? "الإنجاز" : "Completion"}</th>
+                  <th className="p-2">{ar ? "الوقت" : "Time"}</th>
+                  {isAdmin && <th className="p-2" />}
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((r) => (
+                  <tr key={r.id} className="border-t align-top">
+                    <td className="p-2 font-medium">{stationName(r.station_id)}</td>
+                    <td className="p-2">{r.shift}</td>
+                    <td className="p-2">
+                      {r.operator_name}
+                      {r.employee_no ? ` #${r.employee_no}` : ""}
+                    </td>
+                    <td className="p-2 text-center text-emerald-600 font-semibold">{r.ok_count}</td>
+                    <td className="p-2 text-center text-amber-600 font-semibold">{r.remark_count}</td>
+                    <td className="p-2 text-center text-muted-foreground">{r.na_count}</td>
+                    <td className="p-2 text-center">
+                      <span
+                        className={
+                          Number(r.completion_pct) >= 90
+                            ? "text-emerald-600 font-bold"
+                            : Number(r.completion_pct) >= 60
+                              ? "text-amber-600 font-bold"
+                              : "text-destructive font-bold"
+                        }
+                      >
+                        {Number(r.completion_pct)}%
+                      </span>
+                    </td>
+                    <td className="p-2 text-center text-xs text-muted-foreground">
+                      {new Date(r.created_at).toLocaleTimeString(ar ? "ar-SA" : "en-GB", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    {isAdmin && (
+                      <td className="p-2 text-center">
+                        <button
+                          onClick={() => void removeReport(r.id)}
+                          className="p-1.5 rounded text-destructive hover:bg-destructive/10"
+                          aria-label={ar ? "حذف" : "Delete"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
+
   );
 }

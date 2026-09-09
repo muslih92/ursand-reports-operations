@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, ExternalLink, RefreshCw, Maximize2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -379,9 +379,8 @@ function ChecklistPage() {
               </thead>
               <tbody>
                 {reports.map((r) => (
-                  <>
+                  <Fragment key={r.id}>
                   <tr
-                    key={r.id}
                     onClick={() => setOpenId(openId === r.id ? null : r.id)}
                     className="border-t align-top cursor-pointer hover:bg-muted/40"
                   >
@@ -468,7 +467,7 @@ function ChecklistPage() {
                       </td>
                     </tr>
                   )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

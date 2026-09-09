@@ -5,7 +5,10 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 
-const CHECKLIST_URL = "https://falgimajid-art.github.io/STATIONCHECKLIST/";
+const CHECKLIST_URL =
+  typeof window !== "undefined"
+    ? `${window.location.origin}/checklist/index.html`
+    : "/checklist/index.html";
 
 export const Route = createFileRoute("/_app/checklist")({
   head: () => ({
@@ -52,7 +55,7 @@ function ChecklistPage() {
   const slug = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   const src = useMemo(() => {
-    const u = new URL(CHECKLIST_URL);
+    const u = new URL(CHECKLIST_URL, "http://localhost");
     if (station) {
       u.searchParams.set("station", slug(station.code));
       u.searchParams.set("station_code", station.code);
@@ -68,7 +71,7 @@ function ChecklistPage() {
     u.searchParams.set("no_login", "1");
     u.searchParams.set("skip_login", "1");
     u.searchParams.set("auth", "wtco");
-    return u.toString();
+    return CHECKLIST_URL.startsWith("http") ? u.toString() : u.pathname + u.search;
   }, [station, profile?.full_name, profile?.employee_no, role, locale, ar]);
 
   // Also push the context via postMessage for checklist builds that listen for it.

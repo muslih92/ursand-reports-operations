@@ -1030,7 +1030,11 @@ function _renderSystemsUI(sc) {
     var k = kpi();
     node.getElementById('kpiNum').textContent = k+'%';
     node.getElementById('kpiBar').style.width = k+'%';
-    node.getElementById('btnLogout').onclick = function(){ state.screen='select'; render(); };
+    var _lo = node.getElementById('btnLogout');
+    if (_lo) {
+      if (window.WTCO_CTX_ROLE) { _lo.parentNode.removeChild(_lo); }
+      else { _lo.onclick = function(){ state.screen='select'; render(); }; }
+    }
 
     var list = node.getElementById('systemsList');
     getSystems(state.station).forEach(function(sys){
@@ -1825,6 +1829,7 @@ function printSummary() {
   function applyCtx(ctx) {
     if (!ctx) return;
     CTX = Object.assign(CTX, ctx);
+    window.WTCO_CTX_ROLE = CTX.role || '';
     if (CTX.user) state.opID = CTX.employee_no || CTX.user;
     var key = findStation(CTX.stationCode, CTX.stationName);
     if (key) {

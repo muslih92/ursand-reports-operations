@@ -212,13 +212,42 @@ function ChecklistPage() {
       reply(false, msg);
     }
   };
+  // ── السجل اليومي لقوائم الفحص المحفوظة ─────────────────────────────
+  const scopeKey = stations.map((s) => s.id).sort().join(",");
+  const { data: reports = [] } = useQuery({
+    queryKey: ["checklist-reports", listDate, stationId || scopeKey],
+    enabled: stations.length > 0,
+    queryFn: async () => {
+      let q = supabase
+        .from("checklist_reports")
+        .select("*")
+        .eq("report_date", listDate)
+        .order("created_at", { ascending: false });
+      if (stationId) q = q.eq("station_id", stationId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
+  const stationName = (id: string) => {
+    const s = stations.find((x) => x.id === id);
+    return s ? `${s.code} — ${ar ? s.name_ar : s.name_en}` : "—";
+  };
 
+  const removeReport = async (id: string) => {
+    if (!confirm(ar ? "حذف هذا التقرير؟" : "Delete this report?")) return;
+    const { error } = await supabase.from("checklist_reports").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    await qc.invalidateQueries({ queryKey: ["checklist-reports"] });
+    toast.success(ar ? "تم الحذف" : "Deleted");
+  };
 
   useEffect(() => {
     pushContext();
      
   }, [stationId, locale, profile?.employee_no]);
+
 
   return (
     <div className="space-y-4">

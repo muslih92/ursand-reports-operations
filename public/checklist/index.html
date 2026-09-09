@@ -1021,6 +1021,7 @@ function renderSelect(sc, isNight) {
 }
 
 function renderSystems(sc) {
+    var mySeq = RENDER_SEQ;
     // Load fresh logs from Supabase for current station+date
     loadLogsFromSupabase(state.station, state.date, function(freshLogs){
         // Merge: keep local entries not yet in server, add server entries
@@ -1031,6 +1032,9 @@ function renderSystems(sc) {
             if(!exists) state.logs.push(fl);
             else { var keepImgs = (exists.images && exists.images.length && (!fl.images || !fl.images.length)) ? exists.images : fl.images; Object.assign(exists, fl); exists.images = keepImgs; }
         });
+        // Ignore stale async results and never append a second copy
+        if (mySeq !== RENDER_SEQ || state.screen !== 'systems') return;
+        while (sc.firstChild) sc.removeChild(sc.firstChild);
         _renderSystemsUI(sc);
     });
 }

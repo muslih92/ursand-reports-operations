@@ -1770,9 +1770,10 @@ function printSummary() {
   }
 
   function applyRoleLimits() {
-    // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
+    // الصلاحية مرتبطة بحساب الموظف — لا حاجة لزر دخول/خروج لوحة المشرف
     var sup = document.getElementById('supBtn');
-    if (sup) sup.style.display = (!CTX.role || isSupRole()) ? '' : 'none';
+    if (sup && CTX.role && sup.parentNode) sup.parentNode.removeChild(sup);
+    else if (sup && !CTX.role) sup.style.display = '';
     // تعديل نقاط الفحص: للأدمن فقط
     var edit = document.getElementById('btnEditItems');
     if (edit) edit.style.display = isAdminRole() ? '' : 'none';
@@ -1786,6 +1787,18 @@ function printSummary() {
     if (logout && CTX.role && !isSupRole() && logout.parentNode) logout.parentNode.removeChild(logout);
     if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
       state.screen = 'systems';
+    }
+    // المشرف/الأدمن: لوحة واحدة فقط — لا خروج منها إلى شاشة اختيار المحطة
+    if (CTX.role && isSupRole()) {
+      state.isAdmin = true;
+      if (!state.supervisor) {
+        state.supervisor = {
+          stations: isAdminRole()
+            ? Object.keys(STATIONS).map(function (k) { return STATIONS[k].name; })
+            : allowedStationNames()
+        };
+      }
+      if (state.screen === 'select') state.screen = 'adminSel';
     }
     // حصر محطات لوحة المشرف بمحطاته
     if (state.isAdmin && CTX.role && !isAdminRole()) {

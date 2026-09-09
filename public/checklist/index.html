@@ -1166,17 +1166,39 @@ function renderEditItems(sc) {
 
 function _renderEditItemsUI(sc) {
     var node = cloneTemplate('tpl-editItems');
+    var selSt = node.getElementById('editItemsStation');
     var sel = node.getElementById('editItemsSystem');
-    var allSystems = getAllSystemNames();
-    allSystems.forEach(function(sys){
+
+    // المحطات المتاحة (محطات صلاحية الحساب إن وُجدت، وإلا كل المحطات)
+    var stationNames = (window.WTCO_ALLOWED_STATIONS && window.WTCO_ALLOWED_STATIONS.length)
+        ? window.WTCO_ALLOWED_STATIONS.slice()
+        : (state.supervisor ? state.supervisor.stations.slice()
+                            : Object.keys(STATIONS).map(function(k){ return STATIONS[k].name; }));
+    if(!state.editStation || stationNames.indexOf(state.editStation)===-1)
+        state.editStation = state.adminStation && stationNames.indexOf(state.adminStation)!==-1
+            ? state.adminStation : (stationNames[0] || '');
+    stationNames.forEach(function(st){
+        var o = document.createElement('option');
+        o.value = st; o.textContent = st;
+        if(st===state.editStation) o.selected = true;
+        selSt.appendChild(o);
+    });
+
+    var stSystems = getSystems(state.editStation);
+    stSystems.forEach(function(sys){
         var o = document.createElement('option');
         o.value = sys; o.textContent = sys;
         sel.appendChild(o);
     });
-    if(!state.editSystem || allSystems.indexOf(state.editSystem)===-1) state.editSystem = allSystems[0];
+    if(!state.editSystem || stSystems.indexOf(state.editSystem)===-1) state.editSystem = stSystems[0];
     sel.value = state.editSystem;
     state.editItems = getSysItems(state.editSystem).slice();
 
+    selSt.onchange = function(){
+        state.editStation = this.value;
+        state.editSystem = '';
+        render();
+    };
     sel.onchange = function(){
         state.editSystem = this.value;
         state.editItems = getSysItems(state.editSystem).slice();

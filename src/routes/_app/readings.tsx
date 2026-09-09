@@ -493,61 +493,6 @@ function ListView({
         )}
       </div>
 
-      {!showNew ? null : !stationId ? (
-        <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
-          {locale === "ar" ? "اختر محطة للمتابعة" : "Pick a station to continue"}
-        </div>
-      ) : isLoading ? (
-        <div className="text-sm text-muted-foreground">{t("common.loading")}</div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(templates ?? []).map((tpl) => {
-            const done = progress?.[tpl.id]?.size ?? 0;
-            const total = tpl.time_slots.length;
-            const pct = total ? Math.round((done / total) * 100) : 0;
-            const full = done >= total && total > 0;
-            return (
-              <button
-                key={tpl.id}
-                onClick={() => onSelect(tpl.id)}
-                className="text-start rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold truncate">
-                      {locale === "ar" ? tpl.name_ar : tpl.name_en}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {tpl.code} · {freqLabel(tpl.frequency, locale)}
-                    </div>
-                  </div>
-                  {full ? (
-                    <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
-                  )}
-                </div>
-                <div className="mt-3">
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${full ? "bg-success" : "bg-primary"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1.5">
-                    {done} / {total} {locale === "ar" ? "قراءة" : "readings"}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-          {(templates ?? []).length === 0 && (
-            <div className="col-span-full text-sm text-muted-foreground text-center py-8">
-              {locale === "ar" ? "لا توجد قوالب" : "No templates"}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

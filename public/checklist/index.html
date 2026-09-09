@@ -945,7 +945,10 @@ function renderSelect(sc, isNight) {
     node.getElementById('shiftLabel').textContent = isNight ? 'الوردية المسائية' : 'الوردية الصباحية';
 
     var list = node.getElementById('stationList');
-    Object.keys(STATIONS).forEach(function(code){
+    var allowNames = window.WTCO_ALLOWED_STATIONS || null;
+    Object.keys(STATIONS).filter(function(code){
+        return !allowNames || !allowNames.length || allowNames.indexOf(STATIONS[code].name) !== -1;
+    }).forEach(function(code){
         var btn = document.createElement('button');
         btn.style.cssText = 'width:100%;padding:14px 16px;border-radius:15px;text-align:right;font-size:12px;font-weight:700;background:#f0f8ff;border:1.5px solid rgba(0,95,142,.1);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;transition:all .2s;';
         btn.innerHTML = '<span style="color:#003B5C;">'+STATIONS[code].name+'</span><span class="line-badge">'+STATIONS[code].line+'</span>';
@@ -1590,7 +1593,7 @@ function printSummary() {
         '<div style="font-size:12px;margin-top:6px;opacity:.85;">' + station + '  |  ' + dateStr + '</div>' +
         '<div style="font-size:9px;margin-top:4px;opacity:.7;">شركة نقل المياه (WTCO) — الجبيل</div>' +
         '</div>' +
-        '<img src="'+LOGO_URL+'" style="height:50px;width:50px;object-fit:contain;background:rgba(255,255,255,.15);border-radius:10px;padding:5px;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
+        '<img src="'+LOGO_URL+'" style="height:84px;width:84px;object-fit:contain;background:rgba(255,255,255,.15);border-radius:14px;padding:8px;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
         '</div>' +
         '<table style="width:100%;border-collapse:collapse;">' + rows + '</table>' +
         '<div style="margin-top:16px;font-size:9px;color:#94a3b8;text-align:center;">تم إنشاء هذا التقرير تلقائياً من نظام WTC Checklist</div>' +
@@ -1683,7 +1686,11 @@ function printSummary() {
     if (state.screen === 'editItems' && CTX.role && !isAdminRole()) {
       state.screen = 'adminSel';
     }
-    // المشغل مربوط بمحطته: لا يمكنه العودة لشاشة اختيار المحطة
+    // حصر قائمة المحطات بالمحطات المرتبطة بالحساب (غير الأدمن)
+    window.WTCO_ALLOWED_STATIONS = isAdminRole() ? null : allowedStationNames();
+    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً
+    var logout = document.getElementById('btnLogout');
+    if (logout) logout.style.display = (CTX.role && !isSupRole()) ? 'none' : '';
     if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
       state.screen = 'systems';
     }
@@ -1694,6 +1701,7 @@ function printSummary() {
       if (allowed.indexOf(state.adminStation) === -1) state.adminStation = allowed[0] || '';
     }
   }
+
 
   function updateHeader() {
     var nameEl = document.querySelector('.wtc-header-name');

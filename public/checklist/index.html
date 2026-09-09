@@ -1679,6 +1679,9 @@ function printSummary() {
   function applyRoleLimits() {
     // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
     var sup = document.getElementById('supBtn');
+  function applyRoleLimits() {
+    // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
+    var sup = document.getElementById('supBtn');
     if (sup) sup.style.display = (!CTX.role || isSupRole()) ? '' : 'none';
     // تعديل نقاط الفحص: للأدمن فقط
     var edit = document.getElementById('btnEditItems');
@@ -1686,7 +1689,11 @@ function printSummary() {
     if (state.screen === 'editItems' && CTX.role && !isAdminRole()) {
       state.screen = 'adminSel';
     }
-    // المشغل مربوط بمحطته: لا يمكنه العودة لشاشة اختيار المحطة
+    // حصر قائمة المحطات بالمحطات المرتبطة بالحساب (غير الأدمن)
+    window.WTCO_ALLOWED_STATIONS = isAdminRole() ? null : allowedStationNames();
+    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً
+    var logout = document.getElementById('btnLogout');
+    if (logout) logout.style.display = (CTX.role && !isSupRole()) ? 'none' : '';
     if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
       state.screen = 'systems';
     }
@@ -1697,6 +1704,7 @@ function printSummary() {
       if (allowed.indexOf(state.adminStation) === -1) state.adminStation = allowed[0] || '';
     }
   }
+
 
   function updateHeader() {
     var nameEl = document.querySelector('.wtc-header-name');

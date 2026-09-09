@@ -2004,8 +2004,14 @@ function printSummary() {
         b.disabled = false;
         b.textContent = d.ok ? '✅ تم إرسال التقرير للمشرف' : '📤 إرسال التقرير النهائي للمشرف';
       }
-      if (!d.ok) alert('تعذّر إرسال التقرير: ' + (d.error || 'خطأ غير معروف'));
+      if (d.ok) {
+        var info = document.getElementById('wtcoSendInfo');
+        if (info) { info.textContent = 'تم استلام التقرير لدى المشرف ✅'; info.style.color = '#0b6b53'; }
+      } else {
+        alert('تعذّر إرسال التقرير: ' + (d.error || 'خطأ غير معروف'));
+      }
     }
+
   });
 
   if (p.get('station') || p.get('user') || p.get('station_code')) {

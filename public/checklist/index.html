@@ -859,11 +859,22 @@ var state = {
 };
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
+function _uniqSys(arr) {
+    var seen = {}, out = [];
+    (arr || []).forEach(function(s){
+        var k = String(s == null ? '' : s).trim();
+        if (!k) return;
+        var key = k.toUpperCase();
+        if (seen[key]) return;
+        seen[key] = 1; out.push(k);
+    });
+    return out;
+}
 function getSystems(st) {
     var code = Object.keys(STATIONS).find(function(k){ return STATIONS[k].name === st; }) || st;
     var ov = getStationSystemsOverride(code);
-    if(ov) return ov;
-    if(STATION_SYSTEMS[code] && STATION_SYSTEMS[code].length > 0) return STATION_SYSTEMS[code];
+    if(ov) return _uniqSys(ov);
+    if(STATION_SYSTEMS[code] && STATION_SYSTEMS[code].length > 0) return _uniqSys(STATION_SYSTEMS[code]);
     return st && st.includes('FG') ? ['AIR COMPERSSOR SYSTEM','BOOSTER PUMP HOUSE','COOLING WATER SYSTEM','ELECTRICAL VSD BULDING','EMERGENCY GENERATOR','HV, MV, LV, VSD TRANSFORMERS','HVAC AND CHILLERS','INLET SURGE VESSEL SYSTEM','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','OUTLET SURGE VESSEL SYSTEM','PRESSURE RELIEF SYSTEM','TANK FARM AREA','UTILITY & FIRE DIESEL PUPM SYSTEM'] : ['AIR CONDITIONING&VENTILATION SYS-1','COOLING WATER SYSTEM','DRINKING AND UTILITY','ELECTRICAL BUILDING CABLE CELLAER','EMERGENCY GENERATOR','FLOW CONTROL VALVE MAIN','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','PRESSUR CONTROL VALVE','SEWAGE SYSTEM','STATION BATTERIES ROOM','SURGE RELIEF SYSTEM','UNIT CONTROL&FEEDBACK EQUIPMENT','STATION CONRROL ROOM','SCRAPER'];
 }
 function getShift() { var h = new Date().getHours(); return (h>=6&&h<18)?'صباحي':'مسائي'; }

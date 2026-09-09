@@ -1026,7 +1026,9 @@ function renderSystems(sc) {
     state.shift = getShift();
     state.date = new Date().toISOString().split('T')[0];
     // Load fresh logs from Supabase for current station+date
+    if (window.wtcoRequestReports) window.wtcoRequestReports(state.date);
     loadLogsFromSupabase(state.station, state.date, function(freshLogs){
+
         // Merge: keep local entries not yet in server, add server entries
         freshLogs.forEach(function(fl){
             var exists = state.logs.find(function(l){

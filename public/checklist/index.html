@@ -1024,7 +1024,7 @@ function renderSystems(sc) {
     var mySeq = RENDER_SEQ;
     // العرض دائماً للوردية الحالية فقط
     state.shift = getShift();
-    state.date = todayStr ? todayStr() : state.date;
+    state.date = new Date().toISOString().split('T')[0];
     // Load fresh logs from Supabase for current station+date
     loadLogsFromSupabase(state.station, state.date, function(freshLogs){
         // Merge: keep local entries not yet in server, add server entries

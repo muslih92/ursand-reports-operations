@@ -258,6 +258,23 @@ function Dashboard() {
       return { done, notDone, pending, total, pct: total ? Math.round((done / total) * 100) : 0, records: (data ?? []).length };
     },
   });
+  const { data: checklistStats } = useQuery({
+    queryKey: ["dash-checklist", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("checklist_reports")
+        .select("completion_pct, remark_count")
+        .gte("report_date", from).lte("report_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      const rows = data ?? [];
+      const remarks = rows.reduce((a, r) => a + (r.remark_count ?? 0), 0);
+      const pct = rows.length
+        ? Math.round(rows.reduce((a, r) => a + Number(r.completion_pct ?? 0), 0) / rows.length)
+        : 0;
+      return { count: rows.length, pct, remarks };
+    },
+  });
+
 
 
 

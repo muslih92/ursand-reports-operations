@@ -785,6 +785,37 @@ function getAllSystemNames() {
     return Object.keys(set).sort();
 }
 
+// ── أنظمة المحطات القابلة للتعديل من الأدمن ────────────────────────────────
+// تُخزَّن في نفس جدول wtc_items بمفتاح خاص: __SYS__:<كود المحطة>
+function sysListKey(code){ return '__SYS__:' + code; }
+function stationCodeOf(name){
+    return Object.keys(STATIONS).find(function(k){ return STATIONS[k].name === name; }) || name;
+}
+function getStationSystemsOverride(code){
+    var v = ITEM_OVERRIDES[sysListKey(code)];
+    return (v && v.length) ? v : null;
+}
+function setStationSystems(code, systems){
+    ITEM_OVERRIDES[sysListKey(code)] = systems.slice();
+    try { localStorage.setItem('wtc_sys_' + code, JSON.stringify(systems)); } catch(e){}
+    pushItemsToSupabase(sysListKey(code), systems);
+}
+// استرجاع أي قوائم أنظمة محفوظة محلياً (احتياط عند تعذّر الاتصال)
+function loadLocalSystemLists(){
+    Object.keys(STATIONS).forEach(function(code){
+        if(getStationSystemsOverride(code)) return;
+        try {
+            var raw = localStorage.getItem('wtc_sys_' + code);
+            if(raw){
+                var arr = JSON.parse(raw);
+                if(arr && arr.length) ITEM_OVERRIDES[sysListKey(code)] = arr;
+            }
+        } catch(e){}
+    });
+}
+
+
+
 // تحميل نقاط الفحص المخصصة (إن وُجدت) من Supabase
 function loadItemOverrides(callback) {
     var url = SUPA_URL + '/rest/v1/wtc_items?select=*';

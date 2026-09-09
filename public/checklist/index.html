@@ -1712,9 +1712,9 @@ function printSummary() {
     }
     // حصر قائمة المحطات بالمحطات المرتبطة بالحساب (غير الأدمن)
     window.WTCO_ALLOWED_STATIONS = isAdminRole() ? null : allowedStationNames();
-    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً
+    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً — نحذف الزر نهائياً
     var logout = document.getElementById('btnLogout');
-    if (logout) logout.style.display = (CTX.role && !isSupRole()) ? 'none' : '';
+    if (logout && CTX.role && !isSupRole() && logout.parentNode) logout.parentNode.removeChild(logout);
     if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
       state.screen = 'systems';
     }

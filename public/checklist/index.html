@@ -622,7 +622,7 @@ function doSave() {
     note=note.trim();
     if(S.status==='remark'){
         if(!note){ alert('⚠️ يجب كتابة تفاصيل الخلل الميداني.'); return; }
-        if(!S.images.length){ alert('📸 يجب إرفاق صورة واحدة على الأقل.'); return; }
+        // إرفاق الصور اختياري
     }
     S.note=note;
     var now=new Date();

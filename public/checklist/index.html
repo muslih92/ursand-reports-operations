@@ -1646,7 +1646,7 @@ function printSummary() {
 <!-- ════ WTCO SYSTEM BRIDGE (ربط تلقائي مع نظام WTCO) ════ -->
 <script>
 (function () {
-  var CTX = { user:'', employee_no:'', role:'', lang:'ar', embedded:false, stationCode:'', stationName:'' };
+  var CTX = { user:'', employee_no:'', role:'', lang:'ar', embedded:false, stationCode:'', stationName:'', stations:[] };
 
   function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
@@ -1659,8 +1659,41 @@ function printSummary() {
     return k || '';
   }
 
-  function isAdminRole(){ return /admin|مسؤول|مدير/i.test(CTX.role); }
+  function isAdminRole(){ return /admin|مسؤول|مدير النظام/i.test(CTX.role); }
   function isSupRole(){ return /supervis|management|مشرف|إدارة/i.test(CTX.role) || isAdminRole(); }
+
+  // المحطات المسموح بها للمشرف داخل لوحة المشرف
+  function allowedStationNames() {
+    var out = [];
+    (CTX.stations || []).forEach(function (s) {
+      var k = findStation(s.code || s.raw_code || '', s.name_en || s.name_ar || s.name || s);
+      if (k && out.indexOf(STATIONS[k].name) === -1) out.push(STATIONS[k].name);
+    });
+    if (!out.length && state.station) out.push(state.station);
+    return out;
+  }
+
+  function applyRoleLimits() {
+    // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
+    var sup = document.getElementById('supBtn');
+    if (sup) sup.style.display = (!CTX.role || isSupRole()) ? '' : 'none';
+    // تعديل نقاط الفحص: للأدمن فقط
+    var edit = document.getElementById('btnEditItems');
+    if (edit) edit.style.display = isAdminRole() ? '' : 'none';
+    if (state.screen === 'editItems' && CTX.role && !isAdminRole()) {
+      state.screen = 'adminSel';
+    }
+    // المشغل مربوط بمحطته: لا يمكنه العودة لشاشة اختيار المحطة
+    if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
+      state.screen = 'systems';
+    }
+    // حصر محطات لوحة المشرف بمحطاته
+    if (state.isAdmin && CTX.role && !isAdminRole()) {
+      var allowed = allowedStationNames();
+      state.supervisor = { stations: allowed };
+      if (allowed.indexOf(state.adminStation) === -1) state.adminStation = allowed[0] || '';
+    }
+  }
 
   function updateHeader() {
     var nameEl = document.querySelector('.wtc-header-name');
@@ -1672,9 +1705,7 @@ function printSummary() {
       if (state.station) bits.push(state.station);
       if (bits.length) subEl.textContent = bits.join('  ·  ');
     }
-    var sup = document.getElementById('supBtn');
-    // لوحة المشرف (وتعديل نقاط الفحص) للمسؤول فقط
-    if (sup) sup.style.display = (!CTX.role || isAdminRole()) ? '' : 'none';
+    applyRoleLimits();
   }
 
   function applyCtx(ctx) {
@@ -1692,6 +1723,7 @@ function printSummary() {
     updateHeader();
     render();
   }
+
 
   // ── إرسال التقرير النهائي للمشرف عبر النظام ──────────────────────────
   function currentLogs() {

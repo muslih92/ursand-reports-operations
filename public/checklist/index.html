@@ -1643,5 +1643,163 @@ function printSummary() {
   </div>
 </div>
 
+<!-- ════ WTCO SYSTEM BRIDGE (ربط تلقائي مع نظام WTCO) ════ -->
+<script>
+(function () {
+  var CTX = { user:'', employee_no:'', role:'', lang:'ar', embedded:false, stationCode:'', stationName:'' };
+
+  function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+  function findStation(code, name) {
+    var c = norm(code), n = norm(name);
+    var keys = Object.keys(STATIONS);
+    var k = keys.find(function(x){ return norm(x) === c; });
+    if (!k) k = keys.find(function(x){ return norm(STATIONS[x].name) === c; });
+    if (!k && n) k = keys.find(function(x){ return norm(x) === n || norm(STATIONS[x].name) === n; });
+    return k || '';
+  }
+
+  function isAdminRole(){ return /admin|مسؤول|مدير/i.test(CTX.role); }
+  function isSupRole(){ return /supervis|management|مشرف|إدارة/i.test(CTX.role) || isAdminRole(); }
+
+  function updateHeader() {
+    var nameEl = document.querySelector('.wtc-header-name');
+    var subEl  = document.querySelector('.wtc-header-sub');
+    if (nameEl && CTX.user) nameEl.textContent = CTX.user + (CTX.employee_no ? '  ·  #' + CTX.employee_no : '');
+    if (subEl) {
+      var bits = [];
+      if (CTX.role) bits.push(CTX.role);
+      if (state.station) bits.push(state.station);
+      if (bits.length) subEl.textContent = bits.join('  ·  ');
+    }
+    var sup = document.getElementById('supBtn');
+    // لوحة المشرف (وتعديل نقاط الفحص) للمسؤول فقط
+    if (sup) sup.style.display = (!CTX.role || isAdminRole()) ? '' : 'none';
+  }
+
+  function applyCtx(ctx) {
+    if (!ctx) return;
+    CTX = Object.assign(CTX, ctx);
+    if (CTX.user) state.opID = CTX.employee_no || CTX.user;
+    var key = findStation(CTX.stationCode, CTX.stationName);
+    if (key) {
+      state.station = STATIONS[key].name;
+      state.line    = STATIONS[key].line;
+      state.shift   = getShift();
+      state.date    = new Date().toISOString().split('T')[0];
+      if (state.screen === 'select') state.screen = 'systems';
+    }
+    updateHeader();
+    render();
+  }
+
+  // ── إرسال التقرير النهائي للمشرف عبر النظام ──────────────────────────
+  function currentLogs() {
+    return state.logs.filter(function (l) {
+      return l.station === state.station && l.shift === state.shift && l.date === state.date;
+    });
+  }
+
+  function sendFinal(btn) {
+    var logs = currentLogs();
+    var systems = getSystems(state.station);
+    if (logs.length < systems.length) {
+      if (!confirm('لم تكتمل جميع الأنظمة (' + logs.length + '/' + systems.length + '). إرسال التقرير الآن؟')) return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جارٍ الإرسال...'; }
+    window.__wtcoSendBtn = btn;
+    var payload = {
+      type: 'WTCO_CHECKLIST_SUBMIT',
+      station: { name: state.station, code: findStation('', state.station) },
+      user: { full_name: CTX.user, employee_no: CTX.employee_no, role: CTX.role },
+      date: state.date,
+      shift: state.shift,
+      summary: {
+        ok: logs.filter(function (l) { return l.status === 'no_obs'; }).length,
+        remark: logs.filter(function (l) { return l.status === 'remark'; }).length,
+        na: logs.filter(function (l) { return l.status === 'na'; }).length,
+        total: systems.length
+      },
+      remarks: logs.filter(function (l) { return l.status === 'remark'; }).map(function (l) {
+        return { system: l.system, note: l.note, time: l.time };
+      })
+    };
+    try {
+      if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
+      else if (window.opener) window.opener.postMessage(payload, '*');
+      else throw new Error('no host');
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = '📤 إرسال التقرير النهائي للمشرف'; }
+      alert('تعذّر الإرسال: الصفحة غير مضمّنة داخل النظام.');
+    }
+  }
+
+  function injectSendButton() {
+    if (state.screen !== 'systems') return;
+    var list = document.getElementById('systemsList');
+    if (!list || document.getElementById('wtcoSendFinal')) return;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:24px;';
+    var b = document.createElement('button');
+    b.id = 'wtcoSendFinal';
+    b.className = 'btn-primary';
+    b.textContent = '📤 إرسال التقرير النهائي للمشرف';
+    b.onclick = function () { sendFinal(b); };
+    wrap.appendChild(b);
+    list.parentNode.appendChild(wrap);
+  }
+
+  // hook على render لإضافة الزر وتحديث الهيدر بعد كل رسم
+  var _render = render;
+  render = function () {
+    _render.apply(this, arguments);
+    setTimeout(function () { injectSendButton(); updateHeader(); }, 0);
+  };
+  window.render = render;
+
+  // ── استقبال السياق ────────────────────────────────────────────────
+  var p = new URLSearchParams(location.search);
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (!d) return;
+    if (d.type === 'WTCO_CONTEXT') {
+      applyCtx({
+        stationCode: (d.station && (d.station.code || d.station.raw_code)) || '',
+        stationName: (d.station && (d.station.name_en || d.station.name_ar || d.station.name)) || '',
+        user: (d.user && (d.user.full_name || d.user.name)) || '',
+        employee_no: (d.user && d.user.employee_no) || '',
+        role: (d.user && d.user.role) || '',
+        lang: d.lang || 'ar',
+        embedded: true
+      });
+    }
+    if (d.type === 'WTCO_SUBMIT_RESULT') {
+      var b = window.__wtcoSendBtn;
+      if (b) {
+        b.disabled = false;
+        b.textContent = d.ok ? '✅ تم إرسال التقرير للمشرف' : '📤 إرسال التقرير النهائي للمشرف';
+      }
+      if (!d.ok) alert('تعذّر إرسال التقرير: ' + (d.error || 'خطأ غير معروف'));
+    }
+  });
+
+  if (p.get('station') || p.get('user') || p.get('station_code')) {
+    applyCtx({
+      stationCode: p.get('station') || p.get('station_code') || '',
+      stationName: p.get('station_name') || '',
+      user: p.get('user') || '',
+      employee_no: p.get('employee_no') || '',
+      role: p.get('role') || '',
+      lang: p.get('lang') || 'ar',
+      embedded: p.get('embedded') === '1'
+    });
+  } else {
+    updateHeader();
+  }
+
+  try { window.parent.postMessage({ type: 'WTCO_CHECKLIST_READY', version: '3.0' }, '*'); } catch (e) {}
+})();
+</script>
+
 </body>
 </html>

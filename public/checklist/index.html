@@ -1784,10 +1784,24 @@ function printSummary() {
   // hook على render لإضافة الزر وتحديث الهيدر بعد كل رسم
   var _render = render;
   render = function () {
+    var before = state.screen;
     _render.apply(this, arguments);
+    applyRoleLimits();
+    if (state.screen !== before) { _render.apply(this, arguments); }
     setTimeout(function () { injectSendButton(); updateHeader(); }, 0);
   };
   window.render = render;
+
+  // حصر لوحة المشرف بمحطاته عند فتحها
+  var supEl = document.getElementById('supBtn');
+  if (supEl) {
+    var _supClick = supEl.onclick;
+    supEl.onclick = function () {
+      if (_supClick) _supClick.apply(this, arguments);
+      applyRoleLimits();
+      render();
+    };
+  }
 
   // ── استقبال السياق ────────────────────────────────────────────────
   var p = new URLSearchParams(location.search);
@@ -1798,6 +1812,7 @@ function printSummary() {
       applyCtx({
         stationCode: (d.station && (d.station.code || d.station.raw_code)) || '',
         stationName: (d.station && (d.station.name_en || d.station.name_ar || d.station.name)) || '',
+        stations: d.stations || [],
         user: (d.user && (d.user.full_name || d.user.name)) || '',
         employee_no: (d.user && d.user.employee_no) || '',
         role: (d.user && d.user.role) || '',
@@ -1819,6 +1834,7 @@ function printSummary() {
     applyCtx({
       stationCode: p.get('station') || p.get('station_code') || '',
       stationName: p.get('station_name') || '',
+      stations: (p.get('stations') || '').split('|').filter(Boolean).map(function (n) { return { name: n }; }),
       user: p.get('user') || '',
       employee_no: p.get('employee_no') || '',
       role: p.get('role') || '',
@@ -1828,6 +1844,7 @@ function printSummary() {
   } else {
     updateHeader();
   }
+
 
   try { window.parent.postMessage({ type: 'WTCO_CHECKLIST_READY', version: '3.0' }, '*'); } catch (e) {}
 })();

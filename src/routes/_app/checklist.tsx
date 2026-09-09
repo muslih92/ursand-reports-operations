@@ -55,7 +55,7 @@ function ChecklistPage() {
   const slug = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, "");
 
   const src = useMemo(() => {
-    const u = new URL(CHECKLIST_URL);
+    const u = new URL(CHECKLIST_URL, "http://localhost");
     if (station) {
       u.searchParams.set("station", slug(station.code));
       u.searchParams.set("station_code", station.code);

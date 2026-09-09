@@ -141,18 +141,51 @@ function ChecklistPage() {
   };
 
 
+  // Send the operator checklist reports of a given date back into the frame,
+  // so the supervisor monitor screen reflects what the operator actually checked.
+  const pushReports = async (date?: string) => {
+    const d = date || new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("checklist_reports")
+      .select("station_id, report_date, shift, operator_name, items, submitted_at")
+      .eq("report_date", d);
+    if (error) return;
+    const payload = (data ?? []).map((r) => {
+      const st = stations.find((s) => s.id === r.station_id);
+      return {
+        station_code: st?.code ?? "",
+        station_slug: st ? slug(st.code) : "",
+        station_name_en: st?.name_en ?? "",
+        station_name_ar: st?.name_ar ?? "",
+        date: r.report_date,
+        shift: r.shift,
+        operator: r.operator_name ?? "",
+        items: (r.items as ChecklistItem[] | null) ?? [],
+      };
+    });
+    frameRef.current?.contentWindow?.postMessage(
+      { type: "WTCO_REPORTS", date: d, reports: payload },
+      "*",
+    );
+  };
+
   // The checklist page announces itself with WTCO_CHECKLIST_READY — resend then,
   // and keep re-sending whenever the selected station / user / language changes.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const data = e.data as { type?: string } | null;
+      const data = e.data as { type?: string; date?: string } | null;
       const t = data?.type;
-      if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") pushContext();
+      if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") {
+        pushContext();
+        void pushReports();
+      }
+      if (t === "WTCO_REQUEST_REPORTS") void pushReports(data?.date);
       if (t === "WTCO_CHECKLIST_SUBMIT") void handleSubmit(data as ChecklistSubmit);
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   });
+
 
   const reply = (ok: boolean, error?: string) => {
     frameRef.current?.contentWindow?.postMessage({ type: "WTCO_SUBMIT_RESULT", ok, error }, "*");

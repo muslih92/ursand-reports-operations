@@ -323,7 +323,11 @@ function Dashboard() {
         <StatCard icon={Building2} label={locale === "ar" ? "المحطات" : "Stations"} value={kpis?.stations ?? 0} color="text-emerald-600 bg-emerald-100" />
         <StatCard icon={Flame} label={locale === "ar" ? "اختبارات مضخات الحريق" : "Fire Pump Tests"} value={testsKpis?.firePump ?? 0} color="text-rose-600 bg-rose-100" />
         <StatCard icon={Zap} label={locale === "ar" ? "اختبارات مولد الطوارئ" : "Generator Tests"} value={testsKpis?.generator ?? 0} color="text-amber-600 bg-amber-100" />
+        <StatCard icon={ListChecks} label={locale === "ar" ? "قوائم الفحص" : "Checklists"} value={checklistStats?.count ?? 0} color="text-cyan-600 bg-cyan-100" />
+        <StatCard icon={ListChecks} label={locale === "ar" ? "التزام قوائم الفحص %" : "Checklist compliance %"} value={checklistStats?.pct ?? 0} color="text-teal-600 bg-teal-100" />
+        <StatCard icon={AlertTriangle} label={locale === "ar" ? "ملاحظات قوائم الفحص" : "Checklist remarks"} value={checklistStats?.remarks ?? 0} color="text-yellow-600 bg-yellow-100" />
       </div>
+
 
       <div className="rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between mb-3">

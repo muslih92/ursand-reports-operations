@@ -10,7 +10,7 @@ import { StationOfWeek } from "@/components/station-of-week";
 import { StaffOfMonth } from "@/components/staff-of-month";
 
 import {
-  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
+  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap, ListChecks,
 } from "lucide-react";
 
 import {

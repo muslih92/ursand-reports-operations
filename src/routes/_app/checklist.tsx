@@ -56,12 +56,15 @@ export const Route = createFileRoute("/_app/checklist")({
 function ChecklistPage() {
   const { locale } = useI18n();
   const ar = locale === "ar";
-  const { profile, roles } = useAuth();
+  const { profile, roles, isAdmin } = useAuth();
   const { scopedStationId, canPickStation } = useStationScope();
   const { data: stations = [] } = useScopedStations();
+  const qc = useQueryClient();
   const [reloadKey, setReloadKey] = useState(0);
   const [stationId, setStationId] = useState<string>("");
+  const [listDate, setListDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const frameRef = useRef<HTMLIFrameElement>(null);
+
 
   // Auto-select the user's station (or the only one they can access).
   useEffect(() => {

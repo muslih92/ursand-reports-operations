@@ -160,24 +160,48 @@ function ChecklistPage() {
     }
     const s = payload.summary ?? { ok: 0, remark: 0, na: 0, total: 0 };
     const remarks = payload.remarks ?? [];
+    const items = payload.items ?? [];
+    const done = s.ok + s.remark + s.na;
+    const pct = s.total > 0 ? Math.round((done / s.total) * 100) : 0;
     const stationLabel = station ? `${station.code} — ${ar ? station.name_ar : station.name_en}` : "";
     const title = `قائمة فحص المحطة — ${stationLabel} (${payload.date ?? ""} · ${payload.shift ?? ""})`;
     const body =
       `المشغّل: ${profile?.full_name ?? ""} #${profile?.employee_no ?? ""}\n` +
-      `سليم: ${s.ok} · ملاحظات: ${s.remark} · غير منطبق: ${s.na} · الإجمالي: ${s.total}` +
+      `سليم: ${s.ok} · ملاحظات: ${s.remark} · غير منطبق: ${s.na} · الإجمالي: ${s.total} · الإنجاز: ${pct}%` +
       (remarks.length
         ? `\n\nالملاحظات:\n` + remarks.map((r) => `• ${r.system}: ${r.note ?? ""} (${r.time ?? ""})`).join("\n")
         : "");
     try {
-      await notifyStation({
-        stationId,
-        kind: "checklist_report",
-        title,
-        body,
-        link: "/checklist",
-        roles: ["supervisor", "admin", "management"],
+      const { error } = await supabase.from("checklist_reports").insert({
+        station_id: stationId,
+        report_date: payload.date ?? new Date().toISOString().slice(0, 10),
+        shift: payload.shift ?? "",
+        operator_id: profile?.id ?? null,
+        operator_name: profile?.full_name ?? null,
+        employee_no: profile?.employee_no ?? null,
+        ok_count: s.ok,
+        remark_count: s.remark,
+        na_count: s.na,
+        total_count: s.total,
+        completion_pct: pct,
+        items,
+        remarks,
       });
-      toast.success(ar ? "تم إرسال التقرير النهائي للمشرف" : "Final report sent to supervisor");
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["checklist-reports"] });
+      try {
+        await notifyStation({
+          stationId,
+          kind: "checklist_report",
+          title,
+          body,
+          link: "/checklist",
+          roles: ["supervisor", "admin", "management"],
+        });
+      } catch {
+        // الحفظ تم؛ فشل الإشعار وحده لا يُفشل التقرير
+      }
+      toast.success(ar ? "تم حفظ التقرير وإرساله للمشرف" : "Report saved and sent to supervisor");
       reply(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -185,6 +209,7 @@ function ChecklistPage() {
       reply(false, msg);
     }
   };
+
 
 
   useEffect(() => {

@@ -2020,8 +2020,47 @@ function printSummary() {
         alert('تعذّر إرسال التقرير: ' + (d.error || 'خطأ غير معروف'));
       }
     }
+    if (d.type === 'WTCO_REPORTS') {
+      mergeHostReports(d.reports || []);
+    }
 
   });
+
+  // ── انعكاس تشييك المشغّل داخل شاشة المشرف ─────────────────────────
+  function requestReports(date) {
+    try {
+      window.parent.postMessage({ type: 'WTCO_REQUEST_REPORTS', date: date || state.date }, '*');
+    } catch (e) {}
+  }
+  window.wtcoRequestReports = requestReports;
+
+  function mergeHostReports(reports) {
+    var changed = false;
+    (reports || []).forEach(function (rep) {
+      var key = findStation(rep.station_slug || rep.station_code, rep.station_name_en || rep.station_name_ar);
+      var stName = key ? STATIONS[key].name : (rep.station_name_en || rep.station_name_ar || '');
+      if (!stName) return;
+      (rep.items || []).forEach(function (it) {
+        if (!it || !it.system) return;
+        if (!it.status || it.status === 'pending') return;
+        var exists = state.logs.find(function (l) {
+          return l.station === stName && l.system === it.system && l.shift === rep.shift && l.date === rep.date;
+        });
+        var entry = {
+          station: stName, system: it.system, shift: rep.shift, date: rep.date,
+          time: it.time || '', status: it.status, note: it.note || '',
+          operator: rep.operator || '', line: (key && STATIONS[key].line) || '', images: (exists && exists.images) || []
+        };
+        if (exists) { Object.assign(exists, entry); }
+        else { state.logs.push(entry); }
+        changed = true;
+      });
+    });
+    if (!changed) return;
+    if (state.screen === 'adminSel') _renderHistoryShiftsUI(document);
+    else if (state.screen === 'systems') render();
+  }
+
 
   if (p.get('station') || p.get('user') || p.get('station_code')) {
     applyCtx({

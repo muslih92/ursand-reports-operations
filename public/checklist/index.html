@@ -2031,9 +2031,15 @@ function printSummary() {
   });
 
   // ── انعكاس تشييك المشغّل داخل شاشة المشرف ─────────────────────────
+  var _lastReportsReq = { date: '', at: 0 };
   function requestReports(date) {
+    var d = date || state.date;
+    var now = Date.now();
+    // throttle: avoid a request/merge/render feedback loop that makes the page blink
+    if (_lastReportsReq.date === d && now - _lastReportsReq.at < 5000) return;
+    _lastReportsReq = { date: d, at: now };
     try {
-      window.parent.postMessage({ type: 'WTCO_REQUEST_REPORTS', date: date || state.date }, '*');
+      window.parent.postMessage({ type: 'WTCO_REQUEST_REPORTS', date: d }, '*');
     } catch (e) {}
   }
   window.wtcoRequestReports = requestReports;
@@ -2055,8 +2061,15 @@ function printSummary() {
           time: it.time || '', status: it.status, note: it.note || '',
           operator: rep.operator || '', line: (key && STATIONS[key].line) || '', images: (exists && exists.images) || []
         };
-        if (exists) { Object.assign(exists, entry); }
-        else { state.logs.push(entry); }
+        if (exists) {
+          // only re-render when something really changed
+          var same = exists.status === entry.status && (exists.note || '') === entry.note &&
+            (exists.time || '') === entry.time && (exists.operator || '') === entry.operator;
+          if (same) return;
+          Object.assign(exists, entry);
+        } else {
+          state.logs.push(entry);
+        }
         changed = true;
       });
     });

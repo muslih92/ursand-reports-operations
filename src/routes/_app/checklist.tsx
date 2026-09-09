@@ -216,16 +216,19 @@ function ChecklistPage() {
   };
   // ── السجل اليومي لقوائم الفحص المحفوظة ─────────────────────────────
   const scopeKey = stations.map((s) => s.id).sort().join(",");
+  const [allStations, setAllStations] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const { data: reports = [] } = useQuery({
-    queryKey: ["checklist-reports", listDate, stationId || scopeKey],
+    queryKey: ["checklist-reports", listDate, allStations ? scopeKey : stationId || scopeKey, allStations],
     enabled: stations.length > 0,
+    refetchInterval: 30000,
     queryFn: async () => {
       let q = supabase
         .from("checklist_reports")
         .select("*")
         .eq("report_date", listDate)
         .order("created_at", { ascending: false });
-      if (stationId) q = q.eq("station_id", stationId);
+      if (!allStations && stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
       return data ?? [];

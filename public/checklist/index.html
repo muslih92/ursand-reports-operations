@@ -365,7 +365,9 @@
             <button class="btn-back" id="btnBackEditItems">رجوع ↩</button>
         </div>
         <div style="margin-bottom:14px;">
-            <label style="display:block;font-size:10px;font-weight:700;color:#5a7fa0;margin-bottom:6px;">⚙️ النظام:</label>
+            <label style="display:block;font-size:10px;font-weight:700;color:#5a7fa0;margin-bottom:6px;">📍 المحطة:</label>
+            <select id="editItemsStation" class="wtc-input" style="margin-bottom:10px;"></select>
+            <label style="display:block;font-size:10px;font-weight:700;color:#5a7fa0;margin-bottom:6px;">⚙️ النظام (تابع للمحطة المختارة):</label>
             <select id="editItemsSystem" class="wtc-input"></select>
         </div>
         <div id="editItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
@@ -1164,17 +1166,39 @@ function renderEditItems(sc) {
 
 function _renderEditItemsUI(sc) {
     var node = cloneTemplate('tpl-editItems');
+    var selSt = node.getElementById('editItemsStation');
     var sel = node.getElementById('editItemsSystem');
-    var allSystems = getAllSystemNames();
-    allSystems.forEach(function(sys){
+
+    // المحطات المتاحة (محطات صلاحية الحساب إن وُجدت، وإلا كل المحطات)
+    var stationNames = (window.WTCO_ALLOWED_STATIONS && window.WTCO_ALLOWED_STATIONS.length)
+        ? window.WTCO_ALLOWED_STATIONS.slice()
+        : (state.supervisor ? state.supervisor.stations.slice()
+                            : Object.keys(STATIONS).map(function(k){ return STATIONS[k].name; }));
+    if(!state.editStation || stationNames.indexOf(state.editStation)===-1)
+        state.editStation = state.adminStation && stationNames.indexOf(state.adminStation)!==-1
+            ? state.adminStation : (stationNames[0] || '');
+    stationNames.forEach(function(st){
+        var o = document.createElement('option');
+        o.value = st; o.textContent = st;
+        if(st===state.editStation) o.selected = true;
+        selSt.appendChild(o);
+    });
+
+    var stSystems = getSystems(state.editStation);
+    stSystems.forEach(function(sys){
         var o = document.createElement('option');
         o.value = sys; o.textContent = sys;
         sel.appendChild(o);
     });
-    if(!state.editSystem || allSystems.indexOf(state.editSystem)===-1) state.editSystem = allSystems[0];
+    if(!state.editSystem || stSystems.indexOf(state.editSystem)===-1) state.editSystem = stSystems[0];
     sel.value = state.editSystem;
     state.editItems = getSysItems(state.editSystem).slice();
 
+    selSt.onchange = function(){
+        state.editStation = this.value;
+        state.editSystem = '';
+        render();
+    };
     sel.onchange = function(){
         state.editSystem = this.value;
         state.editItems = getSysItems(state.editSystem).slice();
@@ -1688,9 +1712,9 @@ function printSummary() {
     }
     // حصر قائمة المحطات بالمحطات المرتبطة بالحساب (غير الأدمن)
     window.WTCO_ALLOWED_STATIONS = isAdminRole() ? null : allowedStationNames();
-    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً
+    // المشغل مربوط بمحطته: لا يمكنه تغيير المحطة إطلاقاً — نحذف الزر نهائياً
     var logout = document.getElementById('btnLogout');
-    if (logout) logout.style.display = (CTX.role && !isSupRole()) ? 'none' : '';
+    if (logout && CTX.role && !isSupRole() && logout.parentNode) logout.parentNode.removeChild(logout);
     if (CTX.role && !isSupRole() && state.station && state.screen === 'select') {
       state.screen = 'systems';
     }
@@ -1727,6 +1751,17 @@ function printSummary() {
       state.shift   = getShift();
       state.date    = new Date().toISOString().split('T')[0];
       if (state.screen === 'select') state.screen = 'systems';
+    }
+    // المشرف/الإدارة/الأدمن: الدخول مباشرة إلى لوحة المشرف
+    if (CTX.role && isSupRole() && !window.__wtcoSupRouted) {
+      window.__wtcoSupRouted = true;
+      var supStations = isAdminRole()
+        ? Object.keys(STATIONS).map(function (k) { return STATIONS[k].name; })
+        : allowedStationNames();
+      state.isAdmin = true;
+      state.supervisor = { stations: supStations };
+      if (supStations.indexOf(state.adminStation) === -1) state.adminStation = supStations[0] || '';
+      state.screen = 'adminSel';
     }
     updateHeader();
     render();

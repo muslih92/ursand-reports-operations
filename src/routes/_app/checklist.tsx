@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, ExternalLink, RefreshCw, Maximize2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -216,16 +216,19 @@ function ChecklistPage() {
   };
   // ── السجل اليومي لقوائم الفحص المحفوظة ─────────────────────────────
   const scopeKey = stations.map((s) => s.id).sort().join(",");
+  const [allStations, setAllStations] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const { data: reports = [] } = useQuery({
-    queryKey: ["checklist-reports", listDate, stationId || scopeKey],
+    queryKey: ["checklist-reports", listDate, allStations ? scopeKey : stationId || scopeKey, allStations],
     enabled: stations.length > 0,
+    refetchInterval: 30000,
     queryFn: async () => {
       let q = supabase
         .from("checklist_reports")
         .select("*")
         .eq("report_date", listDate)
         .order("created_at", { ascending: false });
-      if (stationId) q = q.eq("station_id", stationId);
+      if (!allStations && stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
@@ -337,6 +340,16 @@ function ChecklistPage() {
           <h2 className="font-bold text-sm flex-1">
             {ar ? "سجل قوائم الفحص اليومية" : "Daily checklist records"}
           </h2>
+          {stations.length > 1 && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={allStations}
+                onChange={(e) => setAllStations(e.target.checked)}
+              />
+              {ar ? "كل محطاتي" : "All my stations"}
+            </label>
+          )}
           <input
             type="date"
             value={listDate}
@@ -366,7 +379,11 @@ function ChecklistPage() {
               </thead>
               <tbody>
                 {reports.map((r) => (
-                  <tr key={r.id} className="border-t align-top">
+                  <Fragment key={r.id}>
+                  <tr
+                    onClick={() => setOpenId(openId === r.id ? null : r.id)}
+                    className="border-t align-top cursor-pointer hover:bg-muted/40"
+                  >
                     <td className="p-2 font-medium">{stationName(r.station_id)}</td>
                     <td className="p-2">{r.shift}</td>
                     <td className="p-2">
@@ -398,7 +415,7 @@ function ChecklistPage() {
                     {isAdmin && (
                       <td className="p-2 text-center">
                         <button
-                          onClick={() => void removeReport(r.id)}
+                          onClick={(e) => { e.stopPropagation(); void removeReport(r.id); }}
                           className="p-1.5 rounded text-destructive hover:bg-destructive/10"
                           aria-label={ar ? "حذف" : "Delete"}
                         >
@@ -407,6 +424,50 @@ function ChecklistPage() {
                       </td>
                     )}
                   </tr>
+                  {openId === r.id && (
+                    <tr className="bg-muted/20">
+                      <td colSpan={isAdmin ? 9 : 8} className="p-3">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {((r.items as unknown as ChecklistItem[]) ?? []).map((it, i) => (
+                            <div
+                              key={i}
+                              className="rounded-lg border bg-background p-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold">{it.system}</span>
+                                <span
+                                  className={
+                                    it.status === "no_obs"
+                                      ? "text-emerald-600 font-bold"
+                                      : it.status === "remark"
+                                        ? "text-amber-600 font-bold"
+                                        : it.status === "na"
+                                          ? "text-muted-foreground"
+                                          : "text-destructive"
+                                  }
+                                >
+                                  {it.status === "no_obs"
+                                    ? ar ? "سليم" : "OK"
+                                    : it.status === "remark"
+                                      ? ar ? "ملاحظة" : "Remark"
+                                      : it.status === "na"
+                                        ? ar ? "غير منطبق" : "N/A"
+                                        : ar ? "معلّق" : "Pending"}
+                                  {it.time ? ` · ${it.time}` : ""}
+                                </span>
+                              </div>
+                              {it.note ? (
+                                <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                  {it.note}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

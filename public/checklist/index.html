@@ -1904,8 +1904,13 @@ function printSummary() {
       },
       remarks: logs.filter(function (l) { return l.status === 'remark'; }).map(function (l) {
         return { system: l.system, note: l.note, time: l.time };
+      }),
+      items: systems.map(function (s) {
+        var l = logs.find(function (x) { return x.system === s; });
+        return { system: s, status: l ? l.status : 'pending', note: (l && l.note) || '', time: (l && l.time) || '' };
       })
     };
+
     try {
       if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
       else if (window.opener) window.opener.postMessage(payload, '*');

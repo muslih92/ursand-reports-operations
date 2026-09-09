@@ -369,7 +369,12 @@
             <select id="editItemsStation" class="wtc-input" style="margin-bottom:10px;"></select>
             <label style="display:block;font-size:10px;font-weight:700;color:#5a7fa0;margin-bottom:6px;">⚙️ النظام (تابع للمحطة المختارة):</label>
             <select id="editItemsSystem" class="wtc-input"></select>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button id="btnAddSystem" style="flex:1;padding:9px;border-radius:10px;font-size:10px;font-weight:700;background:#ecfdf5;border:1.5px dashed rgba(16,185,129,.45);color:#047857;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;">+ إضافة نظام للمحطة</button>
+                <button id="btnDelSystem" style="flex:1;padding:9px;border-radius:10px;font-size:10px;font-weight:700;background:#fee2e2;border:1.5px dashed rgba(220,38,38,.4);color:#991b1b;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;">🗑 حذف النظام من المحطة</button>
+            </div>
         </div>
+
         <div id="editItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:50vh;overflow-y:auto;"></div>
         <button id="btnAddItem" style="width:100%;padding:11px;border-radius:12px;font-size:11px;font-weight:700;background:#f0f8ff;border:1.5px dashed rgba(0,95,142,.3);color:#0077B6;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;margin-bottom:16px;">+ إضافة نقطة جديدة</button>
         <button id="btnSaveItems" class="btn-primary">💾 حفظ التعديلات لهذا النظام</button>

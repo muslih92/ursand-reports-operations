@@ -945,7 +945,10 @@ function renderSelect(sc, isNight) {
     node.getElementById('shiftLabel').textContent = isNight ? 'الوردية المسائية' : 'الوردية الصباحية';
 
     var list = node.getElementById('stationList');
-    Object.keys(STATIONS).forEach(function(code){
+    var allowNames = window.WTCO_ALLOWED_STATIONS || null;
+    Object.keys(STATIONS).filter(function(code){
+        return !allowNames || !allowNames.length || allowNames.indexOf(STATIONS[code].name) !== -1;
+    }).forEach(function(code){
         var btn = document.createElement('button');
         btn.style.cssText = 'width:100%;padding:14px 16px;border-radius:15px;text-align:right;font-size:12px;font-weight:700;background:#f0f8ff;border:1.5px solid rgba(0,95,142,.1);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:IBM Plex Sans Arabic,sans-serif;transition:all .2s;';
         btn.innerHTML = '<span style="color:#003B5C;">'+STATIONS[code].name+'</span><span class="line-badge">'+STATIONS[code].line+'</span>';

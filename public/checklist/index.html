@@ -1679,9 +1679,6 @@ function printSummary() {
   function applyRoleLimits() {
     // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
     var sup = document.getElementById('supBtn');
-  function applyRoleLimits() {
-    // زر لوحة المشرف: للمشرف/الإدارة/الأدمن فقط
-    var sup = document.getElementById('supBtn');
     if (sup) sup.style.display = (!CTX.role || isSupRole()) ? '' : 'none';
     // تعديل نقاط الفحص: للأدمن فقط
     var edit = document.getElementById('btnEditItems');

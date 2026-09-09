@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, ExternalLink, RefreshCw, Maximize2 } from "lucide-react";
+import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { notifyStation } from "@/lib/notifications";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
+
+interface ChecklistSubmit {
+  type: string;
+  date?: string;
+  shift?: string;
+  summary?: { ok: number; remark: number; na: number; total: number };
+  remarks?: { system: string; note?: string; time?: string }[];
+}
+
 
 const CHECKLIST_URL =
   typeof window !== "undefined"

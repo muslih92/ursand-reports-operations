@@ -433,10 +433,18 @@ function ChecklistPage() {
                       <td colSpan={isAdmin ? 9 : 8} className="p-3">
                         <div className="grid gap-2 sm:grid-cols-2">
                           {((r.items as unknown as ChecklistItem[]) ?? []).map((it, i) => (
-                            <div
-                              key={i}
-                              className="rounded-lg border bg-background p-2 text-xs"
-                            >
+                             <div
+                               key={i}
+                               className={`rounded-lg border p-2 text-xs ${
+                                 it.status === "no_obs"
+                                   ? "border-emerald-300 bg-emerald-50"
+                                   : it.status === "remark"
+                                     ? "border-amber-300 bg-amber-50"
+                                     : it.status === "na"
+                                       ? "border-muted bg-muted/40"
+                                       : "border-destructive/30 bg-destructive/5"
+                               }`}
+                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-semibold">{it.system}</span>
                                 <span

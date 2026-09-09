@@ -505,7 +505,7 @@ function renderChecklist(app) {
         '<textarea id="noteArea" class="wtc-input" rows="3" placeholder="يرجى وصف المشكلة بدقة..."></textarea>'+
         '</div>'+
         '<div>'+
-        '<label style="display:block;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px;">📸 صور الإثبات (بحد أقصى 4 صور):</label>'+
+        '<label style="display:block;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px;">📸 صور الإثبات (اختياري — بحد أقصى 4 صور):</label>'+
         '<input type="file" accept="image/*" multiple id="imgInput" style="font-size:11px;color:#64748b;width:100%;">'+
         '<div id="imgGrid" style="margin-top:10px;display:none;grid-template-columns:1fr 1fr;gap:8px;padding:10px;background:rgba(0,95,142,.04);border-radius:13px;border:1px solid rgba(0,95,142,.07);"></div>'+
         '<p id="imgMax" style="display:none;font-size:10px;color:#dc2626;margin-top:6px;font-weight:600;">تم الوصول للحد الأقصى (4 صور).</p>'+
@@ -622,7 +622,7 @@ function doSave() {
     note=note.trim();
     if(S.status==='remark'){
         if(!note){ alert('⚠️ يجب كتابة تفاصيل الخلل الميداني.'); return; }
-        if(!S.images.length){ alert('📸 يجب إرفاق صورة واحدة على الأقل.'); return; }
+        // إرفاق الصور اختياري
     }
     S.note=note;
     var now=new Date();

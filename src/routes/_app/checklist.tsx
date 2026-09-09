@@ -60,7 +60,16 @@ function ChecklistPage() {
   }, [scopedStationId, stations, stationId]);
 
   const station = stations.find((s) => s.id === stationId) ?? null;
-  const role = roles[0] ?? "";
+  const role = roles.includes("admin")
+    ? "admin"
+    : roles.includes("supervisor")
+      ? "supervisor"
+      : roles.includes("management")
+        ? "management"
+        : (roles[0] ?? "operator");
+
+  // Stations this user may look at inside the checklist (supervisor panel scope).
+  const allowedNames = stations.map((s) => s.name_en);
 
   // The checklist site expects codes like "ps1c" (lowercase, no separators).
   const slug = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -75,6 +84,7 @@ function ChecklistPage() {
     if (profile?.full_name) u.searchParams.set("user", profile.full_name);
     if (profile?.employee_no) u.searchParams.set("employee_no", profile.employee_no);
     if (role) u.searchParams.set("role", role);
+    if (allowedNames.length) u.searchParams.set("stations", allowedNames.join("|"));
     u.searchParams.set("lang", locale);
     u.searchParams.set("embedded", "1");
     // Tell the checklist page the visitor is already signed in on our side,
@@ -83,7 +93,8 @@ function ChecklistPage() {
     u.searchParams.set("skip_login", "1");
     u.searchParams.set("auth", "wtco");
     return CHECKLIST_URL.startsWith("http") ? u.toString() : u.pathname + u.search;
-  }, [station, profile?.full_name, profile?.employee_no, role, locale, ar]);
+     
+  }, [station, profile?.full_name, profile?.employee_no, role, locale, ar, allowedNames.join("|")]);
 
   // Also push the context via postMessage for checklist builds that listen for it.
   const pushContext = () => {
@@ -98,6 +109,12 @@ function ChecklistPage() {
               name_ar: station.name_ar,
             }
           : null,
+        stations: stations.map((s) => ({
+          code: slug(s.code),
+          raw_code: s.code,
+          name_en: s.name_en,
+          name_ar: s.name_ar,
+        })),
         user: profile
           ? { full_name: profile.full_name, employee_no: profile.employee_no, role }
           : null,
@@ -106,6 +123,7 @@ function ChecklistPage() {
       "*",
     );
   };
+
 
   // The checklist page announces itself with WTCO_CHECKLIST_READY — resend then,
   // and keep re-sending whenever the selected station / user / language changes.

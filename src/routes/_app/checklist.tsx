@@ -100,12 +100,52 @@ function ChecklistPage() {
   // and keep re-sending whenever the selected station / user / language changes.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      const t = (e.data as { type?: string } | null)?.type;
+      const data = e.data as { type?: string } | null;
+      const t = data?.type;
       if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") pushContext();
+      if (t === "WTCO_CHECKLIST_SUBMIT") void handleSubmit(data as ChecklistSubmit);
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   });
+
+  const reply = (ok: boolean, error?: string) => {
+    frameRef.current?.contentWindow?.postMessage({ type: "WTCO_SUBMIT_RESULT", ok, error }, "*");
+  };
+
+  const handleSubmit = async (payload: ChecklistSubmit) => {
+    if (!stationId) {
+      reply(false, ar ? "لم يتم تحديد المحطة" : "No station selected");
+      return;
+    }
+    const s = payload.summary ?? { ok: 0, remark: 0, na: 0, total: 0 };
+    const remarks = payload.remarks ?? [];
+    const stationLabel = station ? `${station.code} — ${ar ? station.name_ar : station.name_en}` : "";
+    const title = `قائمة فحص المحطة — ${stationLabel} (${payload.date ?? ""} · ${payload.shift ?? ""})`;
+    const body =
+      `المشغّل: ${profile?.full_name ?? ""} #${profile?.employee_no ?? ""}\n` +
+      `سليم: ${s.ok} · ملاحظات: ${s.remark} · غير منطبق: ${s.na} · الإجمالي: ${s.total}` +
+      (remarks.length
+        ? `\n\nالملاحظات:\n` + remarks.map((r) => `• ${r.system}: ${r.note ?? ""} (${r.time ?? ""})`).join("\n")
+        : "");
+    try {
+      await notifyStation({
+        stationId,
+        kind: "checklist_report",
+        title,
+        body,
+        link: "/checklist",
+        roles: ["supervisor", "admin", "management"],
+      });
+      toast.success(ar ? "تم إرسال التقرير النهائي للمشرف" : "Final report sent to supervisor");
+      reply(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(ar ? `تعذّر إرسال التقرير: ${msg}` : `Failed to send report: ${msg}`);
+      reply(false, msg);
+    }
+  };
+
 
   useEffect(() => {
     pushContext();

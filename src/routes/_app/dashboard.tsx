@@ -10,7 +10,7 @@ import { StationOfWeek } from "@/components/station-of-week";
 import { StaffOfMonth } from "@/components/staff-of-month";
 
 import {
-  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap,
+  Building2, ClipboardList, AlertTriangle, Activity, FileText, Gauge, Sun, Moon, Flame, Zap, ListChecks,
 } from "lucide-react";
 
 import {
@@ -258,6 +258,23 @@ function Dashboard() {
       return { done, notDone, pending, total, pct: total ? Math.round((done / total) * 100) : 0, records: (data ?? []).length };
     },
   });
+  const { data: checklistStats } = useQuery({
+    queryKey: ["dash-checklist", from, to, stationEq ?? "all"],
+    queryFn: async () => {
+      let q = supabase.from("checklist_reports")
+        .select("completion_pct, remark_count")
+        .gte("report_date", from).lte("report_date", to);
+      if (stationEq) q = q.eq("station_id", stationEq);
+      const { data } = await q;
+      const rows = data ?? [];
+      const remarks = rows.reduce((a, r) => a + (r.remark_count ?? 0), 0);
+      const pct = rows.length
+        ? Math.round(rows.reduce((a, r) => a + Number(r.completion_pct ?? 0), 0) / rows.length)
+        : 0;
+      return { count: rows.length, pct, remarks };
+    },
+  });
+
 
 
 
@@ -306,7 +323,11 @@ function Dashboard() {
         <StatCard icon={Building2} label={locale === "ar" ? "المحطات" : "Stations"} value={kpis?.stations ?? 0} color="text-emerald-600 bg-emerald-100" />
         <StatCard icon={Flame} label={locale === "ar" ? "اختبارات مضخات الحريق" : "Fire Pump Tests"} value={testsKpis?.firePump ?? 0} color="text-rose-600 bg-rose-100" />
         <StatCard icon={Zap} label={locale === "ar" ? "اختبارات مولد الطوارئ" : "Generator Tests"} value={testsKpis?.generator ?? 0} color="text-amber-600 bg-amber-100" />
+        <StatCard icon={ListChecks} label={locale === "ar" ? "قوائم الفحص" : "Checklists"} value={checklistStats?.count ?? 0} color="text-cyan-600 bg-cyan-100" />
+        <StatCard icon={ListChecks} label={locale === "ar" ? "التزام قوائم الفحص %" : "Checklist compliance %"} value={checklistStats?.pct ?? 0} color="text-teal-600 bg-teal-100" />
+        <StatCard icon={AlertTriangle} label={locale === "ar" ? "ملاحظات قوائم الفحص" : "Checklist remarks"} value={checklistStats?.remarks ?? 0} color="text-yellow-600 bg-yellow-100" />
       </div>
+
 
       <div className="rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between mb-3">

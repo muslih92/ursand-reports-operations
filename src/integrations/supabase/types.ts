@@ -68,6 +68,71 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_reports: {
+        Row: {
+          completion_pct: number
+          created_at: string
+          employee_no: string | null
+          id: string
+          items: Json
+          na_count: number
+          ok_count: number
+          operator_id: string | null
+          operator_name: string | null
+          remark_count: number
+          remarks: Json
+          report_date: string
+          shift: string
+          station_id: string
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          completion_pct?: number
+          created_at?: string
+          employee_no?: string | null
+          id?: string
+          items?: Json
+          na_count?: number
+          ok_count?: number
+          operator_id?: string | null
+          operator_name?: string | null
+          remark_count?: number
+          remarks?: Json
+          report_date: string
+          shift?: string
+          station_id: string
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          completion_pct?: number
+          created_at?: string
+          employee_no?: string | null
+          id?: string
+          items?: Json
+          na_count?: number
+          ok_count?: number
+          operator_id?: string | null
+          operator_name?: string | null
+          remark_count?: number
+          remarks?: Json
+          report_date?: string
+          shift?: string
+          station_id?: string
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_reports_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       defeat_records: {
         Row: {
           area_system: string | null

@@ -84,6 +84,7 @@ export type Database = {
           report_date: string
           shift: string
           station_id: string
+          submitted_at: string
           total_count: number
           updated_at: string
         }
@@ -102,6 +103,7 @@ export type Database = {
           report_date: string
           shift?: string
           station_id: string
+          submitted_at?: string
           total_count?: number
           updated_at?: string
         }
@@ -120,6 +122,7 @@ export type Database = {
           report_date?: string
           shift?: string
           station_id?: string
+          submitted_at?: string
           total_count?: number
           updated_at?: string
         }

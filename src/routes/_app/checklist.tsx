@@ -71,7 +71,7 @@ function ChecklistPage() {
     u.searchParams.set("no_login", "1");
     u.searchParams.set("skip_login", "1");
     u.searchParams.set("auth", "wtco");
-    return u.toString();
+    return CHECKLIST_URL.startsWith("http") ? u.toString() : u.pathname + u.search;
   }, [station, profile?.full_name, profile?.employee_no, role, locale, ar]);
 
   // Also push the context via postMessage for checklist builds that listen for it.

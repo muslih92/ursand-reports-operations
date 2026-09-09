@@ -379,7 +379,12 @@ function ChecklistPage() {
               </thead>
               <tbody>
                 {reports.map((r) => (
-                  <tr key={r.id} className="border-t align-top">
+                  <>
+                  <tr
+                    key={r.id}
+                    onClick={() => setOpenId(openId === r.id ? null : r.id)}
+                    className="border-t align-top cursor-pointer hover:bg-muted/40"
+                  >
                     <td className="p-2 font-medium">{stationName(r.station_id)}</td>
                     <td className="p-2">{r.shift}</td>
                     <td className="p-2">

@@ -973,7 +973,9 @@ function cloneTemplate(id) {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────
+var RENDER_SEQ = 0;
 function render() {
+    RENDER_SEQ++;
     var sc = document.getElementById('screens');
     // remove all children safely
     while(sc.firstChild) sc.removeChild(sc.firstChild);

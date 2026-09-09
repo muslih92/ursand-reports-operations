@@ -1171,7 +1171,9 @@ function renderHistoryShifts(sc) {
     loading.textContent = '⏳ جاري التحميل...';
     cont.appendChild(loading);
     // Load from Supabase first, then render
+    if (window.wtcoRequestReports) window.wtcoRequestReports(state.adminDate);
     loadLogsFromSupabase(state.adminStation, state.adminDate, function(freshLogs){
+
         freshLogs.forEach(function(fl){
             var exists = state.logs.find(function(l){
                 return l.station===fl.station && l.system===fl.system && l.shift===fl.shift && l.date===fl.date;

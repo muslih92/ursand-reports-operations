@@ -1829,6 +1829,7 @@ function printSummary() {
   function applyCtx(ctx) {
     if (!ctx) return;
     CTX = Object.assign(CTX, ctx);
+    window.WTCO_CTX_ROLE = CTX.role || '';
     if (CTX.user) state.opID = CTX.employee_no || CTX.user;
     var key = findStation(CTX.stationCode, CTX.stationName);
     if (key) {

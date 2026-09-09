@@ -1922,19 +1922,42 @@ function printSummary() {
   }
 
   function injectSendButton() {
-    if (state.screen !== 'systems') return;
-    var list = document.getElementById('systemsList');
-    if (!list || document.getElementById('wtcoSendFinal')) return;
-    var wrap = document.createElement('div');
-    wrap.style.cssText = 'margin-bottom:24px;';
-    var b = document.createElement('button');
-    b.id = 'wtcoSendFinal';
-    b.className = 'btn-primary';
-    b.textContent = '📤 إرسال التقرير النهائي للمشرف';
-    b.onclick = function () { sendFinal(b); };
-    wrap.appendChild(b);
-    list.parentNode.appendChild(wrap);
+    var bar = document.getElementById('wtcoSendBar');
+    if (state.screen !== 'systems') { if (bar) bar.remove(); return; }
+    var logs = currentLogs();
+    var systems = getSystems(state.station);
+    var done = logs.length, total = systems.length;
+    var complete = total > 0 && done >= total;
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'wtcoSendBar';
+      bar.style.cssText =
+        'position:fixed;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;gap:12px;' +
+        'flex-wrap:wrap;justify-content:center;padding:10px 14px;background:#fff;border-top:2px solid #0b6b53;' +
+        'box-shadow:0 -4px 14px rgba(0,0,0,.12);';
+      bar.innerHTML =
+        '<span id="wtcoSendInfo" style="font-weight:700;font-size:14px"></span>' +
+        '<button id="wtcoSendFinal" class="btn-primary" style="margin:0"></button>';
+      document.body.appendChild(bar);
+      document.body.style.paddingBottom = '76px';
+      document.getElementById('wtcoSendFinal').onclick = function () {
+        sendFinal(document.getElementById('wtcoSendFinal'));
+      };
+    }
+    var info = document.getElementById('wtcoSendInfo');
+    var btn = document.getElementById('wtcoSendFinal');
+    if (info) {
+      info.textContent = 'تم فحص ' + done + ' من ' + total + (complete ? ' — القائمة مكتملة ✅' : '');
+      info.style.color = complete ? '#0b6b53' : '#b45309';
+    }
+    if (btn && !btn.disabled) {
+      btn.textContent = complete
+        ? '📤 إرسال التقرير النهائي للمشرف'
+        : '📤 إرسال التقرير للمشرف (غير مكتمل)';
+      btn.style.opacity = complete ? '1' : '.85';
+    }
   }
+
 
   // hook على render لإضافة الزر وتحديث الهيدر بعد كل رسم
   var _render = render;

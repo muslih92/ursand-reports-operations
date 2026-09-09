@@ -1752,6 +1752,17 @@ function printSummary() {
       state.date    = new Date().toISOString().split('T')[0];
       if (state.screen === 'select') state.screen = 'systems';
     }
+    // المشرف/الإدارة/الأدمن: الدخول مباشرة إلى لوحة المشرف
+    if (CTX.role && isSupRole() && !window.__wtcoSupRouted) {
+      window.__wtcoSupRouted = true;
+      var supStations = isAdminRole()
+        ? Object.keys(STATIONS).map(function (k) { return STATIONS[k].name; })
+        : allowedStationNames();
+      state.isAdmin = true;
+      state.supervisor = { stations: supStations };
+      if (supStations.indexOf(state.adminStation) === -1) state.adminStation = supStations[0] || '';
+      state.screen = 'adminSel';
+    }
     updateHeader();
     render();
   }

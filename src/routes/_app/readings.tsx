@@ -893,6 +893,9 @@ function EntryView({
         }
         const trimmed = raw.trim();
         if (trimmed === "") {
+          // Never delete a stored reading unless the operator cleared that
+          // exact cell in this session. Anything else is left untouched.
+          if (!touchedRef.current.has(key)) continue;
           const id = existing.get(key);
           if (id) toDelete.push(id);
           else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });

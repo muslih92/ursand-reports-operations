@@ -725,20 +725,66 @@ function EntryView({
       }
     }
     let n = data.entry?.notes ?? "";
-    // Restore an unsaved local draft (idle / refresh / accidental close)
+    // Restore an unsaved local draft (idle / refresh / accidental close).
+    // A draft may NEVER blank out a value that already exists in the database:
+    // empty draft cells are ignored, only real typed content is restored.
     const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
     if (draft) {
-      Object.assign(v, draft.data.values ?? {});
-      Object.assign(s, draft.data.statuses ?? {});
+      let restoredSomething = false;
+      for (const [k, dv] of Object.entries(draft.data.values ?? {})) {
+        if (String(dv ?? "").trim() === "") continue;
+        if (v[k] === dv) continue;
+        v[k] = dv;
+        restoredSomething = true;
+      }
+      for (const [k, dv] of Object.entries(draft.data.statuses ?? {})) {
+        if (!dv) continue;
+        if (s[k] === dv) continue;
+        s[k] = dv;
+        restoredSomething = true;
+      }
       if (draft.data.notes) n = draft.data.notes;
-      setRestoredAt(draft.savedAt);
+      if (restoredSomething) setRestoredAt(draft.savedAt);
     }
     setValues(v);
     setStatuses(s);
     setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
+    touchedRef.current = new Set();
     setHydratedKey(draftKey);
   }, [data, profile?.full_name, draftKey, hydratedKey]);
+
+  // Cells this operator actually edited in this session. Only these may ever be
+  // deleted from the database — an empty cell that was never touched is left
+  // exactly as it is stored, so nothing can silently disappear.
+  const touchedRef = useRef<Set<string>>(new Set());
+  const markTouched = useCallback((...keys: string[]) => {
+    for (const k of keys) touchedRef.current.add(k);
+  }, []);
+
+  // Background refetches bring in values saved elsewhere (other shift, other
+  // device). Merge them into cells the operator has not touched instead of
+  // leaving the sheet blank.
+  useEffect(() => {
+    if (!data || hydratedKey !== draftKey) return;
+    const rows = data.entry?.reading_values ?? [];
+    if (rows.length === 0) return;
+    setValues((cur) => {
+      let changed = false;
+      const next = { ...cur };
+      for (const rv of rows) {
+        const key = `${rv.field_id}|${rv.time_slot}`;
+        if (touchedRef.current.has(key)) continue;
+        const server = rv.value != null ? String(rv.value) : (rv.status ?? "");
+        if (server === "") continue;
+        if ((next[key] ?? "") === server) continue;
+        if ((next[key] ?? "").trim() !== "") continue; // keep local content
+        next[key] = server;
+        changed = true;
+      }
+      return changed ? next : cur;
+    });
+  }, [data, hydratedKey, draftKey]);
 
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const currentDraftRef = useRef(draftData);

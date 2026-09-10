@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -725,20 +725,66 @@ function EntryView({
       }
     }
     let n = data.entry?.notes ?? "";
-    // Restore an unsaved local draft (idle / refresh / accidental close)
+    // Restore an unsaved local draft (idle / refresh / accidental close).
+    // A draft may NEVER blank out a value that already exists in the database:
+    // empty draft cells are ignored, only real typed content is restored.
     const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
     if (draft) {
-      Object.assign(v, draft.data.values ?? {});
-      Object.assign(s, draft.data.statuses ?? {});
+      let restoredSomething = false;
+      for (const [k, dv] of Object.entries(draft.data.values ?? {})) {
+        if (String(dv ?? "").trim() === "") continue;
+        if (v[k] === dv) continue;
+        v[k] = dv;
+        restoredSomething = true;
+      }
+      for (const [k, dv] of Object.entries(draft.data.statuses ?? {})) {
+        if (!dv) continue;
+        if (s[k] === dv) continue;
+        s[k] = dv;
+        restoredSomething = true;
+      }
       if (draft.data.notes) n = draft.data.notes;
-      setRestoredAt(draft.savedAt);
+      if (restoredSomething) setRestoredAt(draft.savedAt);
     }
     setValues(v);
     setStatuses(s);
     setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
+    touchedRef.current = new Set();
     setHydratedKey(draftKey);
   }, [data, profile?.full_name, draftKey, hydratedKey]);
+
+  // Cells this operator actually edited in this session. Only these may ever be
+  // deleted from the database — an empty cell that was never touched is left
+  // exactly as it is stored, so nothing can silently disappear.
+  const touchedRef = useRef<Set<string>>(new Set());
+  const markTouched = useCallback((...keys: string[]) => {
+    for (const k of keys) touchedRef.current.add(k);
+  }, []);
+
+  // Background refetches bring in values saved elsewhere (other shift, other
+  // device). Merge them into cells the operator has not touched instead of
+  // leaving the sheet blank.
+  useEffect(() => {
+    if (!data || hydratedKey !== draftKey) return;
+    const rows = data.entry?.reading_values ?? [];
+    if (rows.length === 0) return;
+    setValues((cur) => {
+      let changed = false;
+      const next = { ...cur };
+      for (const rv of rows) {
+        const key = `${rv.field_id}|${rv.time_slot}`;
+        if (touchedRef.current.has(key)) continue;
+        const server = rv.value != null ? String(rv.value) : (rv.status ?? "");
+        if (server === "") continue;
+        if ((next[key] ?? "") === server) continue;
+        if ((next[key] ?? "").trim() !== "") continue; // keep local content
+        next[key] = server;
+        changed = true;
+      }
+      return changed ? next : cur;
+    });
+  }, [data, hydratedKey, draftKey]);
 
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const currentDraftRef = useRef(draftData);
@@ -847,6 +893,9 @@ function EntryView({
         }
         const trimmed = raw.trim();
         if (trimmed === "") {
+          // Never delete a stored reading unless the operator cleared that
+          // exact cell in this session. Anything else is left untouched.
+          if (!touchedRef.current.has(key)) continue;
           const id = existing.get(key);
           if (id) toDelete.push(id);
           else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
@@ -1003,6 +1052,7 @@ function EntryView({
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {
     lastAutoSavedRef.current = "";
+    touchedRef.current = new Set();
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
   }, [draftKey]);
@@ -1389,27 +1439,29 @@ function EntryView({
                                 type="text"
                                 inputMode="text"
                                 value={values[key] ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setValues((v) => {
-                                    const next = { ...v, [key]: val };
-                                    if (isFirstInputRow) {
-                                      const norm = val.trim().toLowerCase();
-                                      const statusWords = ["standby", "stand by", "n/v", "nv", "maintenance", "m", "fixed speed", "f/s", "fs"];
-                                      if (statusWords.includes(norm)) {
-                                        for (const other of fs) {
-                                          if (other.id === f.id) continue;
-                                          if (!other.unit) continue;
-                                          const k = `${other.id}|${slot}`;
-                                          if (!next[k] || next[k].trim() === "") {
-                                            next[k] = val;
-                                          }
-                                        }
-                                      }
-                                    }
-                                    return next;
-                                  });
-                                }}
+                                 onChange={(e) => {
+                                   const val = e.target.value;
+                                   markTouched(key);
+                                   setValues((v) => {
+                                     const next = { ...v, [key]: val };
+                                     if (isFirstInputRow) {
+                                       const norm = val.trim().toLowerCase();
+                                       const statusWords = ["standby", "stand by", "n/v", "nv", "maintenance", "m", "fixed speed", "f/s", "fs"];
+                                       if (statusWords.includes(norm)) {
+                                         for (const other of fs) {
+                                           if (other.id === f.id) continue;
+                                           if (!other.unit) continue;
+                                           const k = `${other.id}|${slot}`;
+                                           if (!next[k] || next[k].trim() === "") {
+                                             next[k] = val;
+                                             markTouched(k);
+                                           }
+                                         }
+                                       }
+                                     }
+                                     return next;
+                                   });
+                                 }}
                                 onKeyDown={(e) => {
                                   const el = e.currentTarget;
                                   const move = (sel: string, step: number) => {
@@ -1435,19 +1487,21 @@ function EntryView({
                                     if (el.selectionStart === 0) move(rowSel, -1);
                                   }
                                 }}
-                                onMouseDown={(e) => {
-                                  if (!activeMark || !cellWritable(slot)) return;
-                                  e.preventDefault();
-                                  setValues((v) => {
-                                    const next = { ...v };
-                                    for (const other of fs) {
-                                      if (!other.unit) continue;
-                                      next[`${other.id}|${slot}`] = activeMark;
-                                    }
-                                    return next;
-                                  });
-                                  setActiveMark(null);
-                                }}
+                                 onMouseDown={(e) => {
+                                   if (!activeMark || !cellWritable(slot)) return;
+                                   e.preventDefault();
+                                   setValues((v) => {
+                                     const next = { ...v };
+                                     for (const other of fs) {
+                                       if (!other.unit) continue;
+                                       const k = `${other.id}|${slot}`;
+                                       next[k] = activeMark;
+                                       markTouched(k);
+                                     }
+                                     return next;
+                                   });
+                                   setActiveMark(null);
+                                 }}
                                 data-slot={slot}
                                 data-row={f.id}
 

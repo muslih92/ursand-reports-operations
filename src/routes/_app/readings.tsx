@@ -1438,27 +1438,29 @@ function EntryView({
                                 type="text"
                                 inputMode="text"
                                 value={values[key] ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setValues((v) => {
-                                    const next = { ...v, [key]: val };
-                                    if (isFirstInputRow) {
-                                      const norm = val.trim().toLowerCase();
-                                      const statusWords = ["standby", "stand by", "n/v", "nv", "maintenance", "m", "fixed speed", "f/s", "fs"];
-                                      if (statusWords.includes(norm)) {
-                                        for (const other of fs) {
-                                          if (other.id === f.id) continue;
-                                          if (!other.unit) continue;
-                                          const k = `${other.id}|${slot}`;
-                                          if (!next[k] || next[k].trim() === "") {
-                                            next[k] = val;
-                                          }
-                                        }
-                                      }
-                                    }
-                                    return next;
-                                  });
-                                }}
+                                 onChange={(e) => {
+                                   const val = e.target.value;
+                                   markTouched(key);
+                                   setValues((v) => {
+                                     const next = { ...v, [key]: val };
+                                     if (isFirstInputRow) {
+                                       const norm = val.trim().toLowerCase();
+                                       const statusWords = ["standby", "stand by", "n/v", "nv", "maintenance", "m", "fixed speed", "f/s", "fs"];
+                                       if (statusWords.includes(norm)) {
+                                         for (const other of fs) {
+                                           if (other.id === f.id) continue;
+                                           if (!other.unit) continue;
+                                           const k = `${other.id}|${slot}`;
+                                           if (!next[k] || next[k].trim() === "") {
+                                             next[k] = val;
+                                             markTouched(k);
+                                           }
+                                         }
+                                       }
+                                     }
+                                     return next;
+                                   });
+                                 }}
                                 onKeyDown={(e) => {
                                   const el = e.currentTarget;
                                   const move = (sel: string, step: number) => {

@@ -1486,19 +1486,21 @@ function EntryView({
                                     if (el.selectionStart === 0) move(rowSel, -1);
                                   }
                                 }}
-                                onMouseDown={(e) => {
-                                  if (!activeMark || !cellWritable(slot)) return;
-                                  e.preventDefault();
-                                  setValues((v) => {
-                                    const next = { ...v };
-                                    for (const other of fs) {
-                                      if (!other.unit) continue;
-                                      next[`${other.id}|${slot}`] = activeMark;
-                                    }
-                                    return next;
-                                  });
-                                  setActiveMark(null);
-                                }}
+                                 onMouseDown={(e) => {
+                                   if (!activeMark || !cellWritable(slot)) return;
+                                   e.preventDefault();
+                                   setValues((v) => {
+                                     const next = { ...v };
+                                     for (const other of fs) {
+                                       if (!other.unit) continue;
+                                       const k = `${other.id}|${slot}`;
+                                       next[k] = activeMark;
+                                       markTouched(k);
+                                     }
+                                     return next;
+                                   });
+                                   setActiveMark(null);
+                                 }}
                                 data-slot={slot}
                                 data-row={f.id}
 

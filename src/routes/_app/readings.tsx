@@ -1052,6 +1052,7 @@ function EntryView({
   // Reset the autosave baseline when the sheet (template/date/station) changes.
   useEffect(() => {
     lastAutoSavedRef.current = "";
+    touchedRef.current = new Set();
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
   }, [draftKey]);

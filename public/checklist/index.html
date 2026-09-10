@@ -2074,7 +2074,7 @@ function printSummary() {
       });
     });
     if (!changed) return;
-    if (state.screen === 'adminSel') _renderHistoryShiftsUI(document);
+    if (state.screen === 'history' || state.screen === 'adminSel') _renderHistoryShiftsUI(document);
     else if (state.screen === 'systems') render();
   }
 

@@ -121,6 +121,29 @@ function PowerBiPage() {
   const url = setting?.url?.trim() ?? "";
   const valid = !!url && isAllowedEmbedUrl(url);
 
+  // Non-admins get the report full-bleed, immediately, with no settings UI.
+  if (!isAdmin && valid) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background">
+        <iframe
+          key={frameKey}
+          title={setting?.title || "Power BI report"}
+          src={url}
+          className="w-full h-full border-0"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+        <button
+          onClick={() => setFrameKey((k) => k + 1)}
+          aria-label={ar ? "تحديث" : "Refresh"}
+          className="absolute bottom-4 end-4 rounded-full border bg-card/90 p-3 shadow-lg hover:bg-accent"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">

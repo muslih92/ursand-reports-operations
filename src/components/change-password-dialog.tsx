@@ -67,9 +67,9 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
       // Lovable Cloud may require the current password for signed-in changes.
       let { error } = await supabase.auth.updateUser({
         password: next,
-        // @ts-expect-error current_password is accepted by GoTrue but missing in types
         current_password: current,
-      });
+      } as Parameters<typeof supabase.auth.updateUser>[0]);
+
       if (error && /current.?password/i.test(error.message)) {
         ({ error } = await supabase.auth.updateUser({ password: next }));
       }

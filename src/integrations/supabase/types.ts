@@ -1172,6 +1172,59 @@ export type Database = {
           },
         ]
       }
+      station_notes: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          author_role: string | null
+          body: string | null
+          category: Database["public"]["Enums"]["station_note_category"]
+          closed_at: string | null
+          created_at: string
+          id: string
+          station_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          author_role?: string | null
+          body?: string | null
+          category?: Database["public"]["Enums"]["station_note_category"]
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          station_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          author_role?: string | null
+          body?: string | null
+          category?: Database["public"]["Enums"]["station_note_category"]
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          station_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_notes_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stations: {
         Row: {
           active: boolean
@@ -1440,6 +1493,7 @@ export type Database = {
       incident_severity: "low" | "medium" | "high" | "critical"
       incident_status: "open" | "in_progress" | "closed"
       reading_frequency: "hourly" | "every_2h" | "every_6h" | "every_4h"
+      station_note_category: "isolation" | "warning" | "note"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1585,6 +1639,7 @@ export const Constants = {
       incident_severity: ["low", "medium", "high", "critical"],
       incident_status: ["open", "in_progress", "closed"],
       reading_frequency: ["hourly", "every_2h", "every_6h", "every_4h"],
+      station_note_category: ["isolation", "warning", "note"],
     },
   },
 } as const

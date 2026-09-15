@@ -27,8 +27,22 @@ export const Route = createFileRoute("/_app/messages")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: MessagesPage,
+  component: MessagesGuard,
 });
+
+function MessagesGuard() {
+  const { locale } = useI18n();
+  const { isAdmin, hasRole } = useAuth();
+  const allowed = isAdmin || hasRole("management") || hasRole("supervisor") || hasRole("viewer");
+  if (!allowed) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        {locale === "ar" ? "لا تملك صلاحية التواصل مع المحطات" : "You do not have access to station communication"}
+      </div>
+    );
+  }
+  return <MessagesPage />;
+}
 
 const sb = supabase as unknown as {
   from: (t: string) => any;

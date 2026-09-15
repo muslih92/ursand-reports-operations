@@ -189,7 +189,9 @@ export const updateUser = createServerFn({ method: "POST" })
         const { getRequest } = await import("@tanstack/react-start/server");
         const authHeader = getRequest()?.headers.get("authorization") ?? "";
         const base =
-          process.env["ADMIN_API_BASE"] || "https://ursand-reports-operations.lovable.app";
+          process.env["ADMIN_API_BASE"] ||
+          "https://jrwts-urs-readings-reports-stations.lovable.app";
+
         const res = await fetch(`${base}/api/public/admin-set-password`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: authHeader },

@@ -50,6 +50,10 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
       toast.error(ar ? "كلمة المرور قصيرة أو تحتوي مسافات" : "Password too short or has spaces");
       return;
     }
+    if (next === current) {
+      toast.error(ar ? "كلمة المرور الجديدة مطابقة للحالية" : "New password matches the current one");
+      return;
+    }
     setBusy(true);
     try {
       const { error: signErr } = await supabase.auth.signInWithPassword({
@@ -60,11 +64,26 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
         toast.error(ar ? "كلمة المرور الحالية غير صحيحة" : "Current password is incorrect");
         return;
       }
-      const { error } = await supabase.auth.updateUser({ password: next });
+      // Lovable Cloud may require the current password for signed-in changes.
+      let { error } = await supabase.auth.updateUser({
+        password: next,
+        // @ts-expect-error current_password is accepted by GoTrue but missing in types
+        current_password: current,
+      });
+      if (error && /current.?password/i.test(error.message)) {
+        ({ error } = await supabase.auth.updateUser({ password: next }));
+      }
       if (error) {
-        toast.error(error.message);
+        toast.error(
+          /weak|easy to guess|pwned/i.test(error.message)
+            ? ar
+              ? "كلمة المرور ضعيفة — اختر كلمة أقوى"
+              : "Password too weak — choose a stronger one"
+            : error.message,
+        );
         return;
       }
+
       toast.success(ar ? "تم تغيير كلمة المرور" : "Password changed");
       onClose();
     } finally {

@@ -16,6 +16,7 @@ import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTrendsRouteImport } from './routes/_app/trends'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppStationsRouteImport } from './routes/_app/stations'
+import { Route as AppStationNotesRouteImport } from './routes/_app/station-notes'
 import { Route as AppRoutineRouteImport } from './routes/_app/routine'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppReadingsRouteImport } from './routes/_app/readings'
@@ -64,6 +65,11 @@ const AppTemplatesRoute = AppTemplatesRouteImport.update({
 const AppStationsRoute = AppStationsRouteImport.update({
   id: '/stations',
   path: '/stations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStationNotesRoute = AppStationNotesRouteImport.update({
+  id: '/station-notes',
+  path: '/station-notes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRoutineRoute = AppRoutineRouteImport.update({
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
+  '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/trends': typeof AppTrendsRoute
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/readings': typeof AppReadingsRoute
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
+  '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/trends': typeof AppTrendsRoute
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/_app/readings': typeof AppReadingsRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/routine': typeof AppRoutineRoute
+  '/_app/station-notes': typeof AppStationNotesRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
   '/_app/trends': typeof AppTrendsRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
     | '/readings'
     | '/reports'
     | '/routine'
+    | '/station-notes'
     | '/stations'
     | '/templates'
     | '/trends'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/readings'
     | '/reports'
     | '/routine'
+    | '/station-notes'
     | '/stations'
     | '/templates'
     | '/trends'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/_app/readings'
     | '/_app/reports'
     | '/_app/routine'
+    | '/_app/station-notes'
     | '/_app/stations'
     | '/_app/templates'
     | '/_app/trends'
@@ -343,6 +355,13 @@ declare module '@tanstack/react-router' {
       path: '/stations'
       fullPath: '/stations'
       preLoaderRoute: typeof AppStationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/station-notes': {
+      id: '/_app/station-notes'
+      path: '/station-notes'
+      fullPath: '/station-notes'
+      preLoaderRoute: typeof AppStationNotesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/routine': {
@@ -468,6 +487,7 @@ interface AppRouteChildren {
   AppReadingsRoute: typeof AppReadingsRoute
   AppReportsRoute: typeof AppReportsRoute
   AppRoutineRoute: typeof AppRoutineRoute
+  AppStationNotesRoute: typeof AppStationNotesRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
   AppTrendsRoute: typeof AppTrendsRoute
@@ -489,6 +509,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReadingsRoute: AppReadingsRoute,
   AppReportsRoute: AppReportsRoute,
   AppRoutineRoute: AppRoutineRoute,
+  AppStationNotesRoute: AppStationNotesRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
   AppTrendsRoute: AppTrendsRoute,

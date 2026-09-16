@@ -161,12 +161,12 @@ function PowerBiPage() {
       );
     }
     return (
-      <div className="fixed inset-0 z-50 bg-background">
+      <div className="fixed inset-0 z-50 bg-background overflow-hidden">
         <iframe
           key={frameKey}
           title={setting?.title || "Power BI report"}
           src={url}
-          className="w-full h-full border-0"
+          className="absolute inset-x-0 top-0 w-full h-[calc(100%+56px)] border-0"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />

@@ -5,6 +5,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STATION CHECK LIST</title>
+    <script>
+      // Embed guard: this page is only usable inside the authenticated WTCO app.
+      // Opening it directly (e.g. /checklist/index.html?role=admin) shows a notice
+      // instead of any checklist UI.
+      window.__WTCO_EMBEDDED = (function () { try { return window.top !== window.self; } catch (e) { return true; } })();
+      if (!window.__WTCO_EMBEDDED) {
+        document.addEventListener('DOMContentLoaded', function () {
+          document.body.innerHTML =
+            '<div style="font-family:system-ui,sans-serif;direction:rtl;padding:48px;text-align:center;color:#003B5C">' +
+            '<h1 style="font-size:20px;margin-bottom:12px">قائمة فحص المحطة</h1>' +
+            '<p style="font-size:14px">تُفتح هذه الصفحة من داخل نظام WTCO بعد تسجيل الدخول فقط.</p>' +
+            '<p style="font-size:13px;color:#64748b">Open this checklist from inside the signed-in WTCO app.</p>' +
+            '</div>';
+        });
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -217,7 +233,7 @@
                 <div class="wtc-header-sub">Water Transmission Company</div>
             </div>
         </div>
-        <button class="sup-btn" id="supBtn">🧑‍💼 لوحة المشرف</button>
+        
     </header>
 
     <!-- SCREENS CONTAINER -->
@@ -816,34 +832,28 @@ function loadLocalSystemLists(){
 
 
 
-// تحميل نقاط الفحص المخصصة (إن وُجدت) من Supabase
+// تحميل نقاط الفحص المخصصة من التخزين المحلي (لا اتصال بأي قاعدة بيانات خارجية)
 function loadItemOverrides(callback) {
-    var url = SUPA_URL + '/rest/v1/wtc_items?select=*';
-    fetch(url, { headers: supaHeaders() })
-    .then(function(r){ return r.json(); })
-    .then(function(rows){
-        var overrides = {};
-        (rows||[]).forEach(function(r){
-            var arr = [];
-            try { arr = typeof r.items === 'string' ? JSON.parse(r.items) : r.items; }
-            catch(e){ arr = []; }
-            if(arr && arr.length) overrides[r.system] = arr;
-        });
-        ITEM_OVERRIDES = overrides;
-        loadLocalSystemLists();
-        if(callback) callback();
-    }).catch(function(e){ console.error('Supabase load items error:', e); loadLocalSystemLists(); if(callback) callback(); });
+    var overrides = {};
+    try {
+        var raw = localStorage.getItem('wtc_items_overrides');
+        if (raw) overrides = JSON.parse(raw) || {};
+    } catch (e) { overrides = {}; }
+    ITEM_OVERRIDES = overrides;
+    loadLocalSystemLists();
+    if (callback) callback();
 }
 
-// حفظ نقاط فحص نظام معيّن في Supabase
+// حفظ نقاط فحص نظام معيّن محلياً
 function pushItemsToSupabase(sys, items) {
-    fetch(SUPA_URL + '/rest/v1/wtc_items', {
-        method: 'POST',
-        headers: Object.assign({}, supaHeaders(), { 'Prefer': 'resolution=merge-duplicates' }),
-        body: JSON.stringify({ system: sys, items: JSON.stringify(items) })
-    }).then(function(r){
-        if(!r.ok) r.text().then(function(t){ console.error('Supabase save items error:', t); });
-    }).catch(function(e){ console.error('Supabase network error (items):', e); });
+    try {
+        var all = {};
+        var raw = localStorage.getItem('wtc_items_overrides');
+        if (raw) all = JSON.parse(raw) || {};
+        all[sys] = items;
+        ITEM_OVERRIDES[sys] = items;
+        localStorage.setItem('wtc_items_overrides', JSON.stringify(all));
+    } catch (e) { /* التخزين ممتلئ أو غير متاح */ }
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────
@@ -888,79 +898,37 @@ function kpi(st) {
     if(!sys.length) return 0;
     return Math.round(sys.filter(s=>isChecked(s,st)).length/sys.length*100);
 }
-// ════════ SUPABASE CONFIG ════════
-var SUPA_URL = 'https://cbfiebsytdsmpjzigawr.supabase.co';
-var SUPA_KEY = 'sb_publishable_lzd3m9XLUrUzxAQPG_pxGA_fFRBZunt';
+// ════════ LOCAL LOG STORE ════════
+// لا توجد أي مفاتيح أو اتصالات بقاعدة بيانات خارجية؛ التقارير المعتمدة تُرسل
+// إلى النظام الأساسي عبر postMessage ليخزنها في جدول checklist_reports المحمي.
+function logStoreKey(station, date) { return 'wtc_logs_' + station + '_' + date; }
 
-function supaHeaders() {
-    return {
-        'Content-Type': 'application/json',
-        'apikey': SUPA_KEY,
-        'Authorization': 'Bearer ' + SUPA_KEY,
-        'Prefer': 'resolution=merge-duplicates'
-    };
-}
-
-// Save single log entry to Supabase
 function saveLogs() {
     // still update local cache for instant UI
 }
 
 function pushLogToSupabase(entry) {
-    var basePayload = {
-        station:  entry.station,
-        system:   entry.system,
-        shift:    entry.shift,
-        date:     entry.date,
-        time:     entry.time,
-        status:   entry.status,
-        note:     entry.note || '',
-        op_id:    entry.operator || '',
-        line:     entry.line || ''
-    };
-    // نحاول إرسال الصور أيضاً (عمود images من نوع jsonb/text في جدول Supabase).
-    // إذا لم يكن العمود موجوداً بعد في قاعدة البيانات، نعيد الإرسال بدون الصور
-    // حتى لا تُفقد بقية بيانات التشييك.
-    var withImages = Object.assign({}, basePayload, { images: JSON.stringify(entry.images || []) });
-    fetch(SUPA_URL + '/rest/v1/wtc_checklist', {
-        method: 'POST',
-        headers: supaHeaders(),
-        body: JSON.stringify(withImages)
-    }).then(function(r){
-        if(!r.ok){
-            r.text().then(function(t){
-                console.error('Supabase save error (with images):', t);
-                // إعادة المحاولة بدون حقل الصور كحل احتياطي
-                fetch(SUPA_URL + '/rest/v1/wtc_checklist', {
-                    method: 'POST',
-                    headers: supaHeaders(),
-                    body: JSON.stringify(basePayload)
-                }).then(function(r2){
-                    if(!r2.ok) r2.text().then(function(t2){ console.error('Supabase save error (fallback):', t2); });
-                }).catch(function(e2){ console.error('Supabase network error (fallback):', e2); });
-            });
-        }
-    }).catch(function(e){ console.error('Supabase network error:', e); });
+    try {
+        var key = logStoreKey(entry.station, entry.date);
+        var rows = [];
+        var raw = localStorage.getItem(key);
+        if (raw) rows = JSON.parse(raw) || [];
+        rows = rows.filter(function (r) {
+            return !(r.system === entry.system && r.shift === entry.shift);
+        });
+        rows.unshift(entry);
+        localStorage.setItem(key, JSON.stringify(rows));
+    } catch (e) { /* التخزين ممتلئ أو غير متاح */ }
 }
 
-// Load logs for a specific station+date from Supabase
+// Load logs for a specific station+date from local storage
 function loadLogsFromSupabase(station, date, callback) {
-    var url = SUPA_URL + '/rest/v1/wtc_checklist?station=eq.' + encodeURIComponent(station) + '&date=eq.' + date + '&select=*&order=time.desc';
-    fetch(url, { headers: supaHeaders() })
-    .then(function(r){ return r.json(); })
-    .then(function(rows){
-        // map DB columns back to local entry format
-        var logs = rows.map(function(r){
-            var imgs = [];
-            if(r.images){
-                try { imgs = typeof r.images === 'string' ? JSON.parse(r.images) : r.images; }
-                catch(e){ imgs = []; }
-            }
-            return { station:r.station, system:r.system, shift:r.shift, date:r.date,
-                     time:r.time, status:r.status, note:r.note, operator:r.op_id, line:r.line, images:imgs||[] };
-        });
-        callback(logs);
-    }).catch(function(e){ console.error('Supabase load error:', e); callback([]); });
+    var rows = [];
+    try {
+        var raw = localStorage.getItem(logStoreKey(station, date));
+        if (raw) rows = JSON.parse(raw) || [];
+    } catch (e) { rows = []; }
+    callback(rows);
 }
 
 // Load logs for summary (any date/station)
@@ -1509,19 +1477,8 @@ function showLogModal(log) {
 }
 
 // ── SUPERVISOR ────────────────────────────────────────────────────────────
-document.getElementById('supBtn').onclick = function(){
-    if(state.isAdmin){
-        state.isAdmin=false; state.supervisor=null;
-        this.textContent='🧑‍💼 لوحة المشرف';
-        state.screen='select'; render();
-    } else {
-        state.isAdmin=true;
-        state.supervisor = { stations: Object.keys(STATIONS).map(function(c){ return STATIONS[c].name; }) };
-        state.adminStation = state.supervisor.stations[0]||'';
-        this.textContent='🔓 خروج لوحة المشرف';
-        state.screen='adminSel'; render();
-    }
-};
+// وضع المشرف/الأدمن يُحدَّد فقط من سياق النظام المصادق عليه (CTX.role)،
+// ولا يوجد أي زر لتفعيله من داخل الصفحة.
 
 // ── SPLASH → APP ──────────────────────────────────────────────────────────
 function startApp() {

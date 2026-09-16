@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, ExternalLink, RefreshCw, Save, Maximize2 } from "lucide-react";
+import { BarChart3, ExternalLink, RefreshCw, Save, Maximize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -76,6 +76,7 @@ function PowerBiPage() {
   const [draftUrl, setDraftUrl] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
   const [frameKey, setFrameKey] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   const { data: setting, isLoading } = useQuery({
     queryKey: ["app-setting", SETTING_KEY],
@@ -123,6 +124,42 @@ function PowerBiPage() {
 
   // Non-admins get the report full-bleed, immediately, with no settings UI.
   if (!isAdmin && valid) {
+    if (!expanded) {
+      return (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <BarChart3 className="h-6 w-6 text-primary" />
+            <h1 className="flex-1 min-w-[160px] text-xl font-bold">
+              {setting?.title || (ar ? "لوحة Power BI" : "Power BI Dashboard")}
+            </h1>
+            <button
+              onClick={() => setFrameKey((k) => k + 1)}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {ar ? "تحديث" : "Refresh"}
+            </button>
+            <button
+              onClick={() => setExpanded(true)}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+            >
+              <Maximize2 className="h-4 w-4" />
+              {ar ? "ملء الشاشة" : "Full screen"}
+            </button>
+          </div>
+          <div className="rounded-xl border overflow-hidden bg-card">
+            <iframe
+              key={frameKey}
+              title={setting?.title || "Power BI report"}
+              src={url}
+              className="w-full h-[75vh] border-0"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 z-50 bg-background">
         <iframe
@@ -133,13 +170,22 @@ function PowerBiPage() {
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />
-        <button
-          onClick={() => setFrameKey((k) => k + 1)}
-          aria-label={ar ? "تحديث" : "Refresh"}
-          className="absolute bottom-4 end-4 rounded-full border bg-card/90 p-3 shadow-lg hover:bg-accent"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
+        <div className="absolute bottom-4 end-4 flex items-center gap-2">
+          <button
+            onClick={() => setFrameKey((k) => k + 1)}
+            aria-label={ar ? "تحديث" : "Refresh"}
+            className="rounded-full border bg-card/90 p-3 shadow-lg hover:bg-accent"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setExpanded(false)}
+            className="inline-flex items-center gap-2 rounded-full border bg-card/90 px-4 py-3 text-sm font-medium shadow-lg hover:bg-accent"
+          >
+            <X className="h-4 w-4" />
+            {ar ? "خروج من ملء الشاشة" : "Exit full screen"}
+          </button>
+        </div>
       </div>
     );
   }

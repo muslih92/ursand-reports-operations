@@ -908,6 +908,7 @@ function saveLogs() {
 }
 
 function pushLogToSupabase(entry) {
+    var localOk = true;
     try {
         var key = logStoreKey(entry.station, entry.date);
         var rows = [];
@@ -918,8 +919,27 @@ function pushLogToSupabase(entry) {
         });
         rows.unshift(entry);
         localStorage.setItem(key, JSON.stringify(rows));
-    } catch (e) { /* التخزين ممتلئ أو غير متاح */ }
+    } catch (e) {
+        localOk = false; // التخزين المحلي ممتلئ — الاعتماد على الحفظ في النظام
+    }
+    // الحفظ الأساسي: إرسال السجل إلى النظام ليخزنه في قاعدة البيانات مع الصور
+    var sentToHost = false;
+    try {
+        window.parent.postMessage({
+            type: 'WTCO_ENTRY_SAVE',
+            entry: {
+                system: entry.system, status: entry.status, note: entry.note || '',
+                time: entry.time || '', shift: entry.shift, date: entry.date,
+                images: entry.images || []
+            }
+        }, '*');
+        sentToHost = window.parent !== window;
+    } catch (e) { sentToHost = false; }
+    if (!localOk && !sentToHost) {
+        alert('تعذّر حفظ الفحص على هذا الجهاز. الرجاء إعادة المحاولة.');
+    }
 }
+
 
 // Load logs for a specific station+date from local storage
 function loadLogsFromSupabase(station, date, callback) {

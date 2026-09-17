@@ -908,6 +908,7 @@ function saveLogs() {
 }
 
 function pushLogToSupabase(entry) {
+    var localOk = true;
     try {
         var key = logStoreKey(entry.station, entry.date);
         var rows = [];
@@ -918,8 +919,27 @@ function pushLogToSupabase(entry) {
         });
         rows.unshift(entry);
         localStorage.setItem(key, JSON.stringify(rows));
-    } catch (e) { /* التخزين ممتلئ أو غير متاح */ }
+    } catch (e) {
+        localOk = false; // التخزين المحلي ممتلئ — الاعتماد على الحفظ في النظام
+    }
+    // الحفظ الأساسي: إرسال السجل إلى النظام ليخزنه في قاعدة البيانات مع الصور
+    var sentToHost = false;
+    try {
+        window.parent.postMessage({
+            type: 'WTCO_ENTRY_SAVE',
+            entry: {
+                system: entry.system, status: entry.status, note: entry.note || '',
+                time: entry.time || '', shift: entry.shift, date: entry.date,
+                images: entry.images || []
+            }
+        }, '*');
+        sentToHost = window.parent !== window;
+    } catch (e) { sentToHost = false; }
+    if (!localOk && !sentToHost) {
+        alert('تعذّر حفظ الفحص على هذا الجهاز. الرجاء إعادة المحاولة.');
+    }
 }
+
 
 // Load logs for a specific station+date from local storage
 function loadLogsFromSupabase(station, date, callback) {
@@ -928,8 +948,11 @@ function loadLogsFromSupabase(station, date, callback) {
         var raw = localStorage.getItem(logStoreKey(station, date));
         if (raw) rows = JSON.parse(raw) || [];
     } catch (e) { rows = []; }
+    // اطلب أيضاً السجلات المحفوظة في النظام (تظهر لاحقاً عبر WTCO_ENTRIES)
+    try { if (window.wtcoRequestEntries) window.wtcoRequestEntries(date); } catch (e) {}
     callback(rows);
 }
+
 
 // Load logs for summary (any date/station)
 function loadLogsForSummary(station, date, callback) {
@@ -1984,8 +2007,58 @@ function printSummary() {
     if (d.type === 'WTCO_REPORTS') {
       mergeHostReports(d.reports || []);
     }
+    if (d.type === 'WTCO_ENTRIES') {
+      mergeHostEntries(d.entries || []);
+    }
+    if (d.type === 'WTCO_ENTRY_RESULT' && d.ok === false) {
+      alert('تعذّر حفظ فحص ' + (d.system || '') + ' في النظام: ' + (d.error || 'خطأ غير معروف') + '\nالرجاء إعادة المحاولة.');
+    }
 
   });
+
+  // ── سجلات الفحص المحفوظة في النظام (تعمل على أي جهاز) ─────────────
+  var _lastEntriesReq = { date: '', at: 0 };
+  function requestEntries(date) {
+    var d = date || state.date;
+    var now = Date.now();
+    if (_lastEntriesReq.date === d && now - _lastEntriesReq.at < 5000) return;
+    _lastEntriesReq = { date: d, at: now };
+    try { window.parent.postMessage({ type: 'WTCO_REQUEST_ENTRIES', date: d }, '*'); } catch (e) {}
+  }
+  window.wtcoRequestEntries = requestEntries;
+
+  function mergeHostEntries(entries) {
+    var changed = false;
+    (entries || []).forEach(function (en) {
+      if (!en || !en.system) return;
+      var key = findStation(en.station_slug || '', en.station_name_en || '');
+      var stName = key ? STATIONS[key].name : (en.station_name_en || '');
+      if (!stName) return;
+      var exists = state.logs.find(function (l) {
+        return l.station === stName && l.system === en.system && l.shift === en.shift && l.date === en.date;
+      });
+      var entry = {
+        station: stName, system: en.system, shift: en.shift, date: en.date,
+        time: en.time || '', status: en.status, note: en.note || '',
+        operator: en.operator || '', line: (key && STATIONS[key].line) || '',
+        images: (en.images && en.images.length) ? en.images : ((exists && exists.images) || [])
+      };
+      if (exists) {
+        var same = exists.status === entry.status && (exists.note || '') === entry.note &&
+          (exists.time || '') === entry.time && (exists.operator || '') === entry.operator &&
+          (exists.images || []).length === entry.images.length;
+        if (same) return;
+        Object.assign(exists, entry);
+      } else {
+        state.logs.push(entry);
+      }
+      changed = true;
+    });
+    if (!changed) return;
+    if (state.screen === 'history' || state.screen === 'adminSel') _renderHistoryShiftsUI(document);
+    else render();
+  }
+
 
   // ── انعكاس تشييك المشغّل داخل شاشة المشرف ─────────────────────────
   var _lastReportsReq = { date: '', at: 0 };

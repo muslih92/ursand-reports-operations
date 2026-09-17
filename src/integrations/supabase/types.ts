@@ -68,6 +68,62 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_entries: {
+        Row: {
+          checked_at: string | null
+          created_at: string
+          id: string
+          images: string[]
+          note: string | null
+          operator_id: string | null
+          operator_name: string | null
+          report_date: string
+          shift: string
+          station_id: string
+          status: string
+          system: string
+          updated_at: string
+        }
+        Insert: {
+          checked_at?: string | null
+          created_at?: string
+          id?: string
+          images?: string[]
+          note?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
+          report_date: string
+          shift: string
+          station_id: string
+          status?: string
+          system: string
+          updated_at?: string
+        }
+        Update: {
+          checked_at?: string | null
+          created_at?: string
+          id?: string
+          images?: string[]
+          note?: string | null
+          operator_id?: string | null
+          operator_name?: string | null
+          report_date?: string
+          shift?: string
+          station_id?: string
+          status?: string
+          system?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_entries_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_reports: {
         Row: {
           completion_pct: number

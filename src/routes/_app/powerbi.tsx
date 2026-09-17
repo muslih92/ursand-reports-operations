@@ -152,11 +152,14 @@ function PowerBiPage() {
               key={frameKey}
               title={setting?.title || "Power BI report"}
               src={url}
-              className="absolute inset-x-0 top-0 w-full h-[calc(75vh+56px)] border-0"
+              className="absolute inset-0 w-full h-full border-0"
               allowFullScreen
               referrerPolicy="no-referrer-when-downgrade"
             />
+            {/* يخفي أيقونات التواصل يمين الشريط السفلي مع إبقاء تبويبات الصفحات ظاهرة */}
+            <div className="pointer-events-none absolute bottom-0 right-0 h-[46px] w-[230px] bg-[#1a1a1a]" />
           </div>
+
         </div>
       );
     }
@@ -166,10 +169,12 @@ function PowerBiPage() {
           key={frameKey}
           title={setting?.title || "Power BI report"}
           src={url}
-          className="absolute inset-x-0 top-0 w-full h-[calc(100%+56px)] border-0"
+          className="absolute inset-0 w-full h-full border-0"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-[46px] w-[230px] bg-[#1a1a1a]" />
+
         <div className="absolute bottom-4 end-4 flex items-center gap-2">
           <button
             onClick={() => setFrameKey((k) => k + 1)}
@@ -234,11 +239,13 @@ function PowerBiPage() {
             key={frameKey}
             title={setting?.title || "Power BI report"}
             src={url}
-            className="absolute inset-x-0 top-0 w-full h-[calc(75vh+56px)] border-0"
+            className="absolute inset-0 w-full h-full border-0"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
           />
+          <div className="pointer-events-none absolute bottom-0 right-0 h-[46px] w-[230px] bg-[#1a1a1a]" />
         </div>
+
       ) : (
         <div className="rounded-xl border bg-card p-8 text-center space-y-2">
           <Maximize2 className="h-8 w-8 mx-auto text-muted-foreground" />

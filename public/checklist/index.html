@@ -948,8 +948,11 @@ function loadLogsFromSupabase(station, date, callback) {
         var raw = localStorage.getItem(logStoreKey(station, date));
         if (raw) rows = JSON.parse(raw) || [];
     } catch (e) { rows = []; }
+    // اطلب أيضاً السجلات المحفوظة في النظام (تظهر لاحقاً عبر WTCO_ENTRIES)
+    try { if (window.wtcoRequestEntries) window.wtcoRequestEntries(date); } catch (e) {}
     callback(rows);
 }
+
 
 // Load logs for summary (any date/station)
 function loadLogsForSummary(station, date, callback) {

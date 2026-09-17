@@ -253,7 +253,130 @@ function ChecklistPage() {
       reply(false, msg);
     }
   };
+
+  // ── حفظ فحص نظام واحد فور إتمامه (قاعدة البيانات + الصور) ──────────
+  const dataUrlToBlob = (src: string): { blob: Blob; ext: string } | null => {
+    const m = /^data:([^;]+);base64,(.*)$/.exec(src);
+    if (!m) return null;
+    const mime = m[1]!;
+    const bin = atob(m[2]!);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+    return { blob: new Blob([bytes], { type: mime }), ext };
+  };
+
+  const entryReply = (system: string, ok: boolean, error?: string) => {
+    frameRef.current?.contentWindow?.postMessage(
+      { type: "WTCO_ENTRY_RESULT", system, ok, error },
+      "*",
+    );
+  };
+
+  const handleEntrySave = async (payload: {
+    entry?: {
+      system?: string;
+      status?: string;
+      note?: string;
+      time?: string;
+      shift?: string;
+      date?: string;
+      images?: string[];
+    };
+  }) => {
+    const e = payload.entry ?? {};
+    const system = e.system ?? "";
+    if (!stationId || !system) {
+      entryReply(system, false, ar ? "لم يتم تحديد المحطة" : "No station selected");
+      return;
+    }
+    const reportDate = e.date ?? new Date().toISOString().slice(0, 10);
+    const shift = e.shift ?? "";
+    try {
+      // رفع الصور الجديدة (data URLs) إلى المخزن المحمي؛ المسارات المحفوظة تبقى كما هي
+      const paths: string[] = [];
+      for (const src of e.images ?? []) {
+        if (!src.startsWith("data:")) {
+          paths.push(src);
+          continue;
+        }
+        const parsed = dataUrlToBlob(src);
+        if (!parsed) continue;
+        const path = `${stationId}/${reportDate}/${crypto.randomUUID()}.${parsed.ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("checklist-photos")
+          .upload(path, parsed.blob, { contentType: parsed.blob.type, upsert: false });
+        if (upErr) throw upErr;
+        paths.push(path);
+      }
+
+      const { error } = await supabase.from("checklist_entries").upsert(
+        {
+          station_id: stationId,
+          report_date: reportDate,
+          shift,
+          system,
+          status: e.status ?? "no_obs",
+          note: e.note ?? null,
+          checked_at: e.time ?? null,
+          operator_id: profile?.id ?? null,
+          operator_name: profile?.full_name ?? null,
+          images: paths,
+        },
+        { onConflict: "station_id,report_date,shift,system" },
+      );
+      if (error) throw error;
+      entryReply(system, true);
+      void pushEntries(reportDate);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(ar ? `تعذّر حفظ فحص ${system}: ${msg}` : `Failed to save ${system}: ${msg}`);
+      entryReply(system, false, msg);
+    }
+  };
+
+  // إرسال سجلات الفحص المحفوظة (مع روابط صور مؤقتة) إلى صفحة القائمة
+  const pushEntries = async (date?: string) => {
+    const d = date || new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("checklist_entries")
+      .select("station_id, report_date, shift, system, status, note, checked_at, operator_name, images")
+      .eq("report_date", d);
+    if (error) return;
+    const rows = data ?? [];
+    const allPaths = rows.flatMap((r) => (r.images as string[] | null) ?? []);
+    const signed = new Map<string, string>();
+    if (allPaths.length) {
+      const { data: urls } = await supabase.storage
+        .from("checklist-photos")
+        .createSignedUrls(allPaths, 60 * 60);
+      (urls ?? []).forEach((u) => {
+        if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+      });
+    }
+    const payload = rows.map((r) => {
+      const st = stations.find((s) => s.id === r.station_id);
+      return {
+        station_slug: st ? slug(st.code) : "",
+        station_name_en: st?.name_en ?? "",
+        date: r.report_date,
+        shift: r.shift,
+        system: r.system,
+        status: r.status,
+        note: r.note ?? "",
+        time: r.checked_at ?? "",
+        operator: r.operator_name ?? "",
+        images: ((r.images as string[] | null) ?? []).map((p) => signed.get(p) ?? p),
+      };
+    });
+    frameRef.current?.contentWindow?.postMessage(
+      { type: "WTCO_ENTRIES", date: d, entries: payload },
+      "*",
+    );
+  };
+
   // ── السجل اليومي لقوائم الفحص المحفوظة ─────────────────────────────
+
   const scopeKey = stations.map((s) => s.id).sort().join(",");
   const [allStations, setAllStations] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);

@@ -178,10 +178,14 @@ function ChecklistPage() {
       if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") {
         pushContext();
         void pushReports();
+        void pushEntries();
       }
       if (t === "WTCO_REQUEST_REPORTS") void pushReports(data?.date);
+      if (t === "WTCO_REQUEST_ENTRIES") void pushEntries(data?.date);
+      if (t === "WTCO_ENTRY_SAVE") void handleEntrySave(data as Parameters<typeof handleEntrySave>[0]);
       if (t === "WTCO_CHECKLIST_SUBMIT") void handleSubmit(data as ChecklistSubmit);
     };
+
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
   });

@@ -169,10 +169,12 @@ function PowerBiPage() {
           key={frameKey}
           title={setting?.title || "Power BI report"}
           src={url}
-          className="absolute inset-x-0 top-0 w-full h-[calc(100%+56px)] border-0"
+          className="absolute inset-0 w-full h-full border-0"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-[46px] w-[230px] bg-[#1a1a1a]" />
+
         <div className="absolute bottom-4 end-4 flex items-center gap-2">
           <button
             onClick={() => setFrameKey((k) => k + 1)}

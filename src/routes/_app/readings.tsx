@@ -1458,7 +1458,7 @@ function EntryView({
                               <input
                                 type="text"
                                 inputMode="text"
-                                value={values[key] ?? ""}
+                                value={displayCellValue(values[key] ?? "", locale)}
                                  onChange={(e) => {
                                    const val = e.target.value;
                                    markTouched(key);

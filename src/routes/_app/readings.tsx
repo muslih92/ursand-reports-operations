@@ -16,6 +16,7 @@ import {
   Circle,
   Printer,
   FileSpreadsheet,
+  Trash2,
 } from "lucide-react";
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";

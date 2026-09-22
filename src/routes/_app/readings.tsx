@@ -16,6 +16,7 @@ import {
   Circle,
   Printer,
   FileSpreadsheet,
+  Trash2,
 } from "lucide-react";
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
@@ -258,9 +259,42 @@ function ListView({
   onStation: (s: string) => void;
 }) {
   const { locale, t, dir } = useI18n();
+  const { isAdmin } = useAuth();
+  const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const deleteEntries = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const msg =
+      locale === "ar"
+        ? `سيتم حذف ${ids.length} سجل قراءات نهائياً. هل أنت متأكد؟`
+        : `${ids.length} reading record(s) will be permanently deleted. Continue?`;
+    if (!window.confirm(msg)) return;
+    setDeleting(true);
+    try {
+      const { error: vErr } = await supabase.from("reading_values").delete().in("entry_id", ids);
+      if (vErr) throw vErr;
+      const { error } = await supabase.from("reading_entries").delete().in("id", ids);
+      if (error) throw error;
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+      await qc.invalidateQueries({ queryKey: ["reading-records"] });
+      await qc.invalidateQueries({ queryKey: ["progress"] });
+      toast.success(locale === "ar" ? "تم حذف السجلات" : "Records deleted");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
 
 
   const { data: stations } = useScopedStations();
@@ -504,6 +538,18 @@ function ListView({
               ? locale === "ar" ? "جارٍ التصدير…" : "Exporting…"
               : locale === "ar" ? "تصدير Excel للمحدد" : "Export selected to Excel"}
           </button>
+          {isAdmin && (
+            <button
+              disabled={selected.size === 0 || deleting}
+              onClick={() => deleteEntries([...selected])}
+              className="h-9 px-3 rounded-lg border border-destructive/40 text-destructive text-sm inline-flex items-center gap-2 disabled:opacity-50 hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting
+                ? locale === "ar" ? "جارٍ الحذف…" : "Deleting…"
+                : locale === "ar" ? "حذف المحدد" : "Delete selected"}
+            </button>
+          )}
         </div>
         {recentLoading ? (
           <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>
@@ -529,6 +575,7 @@ function ListView({
                   <th className="px-3 py-2 text-start">{t("common.station")}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "بواسطة" : "By"}</th>
+                  {isAdmin && <th className="px-3 py-2 w-12" />}
                 </tr>
               </thead>
               <tbody>
@@ -561,6 +608,18 @@ function ListView({
                         {tpl ? (locale === "ar" ? tpl.name_ar : tpl.name_en) : "—"}
                       </td>
                       <td className="px-3 py-2">{r.operator_name ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-3 py-2 text-end" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            disabled={deleting}
+                            onClick={() => deleteEntries([r.id])}
+                            title={locale === "ar" ? "حذف السجل" : "Delete record"}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-destructive/40 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

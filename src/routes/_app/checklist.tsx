@@ -386,7 +386,9 @@ function ChecklistPage() {
         note: r.note ?? "",
         time: r.checked_at ?? "",
         operator: r.operator_name ?? "",
-        images: ((r.images as string[] | null) ?? []).map((p) => signed.get(p) ?? p),
+        images: ((r.images as string[] | null) ?? [])
+          .map((p) => signed.get(p) ?? (/^https?:\/\//i.test(p) ? p : ""))
+          .filter(Boolean),
       };
     });
     frameRef.current?.contentWindow?.postMessage(

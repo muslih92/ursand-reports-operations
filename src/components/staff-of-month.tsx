@@ -63,8 +63,9 @@ const Card = memo(function Card({ rows, kind }: { rows: Row[]; kind: "operator" 
   const isOp = kind === "operator";
   const Icon = isOp ? Star : ShieldCheck;
   const title = isOp
-    ? ar ? "الموظف المتميز" : "Employee of the Month"
-    : ar ? "المشرف المتميز" : "Supervisor of the Month";
+    ? ar ? "الموظف المتميز (كل أسبوعين)" : "Employee of the Fortnight"
+    : ar ? "المشرف المتميز (كل أسبوعين)" : "Supervisor of the Fortnight";
+  const period = `${winner.month_start} → ${winner.month_end}`;
 
   return (
     <section

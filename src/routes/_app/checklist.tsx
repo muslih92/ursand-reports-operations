@@ -316,7 +316,8 @@ function ChecklistPage() {
       const paths: string[] = [];
       for (const src of e.images ?? []) {
         if (!src.startsWith("data:")) {
-          paths.push(src);
+          const p = toStoragePath(src);
+          if (p) paths.push(p);
           continue;
         }
         const parsed = dataUrlToBlob(src);

@@ -738,7 +738,7 @@ function EntryView({
         if (tokenSet.has(rv.status)) {
           s[rv.field_id] = rv.status;
         } else {
-          v[key] = rv.status;
+          v[key] = displayCellValue(rv.status, locale);
         }
       } else {
         v[key] = "";

@@ -259,9 +259,42 @@ function ListView({
   onStation: (s: string) => void;
 }) {
   const { locale, t, dir } = useI18n();
+  const { isAdmin } = useAuth();
+  const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const deleteEntries = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const msg =
+      locale === "ar"
+        ? `سيتم حذف ${ids.length} سجل قراءات نهائياً. هل أنت متأكد؟`
+        : `${ids.length} reading record(s) will be permanently deleted. Continue?`;
+    if (!window.confirm(msg)) return;
+    setDeleting(true);
+    try {
+      const { error: vErr } = await supabase.from("reading_values").delete().in("entry_id", ids);
+      if (vErr) throw vErr;
+      const { error } = await supabase.from("reading_entries").delete().in("id", ids);
+      if (error) throw error;
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+      await qc.invalidateQueries({ queryKey: ["reading-records"] });
+      await qc.invalidateQueries({ queryKey: ["progress"] });
+      toast.success(locale === "ar" ? "تم حذف السجلات" : "Records deleted");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
 
 
   const { data: stations } = useScopedStations();

@@ -87,6 +87,7 @@ const Card = memo(function Card({ rows, kind }: { rows: Row[]; kind: "operator" 
               <span className="text-xs font-medium text-muted-foreground"> · {winner.station_code}</span>
             ) : null}
           </div>
+          <div className="truncate text-[10px] text-muted-foreground" dir="ltr">{period}</div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <span className="text-base font-extrabold text-primary sm:text-lg">{winner.total_score}</span>

@@ -270,6 +270,21 @@ function ChecklistPage() {
     return { blob: new Blob([bytes], { type: mime }), ext };
   };
 
+  // تحويل أي رابط صورة (موقّع/عام) إلى مسار التخزين الأصلي حتى لا تُحفظ روابط منتهية
+  const toStoragePath = (src: string): string | null => {
+    if (!src) return null;
+    if (!/^https?:\/\//i.test(src)) return src.replace(/^\/+/, "");
+    try {
+      const url = new URL(src);
+      const m = /\/storage\/v1\/object\/(?:sign|public|authenticated)\/checklist-photos\/(.+)$/.exec(
+        url.pathname,
+      );
+      return m ? decodeURIComponent(m[1]!) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const entryReply = (system: string, ok: boolean, error?: string) => {
     frameRef.current?.contentWindow?.postMessage(
       { type: "WTCO_ENTRY_RESULT", system, ok, error },

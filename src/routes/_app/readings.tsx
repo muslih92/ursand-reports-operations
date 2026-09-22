@@ -125,9 +125,29 @@ function statusLabel(token: string, locale: "ar" | "en"): string {
 const QUICK_MARKS = [
   { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300" },
   { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300" },
-  { code: "BUSY", ar: "تحت الصيانة", en: "Under Maintenance", cls: "bg-blue-100 text-blue-800 border-blue-300" },
+  { code: "MAINTENANCE", ar: "تحت الصيانة", en: "Under Maintenance", cls: "bg-blue-100 text-blue-800 border-blue-300" },
   { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400" },
 ] as const;
+
+/** Text written into a cell for a quick mark (localized, never the raw code). */
+function markText(code: string, locale: "ar" | "en"): string {
+  const m = QUICK_MARKS.find((x) => x.code === code);
+  return m ? (locale === "ar" ? m.ar : m.en) : code;
+}
+
+/** Legacy / raw codes stored previously are shown with their proper label. */
+function displayCellValue(raw: string, locale: "ar" | "en"): string {
+  const key = raw.trim().toUpperCase();
+  const legacy: Record<string, string> = {
+    BUSY: "MAINTENANCE",
+    MAINTENANCE: "MAINTENANCE",
+    SHUTDOWN: "SHUTDOWN",
+    STANDBY: "STANDBY",
+    OOS: "OOS",
+  };
+  const code = legacy[key];
+  return code ? markText(code, locale) : raw;
+}
 
 // Allowed delay (minutes) after the scheduled slot before the actual entry time is flagged
 const LATE_LIMIT_MIN = 90;

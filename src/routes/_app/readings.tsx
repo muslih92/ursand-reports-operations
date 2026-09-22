@@ -1515,7 +1515,7 @@ function EntryView({
                                      for (const other of fs) {
                                        if (!other.unit) continue;
                                        const k = `${other.id}|${slot}`;
-                                       next[k] = activeMark;
+                                       next[k] = markText(activeMark, locale);
                                        markTouched(k);
                                      }
                                      return next;

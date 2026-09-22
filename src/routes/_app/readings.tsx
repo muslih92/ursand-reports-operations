@@ -575,6 +575,7 @@ function ListView({
                   <th className="px-3 py-2 text-start">{t("common.station")}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "القالب" : "Template"}</th>
                   <th className="px-3 py-2 text-start">{locale === "ar" ? "بواسطة" : "By"}</th>
+                  {isAdmin && <th className="px-3 py-2 w-12" />}
                 </tr>
               </thead>
               <tbody>
@@ -607,6 +608,18 @@ function ListView({
                         {tpl ? (locale === "ar" ? tpl.name_ar : tpl.name_en) : "—"}
                       </td>
                       <td className="px-3 py-2">{r.operator_name ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-3 py-2 text-end" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            disabled={deleting}
+                            onClick={() => deleteEntries([r.id])}
+                            title={locale === "ar" ? "حذف السجل" : "Delete record"}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-destructive/40 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

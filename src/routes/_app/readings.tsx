@@ -538,6 +538,18 @@ function ListView({
               ? locale === "ar" ? "جارٍ التصدير…" : "Exporting…"
               : locale === "ar" ? "تصدير Excel للمحدد" : "Export selected to Excel"}
           </button>
+          {isAdmin && (
+            <button
+              disabled={selected.size === 0 || deleting}
+              onClick={() => deleteEntries([...selected])}
+              className="h-9 px-3 rounded-lg border border-destructive/40 text-destructive text-sm inline-flex items-center gap-2 disabled:opacity-50 hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting
+                ? locale === "ar" ? "جارٍ الحذف…" : "Deleting…"
+                : locale === "ar" ? "حذف المحدد" : "Delete selected"}
+            </button>
+          )}
         </div>
         {recentLoading ? (
           <div className="p-6 text-sm text-muted-foreground text-center">{t("common.loading")}</div>

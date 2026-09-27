@@ -659,11 +659,12 @@ function EntryView({
 }) {
   const { locale, t, dir } = useI18n();
   const { profile, isAdmin, hasRole } = useAuth();
+  const { allowedStationIds } = useStationScope();
   const qc = useQueryClient();
+  const stationInScope = !!stationId && allowedStationIds.includes(stationId);
   const canWrite =
     isAdmin ||
-    hasRole("supervisor") ||
-    (hasRole("operator") && stationId === profile?.station_id);
+    ((hasRole("supervisor") || hasRole("operator")) && stationInScope);
   // Operators lose edit access to a time slot once its 12-hour shift is over
   const shiftLockActive = !isAdmin && !hasRole("supervisor");
   const slotLocked = (slot: string) => shiftLockActive && isSlotLocked(date, slot);

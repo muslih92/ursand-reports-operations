@@ -29,6 +29,16 @@ const searchSchema = z.object({ id: z.string().optional() });
 
 export const Route = createFileRoute("/_app/incidents")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: "Incident Reports | WTCO Operations" },
+      { name: "description", content: "Create, review, and export WTCO operations incident reports with supporting photos." },
+      { property: "og:title", content: "Incident Reports | WTCO Operations" },
+      { property: "og:description", content: "Create, review, and export WTCO operations incident reports with supporting photos." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: IncidentsPage,
 });
 

@@ -285,6 +285,28 @@ export async function buildElementPdf(opts: {
       max-height: 52px !important;
       margin: 0 0 4px 0 !important;
     }
+    .pdf-export-root .pdf-photo-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 12px !important;
+      margin-top: 8px !important;
+    }
+    .pdf-export-root .pdf-photo-grid > .pdf-photo-item {
+      display: block !important;
+      margin: 0 !important;
+      padding: 8px !important;
+      border: 1px solid #9ca3af !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .pdf-export-root .pdf-photo-item img {
+      width: 100% !important;
+      height: 250px !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 0 6px 0 !important;
+      object-fit: contain !important;
+    }
     .pdf-export-root h1, .pdf-export-root h2, .pdf-export-root h3 {
       margin: 0 0 4px 0 !important;
       font-size: 15px !important;
@@ -328,6 +350,16 @@ export async function buildElementPdf(opts: {
         /* ignore font loading issues */
       }
     }
+    const images = Array.from(frameClone.querySelectorAll<HTMLImageElement>("img"));
+    await Promise.all(
+      images.map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 80));
     const contentHeight = Math.max(frameClone.scrollHeight, frameClone.getBoundingClientRect().height, 200);
     const contentWidth = Math.max(frameClone.scrollWidth, width);
@@ -369,7 +401,7 @@ export async function buildElementPdf(opts: {
     const cloneRect = frameClone.getBoundingClientRect();
     const canvasRatio = canvas.height / contentHeight;
     const safeBreaks = Array.from(
-      frameClone.querySelectorAll<HTMLElement>("tr, thead, [data-pdf-value], .pdf-title-band"),
+      frameClone.querySelectorAll<HTMLElement>("tr, thead, [data-pdf-value], [data-pdf-block], .pdf-title-band, .pdf-photo-item"),
     )
       .map((element) => {
         const rect = element.getBoundingClientRect();

@@ -204,7 +204,7 @@ function ReadingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/readings" });
   const { profile, isAdmin, hasRole } = useAuth();
-  const { scopedStationId, canPickStation: canPick } = useStationScope();
+  const { scopedStationId, canPickStation: canPick } = useStationScope({ supervisorViewAll: true });
   const canPickStation = (isAdmin || hasRole("supervisor") || hasRole("viewer")) && canPick;
 
   const date = search.date ?? todayISO();
@@ -297,7 +297,7 @@ function ListView({
 
 
 
-  const { data: stations } = useScopedStations();
+  const { data: stations } = useScopedStations({ supervisorViewAll: true });
 
   // Saved reading records (most recent first) — visible immediately on open
   const { data: recent, isLoading: recentLoading } = useQuery({
@@ -658,12 +658,14 @@ function EntryView({
   onBack: () => void;
 }) {
   const { locale, t, dir } = useI18n();
-  const { profile, isAdmin, hasRole } = useAuth();
+  const { isAdmin, hasRole } = useAuth();
   const qc = useQueryClient();
+  const { editableStationIds } = useStationScope();
+  // Admin edits any station; supervisors/operators only their assigned stations.
   const canWrite =
     isAdmin ||
-    hasRole("supervisor") ||
-    (hasRole("operator") && stationId === profile?.station_id);
+    ((hasRole("supervisor") || hasRole("operator")) &&
+      !!stationId && editableStationIds.includes(stationId));
   // Operators lose edit access to a time slot once its 12-hour shift is over
   const shiftLockActive = !isAdmin && !hasRole("supervisor");
   const slotLocked = (slot: string) => shiftLockActive && isSlotLocked(date, slot);

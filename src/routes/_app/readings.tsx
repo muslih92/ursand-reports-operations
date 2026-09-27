@@ -658,7 +658,7 @@ function EntryView({
   onBack: () => void;
 }) {
   const { locale, t, dir } = useI18n();
-  const { isAdmin, hasRole } = useAuth();
+  const { profile, isAdmin, hasRole } = useAuth();
   const qc = useQueryClient();
   const { editableStationIds } = useStationScope();
   // Admin edits any station; supervisors/operators only their assigned stations.

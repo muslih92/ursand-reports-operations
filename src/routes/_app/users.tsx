@@ -196,12 +196,12 @@ function UsersPage() {
             </label>
             <div>
               <span className="text-sm font-medium">
-                {locale === "ar" ? "محطات إضافية للمراقبة (حتى محطتين)" : "Extra supervised stations (up to 2)"}
+                {locale === "ar" ? "محطة إضافية للمراقبة (محطتان كحد أقصى)" : "Extra supervised station (2 stations maximum)"}
               </span>
               <div className="mt-1 grid grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-lg border p-2">
                 {stations?.filter((s) => s.id !== editing.station_id).map((s) => {
                   const selected = (editing.extra_station_ids ?? []).includes(s.id);
-                  const full = (editing.extra_station_ids ?? []).length >= 2;
+                  const full = (editing.extra_station_ids ?? []).length >= 1;
                   return (
                     <label key={s.id} className="flex items-center gap-2 text-sm">
                       <input
@@ -223,8 +223,8 @@ function UsersPage() {
               </div>
               <span className="mt-1 block text-xs text-muted-foreground">
                 {locale === "ar"
-                  ? "المحطة الأساسية + محطتين إضافيتين = ٣ محطات كحد أقصى"
-                  : "Main station + 2 extra = 3 stations maximum"}
+                  ? "المحطة الأساسية + محطة إضافية = محطتان كحد أقصى"
+                  : "Main station + 1 extra = 2 stations maximum"}
               </span>
             </div>
             <Input label={locale === "ar" ? "الهاتف" : "Phone"} value={editing.phone ?? ""} onChange={(v) => setEditing({ ...editing, phone: v })} />

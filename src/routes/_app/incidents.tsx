@@ -308,6 +308,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
 
   const stationMap = useMemo(() => {
     const m: Record<string, Station> = {};
@@ -348,6 +349,15 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     };
   }, [excelDownload, pdfDownload]);
 
+  const pendingPhotoPreviews = useMemo(
+    () => pendingPhotos.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [pendingPhotos],
+  );
+
+  useEffect(() => {
+    return () => pendingPhotoPreviews.forEach(({ url }) => URL.revokeObjectURL(url));
+  }, [pendingPhotoPreviews]);
+
   /* ---------- Attachments ---------- */
   const { data: attachments } = useQuery({
     queryKey: ["incident-attachments", id],
@@ -378,28 +388,37 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     })();
   }, [attachments]);
 
-  const uploadFile = useMutation({
-    mutationFn: async (file: File) => {
-      if (isNew) throw new Error(locale === "ar" ? "احفظ التقرير أولاً" : "Save the report first");
+  const uploadAttachment = async (incidentId: string, file: File) => {
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `${id}/${Date.now()}_${safe}`;
+      const path = `${incidentId}/${Date.now()}_${safe}`;
       const up = await supabase.storage.from(BUCKET).upload(path, file, {
         contentType: file.type || undefined,
         upsert: false,
       });
       if (up.error) throw up.error;
       const { error } = await supabase.from("incident_attachments").insert({
-        incident_id: id,
+        incident_id: incidentId,
         storage_path: path,
         file_name: file.name,
         content_type: file.type || null,
         uploaded_by: profile?.id ?? null,
       });
       if (error) throw error;
+  };
+
+  const uploadFile = useMutation({
+    mutationFn: async (file: File) => {
+      if (isNew) {
+        setPendingPhotos((current) => [...current, file]);
+        return;
+      }
+      await uploadAttachment(id, file);
     },
     onSuccess: () => {
-      toast.success(locale === "ar" ? "تم الرفع" : "Uploaded");
-      qc.invalidateQueries({ queryKey: ["incident-attachments", id] });
+      if (!isNew) {
+        toast.success(locale === "ar" ? "تم الرفع" : "Uploaded");
+        qc.invalidateQueries({ queryKey: ["incident-attachments", id] });
+      }
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
@@ -441,6 +460,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           .insert({ ...payload, reported_by: profile?.id ?? null })
           .select("id").single();
         if (error) throw error;
+        for (const photo of pendingPhotos) {
+          await uploadAttachment(data.id, photo);
+        }
         return data.id as string;
       }
       const { error } = await supabase.from("incidents").update(payload).eq("id", id);
@@ -451,7 +473,11 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["incidents"] });
       qc.invalidateQueries({ queryKey: ["incident", newId] });
-      if (isNew) window.history.replaceState({}, "", `?id=${newId}`);
+      if (isNew) {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("id", newId);
+        window.location.replace(nextUrl.toString());
+      }
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
@@ -788,7 +814,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
                 {locale === "ar" ? "صور الحادث (اختياري)" : "Optional — multiple photos can be attached"}
               </p>
             </div>
-            {!isNew && canWrite && (
+            {canWrite && (
               <label
                 className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 text-sm hover:bg-accent print:hidden"
                 data-pdf-hide
@@ -821,13 +847,30 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             )}
           </div>
 
-          {isNew ? (
-            <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground print:hidden" data-pdf-hide>
-              {locale === "ar" ? "احفظ التقرير أولاً، ثم يمكنك إرفاق الصور." : "Save the report first, then attach photos."}
+          {isNew && pendingPhotoPreviews.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pdf-photo-grid">
+              {pendingPhotoPreviews.map(({ file, url }, index) => (
+                <figure key={`${file.name}-${file.lastModified}-${index}`} className="relative overflow-hidden rounded-md border bg-background pdf-photo-item" data-pdf-block>
+                  <img src={url} alt={file.name} className="h-56 w-full object-contain bg-muted/20" />
+                  <figcaption className="truncate border-t px-3 py-2 text-xs" title={file.name}>{file.name}</figcaption>
+                  <button
+                    type="button"
+                    onClick={() => setPendingPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))}
+                    className="absolute right-2 top-2 rounded-md border bg-background/90 p-1.5 text-destructive shadow-sm hover:bg-destructive/10 print:hidden"
+                    aria-label={locale === "ar" ? "حذف الصورة" : "Delete photo"}
+                    data-pdf-hide
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </figure>
+              ))}
+              <p className="text-xs text-muted-foreground sm:col-span-2 print:hidden" data-pdf-hide>
+                {locale === "ar" ? "ستُرفع الصور تلقائيًا عند حفظ التقرير." : "Photos will upload automatically when the report is saved."}
+              </p>
             </div>
-          ) : imageAttachments.length === 0 ? (
+          ) : isNew || imageAttachments.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground print:hidden" data-pdf-hide>
-              {locale === "ar" ? "لا توجد صور مرفقة — الإرفاق غير إلزامي." : "No photos attached — photos are optional."}
+              {locale === "ar" ? "لا توجد صور مرفقة — يمكنك اختيار الصور قبل الحفظ، والإرفاق غير إلزامي." : "No photos attached — you can select photos before saving, and photos are optional."}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pdf-photo-grid">

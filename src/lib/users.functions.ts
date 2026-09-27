@@ -28,6 +28,9 @@ export const createUser = createServerFn({ method: "POST" })
     if ((data.role === "operator" || data.role === "supervisor") && !data.station_id) {
       throw new Error("Station is required for operator/supervisor users");
     }
+    if (data.role === "operator" && (data.extra_station_ids ?? []).filter((s) => s !== data.station_id).length > 1) {
+      throw new Error("المشغل يُحدد له محطة واحدة أو محطتان فقط");
+    }
     const admin = await tryAdmin();
     const email = employeeEmail(data.employee_no);
     let userId: string;
@@ -107,6 +110,9 @@ export const updateUser = createServerFn({ method: "POST" })
     }
     if ((data.role === "operator" || data.role === "supervisor") && data.station_id === null) {
       throw new Error("Station is required for operator/supervisor users");
+    }
+    if (data.role === "operator" && (data.extra_station_ids ?? []).filter((s) => s !== data.station_id).length > 1) {
+      throw new Error("المشغل يُحدد له محطة واحدة أو محطتان فقط");
     }
     const admin = await tryAdmin();
     const db = admin ?? context.supabase;

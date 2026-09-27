@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
-import { AlertOctagon, AlertTriangle, Info, Plus, CheckCircle2, Trash2, RotateCcw } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Info, Plus, CheckCircle2, Trash2, RotateCcw, Wrench } from "lucide-react";
 
 export const Route = createFileRoute("/_app/station-notes")({
   head: () => ({
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/station-notes")({
   component: StationNotesPage,
 });
 
-type Category = "isolation" | "warning" | "note";
+type Category = "isolation" | "warning" | "maintenance" | "note";
 
 interface Note {
   id: string;
@@ -61,6 +61,13 @@ const CAT = {
     icon: AlertTriangle,
     card: "border-warning/50 bg-warning/10",
     chip: "bg-warning text-warning-foreground",
+  },
+  maintenance: {
+    ar: "تحت الصيانة",
+    en: "Under Maintenance",
+    icon: Wrench,
+    card: "border-primary/50 bg-primary/10",
+    chip: "bg-primary text-primary-foreground",
   },
   note: {
     ar: "ملاحظة",
@@ -111,6 +118,7 @@ function StationNotesPage() {
     return {
       isolation: open.filter((n) => n.category === "isolation").length,
       warning: open.filter((n) => n.category === "warning").length,
+      maintenance: open.filter((n) => n.category === "maintenance").length,
       note: open.filter((n) => n.category === "note").length,
     };
   }, [notes]);
@@ -211,6 +219,9 @@ function StationNotesPage() {
           <span className="rounded-full bg-warning px-3 py-1 text-warning-foreground">
             {ar ? "تحذير" : "Warning"}: {counts.warning}
           </span>
+          <span className="rounded-full bg-primary px-3 py-1 text-primary-foreground">
+            {ar ? "تحت الصيانة" : "Under Maintenance"}: {counts.maintenance}
+          </span>
           <span className="rounded-full bg-muted px-3 py-1 text-muted-foreground">
             {ar ? "ملاحظة" : "Note"}: {counts.note}
           </span>
@@ -300,8 +311,8 @@ function StationNotesPage() {
               className="space-y-3"
             >
               <h2 className="text-lg font-bold">{ar ? "بلاغ جديد" : "New entry"}</h2>
-              <div className="grid grid-cols-3 gap-2">
-                {(["isolation", "warning", "note"] as Category[]).map((k) => {
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(["isolation", "warning", "maintenance", "note"] as Category[]).map((k) => {
                   const c = CAT[k];
                   const active = form.category === k;
                   return (

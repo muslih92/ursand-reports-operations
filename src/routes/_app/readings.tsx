@@ -911,7 +911,7 @@ function EntryView({
               operator_name: profile?.full_name ?? operatorName,
               notes: snapshot.notes || null,
             },
-            { onConflict: "template_id,entry_date" },
+            { onConflict: "template_id,station_id,entry_date" },
           )
           .select("id")
           .single();

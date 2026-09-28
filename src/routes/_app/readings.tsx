@@ -991,10 +991,35 @@ function EntryView({
       }
 
 
-      // Clearing a cell blanks the value (only admins may delete rows, per RLS).
+      // 2b) A row-level status (Standby/N/V/...) that existed in the database
+      // but was removed in this session must also be blanked, otherwise it
+      // comes back after refresh.
+      for (const rv of data?.entry?.reading_values ?? []) {
+        if (rv.value != null || !rv.status) continue;
+        if (!(STATUS_TOKENS as readonly string[]).includes(rv.status)) continue;
+        const key = `${rv.field_id}|${rv.time_slot}`;
+        if (snapshot.statuses[rv.field_id]) continue;
+        if ((snapshot.values[key] ?? "").trim() !== "") continue;
+        if (slotLocked(rv.time_slot)) continue;
+        if (!toDelete.includes(rv.id)) toDelete.push(rv.id);
+      }
+
+      // Clearing a cell sets value/status to NULL (never DELETE — admin only, per RLS).
+      // `.select("id")` confirms each row really changed; RLS can block silently.
       if (toDelete.length > 0) {
-        const { error } = await supabase.from("reading_values").update({ value: null, status: null, recorded_at: null }).in("id", toDelete);
+        const { data: upd, error } = await supabase
+          .from("reading_values")
+          .update({ value: null, status: null, recorded_at: null })
+          .in("id", toDelete)
+          .select("id");
         if (error) throw error;
+        if ((upd ?? []).length < toDelete.length) {
+          throw new Error(
+            locale === "ar"
+              ? "تعذر مسح بعض الخانات في قاعدة البيانات. أعد المحاولة."
+              : "Some cleared cells could not be saved. Please retry.",
+          );
+        }
       }
       for (const row of toDeleteByKey) {
         const { error } = await supabase

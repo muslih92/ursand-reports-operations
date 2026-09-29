@@ -271,13 +271,11 @@ function ListView({
     if (ids.length === 0) return;
     const msg =
       locale === "ar"
-        ? `سيتم حذف ${ids.length} سجل قراءات نهائياً. هل أنت متأكد؟`
-        : `${ids.length} reading record(s) will be permanently deleted. Continue?`;
+        ? `سيتم نقل ${ids.length} سجل قراءات إلى سلة المحذوفات. هل أنت متأكد؟`
+        : `${ids.length} reading record(s) will be moved to the recycle bin. Continue?`;
     if (!window.confirm(msg)) return;
     setDeleting(true);
     try {
-      const { error: vErr } = await supabase.from("reading_values").delete().in("entry_id", ids);
-      if (vErr) throw vErr;
       const { error } = await supabase.from("reading_entries").delete().in("id", ids);
       if (error) throw error;
       setSelected((prev) => {

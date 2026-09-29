@@ -708,6 +708,24 @@ function EntryView({
       if (sectionsRes.error) throw sectionsRes.error;
       if (fieldsRes.error) throw fieldsRes.error;
       if (entryRes.error) throw entryRes.error;
+      // The embedded reading_values list is capped at 1000 rows by the API, so
+      // large sheets silently lost rows on reload. Always load them in pages.
+      if (entryRes.data) {
+        const all: unknown[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: page, error } = await supabase
+            .from("reading_values")
+            .select("id, field_id, time_slot, value, status, recorded_at")
+            .eq("entry_id", (entryRes.data as { id: string }).id)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          all.push(...(page ?? []));
+          if (!page || page.length < PAGE) break;
+        }
+        (entryRes.data as { reading_values: unknown[] }).reading_values = all;
+      }
       return {
         template: tplRes.data as Template,
         sections: (sectionsRes.data ?? []) as Section[],
@@ -1763,7 +1781,21 @@ async function exportSelectedReadingsXlsx(opts: {
   const templateIds = Array.from(new Set(entries.map((e) => e.template_id)));
 
   const [valsRes, fieldsRes, sectionsRes] = await Promise.all([
-    supabase.from("reading_values").select("entry_id, field_id, time_slot, value").in("entry_id", ids),
+    (async () => {
+      const all: { entry_id: string; field_id: string; time_slot: string; value: number | null }[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("reading_values")
+          .select("entry_id, field_id, time_slot, value")
+          .in("entry_id", ids)
+          .order("id", { ascending: true })
+          .range(from, from + 999);
+        if (error) return { data: null, error };
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return { data: all, error: null };
+    })(),
     supabase
       .from("reading_fields")
       .select("id, template_id, section_id, label_en, label_ar, unit, sort_order")

@@ -86,7 +86,8 @@ function StationNotesPage() {
   const { scopedStationId, canPickStation } = useStationScope();
   const qc = useQueryClient();
 
-  const canClose = isAdmin || hasRole("supervisor");
+  const canManageAllStatuses = isAdmin || hasRole("supervisor");
+  const isOperator = hasRole("operator");
   const [stationId, setStationId] = useState<string>(scopedStationId ?? "");
   const [filter, setFilter] = useState<"open" | "all">("open");
   const [form, setForm] = useState<{ category: Category; title: string; body: string } | null>(null);
@@ -239,7 +240,7 @@ function StationNotesPage() {
           {notes.map((n) => {
             const c = CAT[n.category] ?? CAT.note;
             const Icon = c.icon;
-            const mine = n.author_id === user?.id;
+            const canChangeStatus = canManageAllStatuses || (isOperator && n.category === "maintenance");
             return (
               <div
                 key={n.id}
@@ -265,7 +266,7 @@ function StationNotesPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    {(canClose || mine) &&
+                    {canChangeStatus &&
                       (n.status === "open" ? (
                         <button
                           onClick={() => setStatus.mutate({ id: n.id, status: "closed" })}

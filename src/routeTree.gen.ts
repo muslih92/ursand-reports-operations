@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as AppTrendsRouteImport } from './routes/_app/trends'
+import { Route as AppTrashRouteImport } from './routes/_app/trash'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppStationNotesRouteImport } from './routes/_app/station-notes'
@@ -55,6 +56,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
 const AppTrendsRoute = AppTrendsRouteImport.update({
   id: '/trends',
   path: '/trends',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrashRoute = AppTrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesRoute = AppTemplatesRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_app/station-notes': typeof AppStationNotesRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/_app/trash': typeof AppTrashRoute
   '/_app/trends': typeof AppTrendsRoute
   '/_app/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/station-notes'
     | '/stations'
     | '/templates'
+    | '/trash'
     | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/station-notes'
     | '/stations'
     | '/templates'
+    | '/trash'
     | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/_app/station-notes'
     | '/_app/stations'
     | '/_app/templates'
+    | '/_app/trash'
     | '/_app/trends'
     | '/_app/users'
     | '/api/public/admin-set-password'
@@ -341,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/trends'
       fullPath: '/trends'
       preLoaderRoute: typeof AppTrendsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trash': {
+      id: '/_app/trash'
+      path: '/trash'
+      fullPath: '/trash'
+      preLoaderRoute: typeof AppTrashRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/templates': {
@@ -490,6 +509,7 @@ interface AppRouteChildren {
   AppStationNotesRoute: typeof AppStationNotesRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
+  AppTrashRoute: typeof AppTrashRoute
   AppTrendsRoute: typeof AppTrendsRoute
   AppUsersRoute: typeof AppUsersRoute
 }
@@ -512,6 +532,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStationNotesRoute: AppStationNotesRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
+  AppTrashRoute: AppTrashRoute,
   AppTrendsRoute: AppTrendsRoute,
   AppUsersRoute: AppUsersRoute,
 }

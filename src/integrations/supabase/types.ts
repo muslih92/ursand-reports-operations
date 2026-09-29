@@ -251,6 +251,48 @@ export type Database = {
           },
         ]
       }
+      deleted_items: {
+        Row: {
+          deleted_at: string
+          deleted_by: string
+          deletion_txid: number
+          id: string
+          record_id: string
+          record_label: string | null
+          restored_at: string | null
+          restored_by: string | null
+          row_data: Json
+          station_id: string | null
+          table_name: string
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by: string
+          deletion_txid: number
+          id?: string
+          record_id: string
+          record_label?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          row_data: Json
+          station_id?: string | null
+          table_name: string
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string
+          deletion_txid?: number
+          id?: string
+          record_id?: string
+          record_label?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          row_data?: Json
+          station_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       equipment_availability_entries: {
         Row: {
           created_at: string
@@ -1479,6 +1521,7 @@ export type Database = {
         Args: { _entry_date: string; _slot: string }
         Returns: boolean
       }
+      restore_deleted_item: { Args: { _item_id: string }; Returns: number }
       security_regression_report: {
         Args: never
         Returns: {

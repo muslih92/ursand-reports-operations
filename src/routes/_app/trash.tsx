@@ -134,11 +134,7 @@ function TrashPage() {
                 return (
                   <tr key={item.id}>
                     <td className="px-4 py-3 font-medium">{ar ? label.ar : label.en}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {item.row_data?.notes === "RESTORE_FLOW_TEST"
-                        ? "RESTORE_FLOW_TEST"
-                        : item.record_label ?? item.record_id.slice(0, 8)}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.record_label ?? item.record_id.slice(0, 8)}</td>
                     <td className="px-4 py-3">
                       <div>{new Date(item.deleted_at).toLocaleString(ar ? "ar-SA" : "en-GB")}</div>
                       <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

@@ -1,3 +1,4 @@
+import { fetchAll } from "@/lib/fetch-all";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -762,15 +763,23 @@ function EntryView({
     queryFn: async (): Promise<Record<string, number>> => {
       const { data: prevEntry, error } = await supabase
         .from("reading_entries")
-        .select("id, reading_values(field_id, value)")
+        .select("id")
         .eq("template_id", templateId)
         .eq("entry_date", prevDate)
         .eq("station_id", stationId!)
         .maybeSingle();
       if (error) throw error;
       const acc: Record<string, { sum: number; n: number }> = {};
-      const rows = (prevEntry as { reading_values?: { field_id: string; value: number | null }[] } | null)
-        ?.reading_values ?? [];
+      const rows = prevEntry
+        ? await fetchAll<{ field_id: string; value: number | null }>((a, b) =>
+            supabase
+              .from("reading_values")
+              .select("field_id, value")
+              .eq("entry_id", prevEntry.id)
+              .order("id", { ascending: true })
+              .range(a, b),
+          )
+        : [];
       for (const rv of rows) {
         if (rv.value === null || rv.value === undefined) continue;
         const v = Number(rv.value);

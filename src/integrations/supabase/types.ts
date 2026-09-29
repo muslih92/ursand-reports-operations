@@ -1475,6 +1475,10 @@ export type Database = {
         }
         Returns: number
       }
+      reading_slot_locked: {
+        Args: { _entry_date: string; _slot: string }
+        Returns: boolean
+      }
       security_regression_report: {
         Args: never
         Returns: {

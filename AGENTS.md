@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Station/authorization fields on profiles (station_id, active, employee_no) are admin-only via trigger protect_profile_auth_fields; operator shift lock is also enforced in the DB by trg_reading_values_shift_lock (must mirror shiftEnd() in readings.tsx) — why: frontend checks alone were bypassable.

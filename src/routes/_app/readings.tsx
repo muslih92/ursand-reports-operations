@@ -1,3 +1,4 @@
+import { fetchAll } from "@/lib/fetch-all";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -362,16 +363,28 @@ function ListView({
     queryFn: async () => {
       let q = supabase
         .from("reading_entries")
-        .select("id, template_id, reading_values(time_slot)")
+        .select("id, template_id")
         .eq("entry_date", date);
       if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
+      const tplByEntry: Record<string, string> = {};
+      for (const e of data ?? []) tplByEntry[e.id] = e.template_id;
+      const ids = Object.keys(tplByEntry);
       const map: Record<string, Set<string>> = {};
-      for (const row of data ?? []) {
-        const rv = (row as { template_id: string; reading_values: { time_slot: string }[] });
-        map[rv.template_id] ??= new Set();
-        for (const v of rv.reading_values ?? []) map[rv.template_id].add(v.time_slot);
+      if (ids.length === 0) return map;
+      const vals = await fetchAll<{ entry_id: string; time_slot: string }>((a, b) =>
+        supabase
+          .from("reading_values")
+          .select("entry_id, time_slot")
+          .in("entry_id", ids)
+          .order("id", { ascending: true })
+          .range(a, b),
+      );
+      for (const v of vals) {
+        const t = tplByEntry[v.entry_id];
+        if (!t) continue;
+        (map[t] ??= new Set()).add(v.time_slot);
       }
       return map;
     },
@@ -750,15 +763,23 @@ function EntryView({
     queryFn: async (): Promise<Record<string, number>> => {
       const { data: prevEntry, error } = await supabase
         .from("reading_entries")
-        .select("id, reading_values(field_id, value)")
+        .select("id")
         .eq("template_id", templateId)
         .eq("entry_date", prevDate)
         .eq("station_id", stationId!)
         .maybeSingle();
       if (error) throw error;
       const acc: Record<string, { sum: number; n: number }> = {};
-      const rows = (prevEntry as { reading_values?: { field_id: string; value: number | null }[] } | null)
-        ?.reading_values ?? [];
+      const rows = prevEntry
+        ? await fetchAll<{ field_id: string; value: number | null }>((a, b) =>
+            supabase
+              .from("reading_values")
+              .select("field_id, value")
+              .eq("entry_id", prevEntry.id)
+              .order("id", { ascending: true })
+              .range(a, b),
+          )
+        : [];
       for (const rv of rows) {
         if (rv.value === null || rv.value === undefined) continue;
         const v = Number(rv.value);

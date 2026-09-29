@@ -362,16 +362,28 @@ function ListView({
     queryFn: async () => {
       let q = supabase
         .from("reading_entries")
-        .select("id, template_id, reading_values(time_slot)")
+        .select("id, template_id")
         .eq("entry_date", date);
       if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
+      const tplByEntry: Record<string, string> = {};
+      for (const e of data ?? []) tplByEntry[e.id] = e.template_id;
+      const ids = Object.keys(tplByEntry);
       const map: Record<string, Set<string>> = {};
-      for (const row of data ?? []) {
-        const rv = (row as { template_id: string; reading_values: { time_slot: string }[] });
-        map[rv.template_id] ??= new Set();
-        for (const v of rv.reading_values ?? []) map[rv.template_id].add(v.time_slot);
+      if (ids.length === 0) return map;
+      const vals = await fetchAll<{ entry_id: string; time_slot: string }>((a, b) =>
+        supabase
+          .from("reading_values")
+          .select("entry_id, time_slot")
+          .in("entry_id", ids)
+          .order("id", { ascending: true })
+          .range(a, b),
+      );
+      for (const v of vals) {
+        const t = tplByEntry[v.entry_id];
+        if (!t) continue;
+        (map[t] ??= new Set()).add(v.time_slot);
       }
       return map;
     },

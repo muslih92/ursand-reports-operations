@@ -31,6 +31,7 @@ interface DeletedItem {
   deletion_txid: number;
   deleted_by: string;
   deleted_at: string;
+  row_data: Record<string, unknown>;
 }
 
 const LABELS: Record<string, { ar: string; en: string }> = {
@@ -66,7 +67,7 @@ function TrashPage() {
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data: items, error: itemsError } = await supabase
         .from("deleted_items")
-        .select("id, table_name, record_id, station_id, record_label, deletion_txid, deleted_by, deleted_at")
+        .select("id, table_name, record_id, station_id, record_label, deletion_txid, deleted_by, deleted_at, row_data")
         .is("restored_at", null)
         .gte("deleted_at", cutoff)
         .order("deleted_at", { ascending: false })
@@ -133,7 +134,11 @@ function TrashPage() {
                 return (
                   <tr key={item.id}>
                     <td className="px-4 py-3 font-medium">{ar ? label.ar : label.en}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.record_label ?? item.record_id.slice(0, 8)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {item.row_data?.notes === "RESTORE_FLOW_TEST"
+                        ? "RESTORE_FLOW_TEST"
+                        : item.record_label ?? item.record_id.slice(0, 8)}
+                    </td>
                     <td className="px-4 py-3">
                       <div>{new Date(item.deleted_at).toLocaleString(ar ? "ar-SA" : "en-GB")}</div>
                       <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

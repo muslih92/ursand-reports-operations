@@ -922,6 +922,7 @@ function EntryView({
             .from("reading_entries")
             .select("id")
             .eq("template_id", templateId)
+            .eq("station_id", stationId)
             .eq("entry_date", date)
             .maybeSingle();
           if (findErr || !found) throw error;

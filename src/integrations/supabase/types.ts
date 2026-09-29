@@ -1521,7 +1521,10 @@ export type Database = {
         Args: { _entry_date: string; _slot: string }
         Returns: boolean
       }
-      restore_deleted_item: { Args: { _item_id: string }; Returns: number }
+      restore_deleted_item: {
+        Args: { _actor_id: string; _item_id: string }
+        Returns: number
+      }
       security_regression_report: {
         Args: never
         Returns: {

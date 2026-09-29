@@ -708,6 +708,24 @@ function EntryView({
       if (sectionsRes.error) throw sectionsRes.error;
       if (fieldsRes.error) throw fieldsRes.error;
       if (entryRes.error) throw entryRes.error;
+      // The embedded reading_values list is capped at 1000 rows by the API, so
+      // large sheets silently lost rows on reload. Always load them in pages.
+      if (entryRes.data) {
+        const all: unknown[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: page, error } = await supabase
+            .from("reading_values")
+            .select("id, field_id, time_slot, value, status, recorded_at")
+            .eq("entry_id", (entryRes.data as { id: string }).id)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          all.push(...(page ?? []));
+          if (!page || page.length < PAGE) break;
+        }
+        (entryRes.data as { reading_values: unknown[] }).reading_values = all;
+      }
       return {
         template: tplRes.data as Template,
         sections: (sectionsRes.data ?? []) as Section[],

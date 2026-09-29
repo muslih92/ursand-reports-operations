@@ -153,7 +153,16 @@ function StationNotesPage() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["station-notes"] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["station-notes"] });
+      const previousStatus = variables.status === "closed" ? "open" : "closed";
+      toast.success(ar ? "تم تحديث الحالة" : "Status updated", {
+        action: {
+          label: ar ? "تراجع" : "Undo",
+          onClick: () => setStatus.mutate({ id: variables.id, status: previousStatus }),
+        },
+      });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 

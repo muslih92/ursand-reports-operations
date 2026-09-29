@@ -28,6 +28,7 @@ const dict: Dict = {
 
   "nav.checklist": { ar: "قائمة فحص المحطة", en: "Station Checklist" },
   "nav.stationNotes": { ar: "بلاغات وملاحظات المحطة", en: "Station Notes" },
+  "nav.trash": { ar: "سلة المحذوفات", en: "Recycle Bin" },
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },

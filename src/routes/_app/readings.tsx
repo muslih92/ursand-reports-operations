@@ -1028,6 +1028,22 @@ function EntryView({
         }
       }
 
+      // Keep the original recorded time: only send cells whose value/status
+      // actually changed versus what is stored. Otherwise every autosave
+      // would stamp earlier slots (e.g. 04:00) with the current time.
+      {
+        const stored = new Map(
+          (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv]),
+        );
+        for (let i = toUpsert.length - 1; i >= 0; i--) {
+          const r = toUpsert[i];
+          const s = stored.get(`${r.field_id}|${r.time_slot}`);
+          if (!s || !s.recorded_at) continue;
+          const sameVal = s.value == null ? r.value == null : r.value != null && Number(s.value) === r.value;
+          if (sameVal && (s.status ?? null) === (r.status ?? null)) toUpsert.splice(i, 1);
+        }
+      }
+
 
       // 2b) A row-level status (Standby/N/V/...) that existed in the database
       // but was removed in this session must also be blanked, otherwise it

@@ -1304,11 +1304,45 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {(save.isPending || autoSavedAt) && (
-            <div className="fixed bottom-4 end-4 z-50 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-lg text-emerald-700 dark:text-emerald-400">
-              {save.isPending
-                ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…")
-                : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") + new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {canWrite && saveUi !== "idle" && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`fixed bottom-4 end-4 z-50 flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${
+                saveUi === "failed" || saveUi === "invalid"
+                  ? "bg-destructive text-destructive-foreground border-destructive"
+                  : saveUi === "pending"
+                    ? "bg-card text-amber-700 border-amber-400 dark:text-amber-400"
+                    : "bg-card text-emerald-700 dark:text-emerald-400"
+              }`}
+            >
+              <span>
+                {saveUi === "saving"
+                  ? locale === "ar" ? "جارٍ الحفظ…" : "Saving…"
+                  : saveUi === "pending"
+                    ? locale === "ar" ? "● تغييرات لم تُحفظ بعد" : "● Unsaved changes"
+                    : saveUi === "invalid"
+                      ? locale === "ar"
+                        ? `✕ لم يُحفظ: ${invalidCount} رقم غير صحيح`
+                        : `✕ Not saved: ${invalidCount} invalid number(s)`
+                      : saveUi === "failed"
+                        ? retryInfo.scheduled
+                          ? locale === "ar"
+                            ? `✕ لم يُحفظ — إعادة المحاولة تلقائياً (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                            : `✕ Not saved — retrying (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                          : locale === "ar" ? "✕ لم يُحفظ" : "✕ Save failed"
+                        : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") +
+                          new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              {saveUi === "failed" && !retryInfo.scheduled && (
+                <button
+                  type="button"
+                  onClick={manualRetry}
+                  className="rounded-full bg-background/20 px-2 py-0.5 underline"
+                >
+                  {locale === "ar" ? "إعادة المحاولة" : "Retry"}
+                </button>
+              )}
             </div>
           )}
           {(save.isPending || autoSavedAt || draftSavedAt) && (

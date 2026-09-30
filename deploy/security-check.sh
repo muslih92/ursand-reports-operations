@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Pre-deploy security + integrity check.
+# Requires only git + Docker (with Compose) on the host â€” no Node/npm/Bun.
 # Prints a short summary and exits non-zero when something must be fixed.
 #
 # Usage: bash deploy/security-check.sh
 #   DATABASE_URL   (optional) run the in-database RLS suite public.security_test_report()
+#   SKIP_BUILD=1   (optional) skip the Docker image build check
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,12 +19,36 @@ skip() {              SUMMARY+=("SKIP  $1"); }
 
 echo "== Pre-deploy security check =="
 
-# 1) No secret-looking values committed in the repo
-if grep -rIl --exclude-dir=node_modules --exclude-dir=.git \
-     -e 'sb_secret_' -e 'SUPABASE_SERVICE_ROLE_KEY *= *ey' . >/dev/null 2>&1; then
-  bad "Secret-looking values found in the repository"
+# 1) No real private secrets in git-tracked files.
+#    Matches actual key VALUES, not code that merely mentions a prefix.
+#    Public frontend config (VITE_SUPABASE_URL / _PUBLISHABLE_KEY / _PROJECT_ID,
+#    sb_publishable_* keys) is intentionally allowed.
+SECRET_PATTERNS=(
+  'sb_secret_[A-Za-z0-9_-]{16,}'                                   # Supabase secret key value
+  'SERVICE_ROLE_KEY[[:space:]]*[=:][[:space:]]*["'\'']?eyJ[A-Za-z0-9_-]{10,}'  # service_role JWT
+  'SUPABASE_JWT_SECRET[[:space:]]*[=:][[:space:]]*["'\'']?[A-Za-z0-9+/_-]{20,}'
+  'postgres(ql)?://[^:[:space:]]+:[^@[:space:]]{6,}@'              # DB URL with password
+  '------BEGIN ([A-Z]+ )?PRIVATE KEY-----'                          # SSH/TLS private keys
+  'sk/_live_[A-Za-z0-9]{16,}'                                      # Stripe live secret
+)
+EXCLQDE_PATHS=(':!deploy/security-check.sh' ':!*.lock' ':!bun.lockb' ':!package-lock.json')
+
+if ! command -v git >/dev/null 2>&1 || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  bad "Secret scan could not run (git repository not available)"
 else
-  ok "No service-role/secret keys committed"
+  HITS=""
+  for p in "${SECRET_PATTERNS[@]|ˆ» do
+    # ignore documented placeholders such as PASSWORD / YOUR_... / xxxx
+    h="$(git grep -I -n -E -e "$" -- . "${EXCLUDE_PATHS[@]}" 2>/dev/null \
+         | grep -v -E 'PASSWORD@|YOUR[_-]|<[a-z_-]+>|xxxx' | cut -d: -f1 | sort -u)"
+    [ -n "$h" ] && HITS+="$h"$'\n'
+  done
+  if [ -n "$HITS" ]; then
+    bad "Private secret values found in tracked files:"
+    printf '%s' "$HITS" | sort -u | sed 's/^/        /'
+  else
+    ok "No private secrets committed (public VITE_* config allowed)"
+  fi
 fi
 
 # 2) deploy/.env must not be tracked by git
@@ -32,12 +58,22 @@ else
   ok "deploy/.env is not tracked by git"
 fi
 
-# 3) Production build must succeed
-echo "-- building..."
-if npm run build >/tmp/ursand-build.log 2>&1 || bun run build >/tmp/ursand-build.log 2>&1; then
-  ok "Production build succeeded"
+# 3) Production Docker image must build (build only â€” the live container is NOT touched)
+if [ "${SKIP_BUILD:-0}" = "1" ]; then
+  skip "Docker build check (SKIP_BUILD=1)"
+elif ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+  bad "Docker / Docker Compose not available on host"
+elif [ ! -f deploy/.env ]; then
+  bad "deploy/.env missing (needed for build args)"
 else
-  bad "Production build failed (see /tmp/ursand-build.log)"
+  echo "-- building production image (docker compose build app)..."
+  if docker compose -f deploy/docker-compose.yml --env-file deploy/.env build app \
+       >/tmp/ursand-build.log 2>&1; then
+    ok "Production Docker image built successfully"
+  else
+    bad "Production Docker build failed (see /tmp/ursand-build.log)"
+    tail -n 25 /tmp/ursand-build.log
+  fi
 fi
 
 # 4) In-database RLS / access-rule suite
@@ -65,3 +101,4 @@ if [ "$FAIL" -gt 0 ]; then
   exit 1
 fi
 echo "RESULT: APPROVED for rollout."
+exit 0

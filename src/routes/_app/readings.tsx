@@ -1683,11 +1683,16 @@ function EntryView({
                                 data-row={f.id}
 
                                 disabled={!cellWritable(slot)}
+                                aria-invalid={isMalformedNumber(values[key] ?? "") || undefined}
                                 title={
                                   slotLocked(slot)
                                     ? locale === "ar"
                                       ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
                                       : "Locked: this shift has ended"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? locale === "ar"
+                                        ? "رقم غير صحيح — لن يُحفظ حتى يُصحح (مثال صحيح: 9.9)"
+                                        : "Invalid number — will not be saved until corrected (e.g. 9.9)"
                                     : deviated && base
                                       ? locale === "ar"
                                         ? `انحراف ${deviationPct(cellNum, base).toFixed(1)}٪ عن متوسط أمس (${base.toFixed(2)})`
@@ -1697,6 +1702,8 @@ function EntryView({
                                 className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                                   slotLocked(slot)
                                     ? "bg-muted/60 cursor-not-allowed"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? "bg-destructive/20 border-2 border-destructive text-destructive font-semibold"
                                     : deviated
                                       ? "bg-destructive/15 border-destructive/50 text-destructive font-semibold"
                                       : "bg-background"

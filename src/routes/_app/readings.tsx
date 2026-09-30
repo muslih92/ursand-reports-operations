@@ -850,7 +850,8 @@ function EntryView({
     // Restore an unsaved local draft (idle / refresh / accidental close).
     // A draft may NEVER blank out a value that already exists in the database:
     // empty draft cells are ignored, only real typed content is restored.
-    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
+    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string; cleared?: string[] }>(draftKey);
+    const restoredClears: string[] = [];
     if (draft) {
       let restoredSomething = false;
       for (const [k, dv] of Object.entries(draft.data.values ?? {})) {
@@ -866,13 +867,21 @@ function EntryView({
         restoredSomething = true;
       }
       if (draft.data.notes) n = draft.data.notes;
+      // Explicit clears (operator emptied the cell) are the one exception:
+      // restore them as blank and keep them marked so the save persists NULL.
+      for (const k of draft.data.cleared ?? []) {
+        if ((v[k] ?? "") === "") continue;
+        v[k] = "";
+        restoredClears.push(k);
+        restoredSomething = true;
+      }
       if (restoredSomething) setRestoredAt(draft.savedAt);
     }
     setValues(v);
     setStatuses(s);
     setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
-    touchedRef.current = new Set();
+    touchedRef.current = new Set(restoredClears);
     setHydratedKey(draftKey);
   }, [data, profile?.full_name, draftKey, hydratedKey]);
 
@@ -911,9 +920,17 @@ function EntryView({
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const currentDraftRef = useRef(draftData);
   currentDraftRef.current = draftData;
+  // Cells the operator explicitly cleared are kept in the local draft too, so a
+  // refresh/close before the autosave lands does not bring the old value back.
+  const localDraftData = useMemo(() => {
+    const cleared = Object.keys(values).filter(
+      (k) => touchedRef.current.has(k) && (values[k] ?? "").trim() === "",
+    );
+    return { ...draftData, cleared };
+  }, [draftData, values]);
   const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(
     draftKey,
-    draftData,
+    localDraftData,
     hydratedKey === draftKey && canWrite,
   );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);

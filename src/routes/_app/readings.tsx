@@ -990,17 +990,23 @@ function EntryView({
       }
 
 
+      // CLEAR = UPDATE, not DELETE.
+      // Operators/supervisors can update readings but must not have DELETE access.
+      // Keep the row and clear its contents so RLS permissions remain least-privilege.
       if (toDelete.length > 0) {
-        const { error } = await supabase.from("reading_values").delete().in("id", toDelete);
+        const { error } = await supabase
+          .from("reading_values")
+          .update({ value: null, status: null, recorded_at: null })
+          .in("id", toDelete);
         if (error) throw error;
       }
-      // A value may have been created by the previous autosave while the
-      // operator was already clearing it. Delete by its stable composite key
-      // as well when the currently cached query does not know the row id yet.
+
+      // If the cached query does not know the row id, clear it using the
+      // stable composite key instead.
       for (const row of toDeleteByKey) {
         const { error } = await supabase
           .from("reading_values")
-          .delete()
+          .update({ value: null, status: null, recorded_at: null })
           .eq("entry_id", entryId!)
           .eq("field_id", row.fieldId)
           .eq("time_slot", row.timeSlot);

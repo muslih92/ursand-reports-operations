@@ -28,18 +28,18 @@ SECRET_PATTERNS=(
   'SERVICE_ROLE_KEY[[:space:]]*[=:][[:space:]]*["'\'']?eyJ[A-Za-z0-9_-]{10,}'  # service_role JWT
   'SUPABASE_JWT_SECRET[[:space:]]*[=:][[:space:]]*["'\'']?[A-Za-z0-9+/_-]{20,}'
   'postgres(ql)?://[^:[:space:]]+:[^@[:space:]]{6,}@'              # DB URL with password
-  '------BEGIN ([A-Z]+ )?PRIVATE KEY-----'                          # SSH/TLS private keys
-  'sk/_live_[A-Za-z0-9]{16,}'                                      # Stripe live secret
+  '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'                          # SSH/TLS private keys
+  'sk_live_[A-Za-z0-9]{16,}'                                       # Stripe live secret
 )
-EXCLQDE_PATHS=(':!deploy/security-check.sh' ':!*.lock' ':!bun.lockb' ':!package-lock.json')
+EXCLUDE_PATHS=(':!deploy/security-check.sh' ':!*.lock' ':!bun.lockb' ':!package-lock.json')
 
 if ! command -v git >/dev/null 2>&1 || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   bad "Secret scan could not run (git repository not available)"
 else
   HITS=""
-  for p in "${SECRET_PATTERNS[@]|ˆ» do
+  for p in "${SECRET_PATTERNS[@]}"; do
     # ignore documented placeholders such as PASSWORD / YOUR_... / xxxx
-    h="$(git grep -I -n -E -e "$" -- . "${EXCLUDE_PATHS[@]}" 2>/dev/null \
+    h="$(git grep -I -n -E -e "$p" -- . "${EXCLUDE_PATHS[@]}" 2>/dev/null \
          | grep -v -E 'PASSWORD@|YOUR[_-]|<[a-z_-]+>|xxxx' | cut -d: -f1 | sort -u)"
     [ -n "$h" ] && HITS+="$h"$'\n'
   done

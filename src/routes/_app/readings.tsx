@@ -1260,6 +1260,41 @@ function EntryView({
     return m;
   }, [data?.entry?.reading_values, localSlotTimes]);
 
+  // Cells with a malformed number (e.g. "9.9.", "54 2"). They are never sent.
+  const invalidCount = useMemo(() => {
+    let n = 0;
+    for (const [key, raw] of Object.entries(values)) {
+      const [fid, slot] = key.split("|");
+      if (statuses[fid] || slotLocked(slot)) continue;
+      if (isMalformedNumber(raw)) n++;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, statuses]);
+
+  // Retry now if the connection comes back while a save is failing.
+  useEffect(() => {
+    const onOnline = () => {
+      if (saveError && !save.isPending) manualRetry();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [saveError, save.isPending, manualRetry]);
+
+  // The badge always reflects the latest attempt, never an older success.
+  const isDirty = JSON.stringify(draftData) !== lastAutoSavedRef.current && lastAutoSavedRef.current !== "";
+  const saveUi: "idle" | "saving" | "pending" | "failed" | "invalid" | "saved" = save.isPending
+    ? "saving"
+    : saveError
+      ? "failed"
+      : invalidCount > 0
+        ? "invalid"
+        : isDirty
+          ? "pending"
+          : autoSavedAt
+            ? "saved"
+            : "idle";
+
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
   if (!stationId) {

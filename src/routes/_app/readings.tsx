@@ -22,6 +22,7 @@ import {
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 import { isDeviating, deviationPct, notifyStation } from "@/lib/notifications";
+import { isValidNumber, isMalformedNumber, normalizeStatusText } from "@/lib/reading-validation";
 
 /** Collect all cells that deviate more than 10% from the previous-day average. */
 function collectDeviations(
@@ -150,6 +151,9 @@ function displayCellValue(raw: string, locale: "ar" | "en"): string {
   const code = legacy[key];
   return code ? markText(code, locale) : raw;
 }
+
+const MAX_AUTO_RETRIES = 3;
+const RETRY_DELAYS_MS = [3000, 10000, 30000];
 
 // Allowed delay (minutes) after the scheduled slot before the actual entry time is flagged
 const LATE_LIMIT_MIN = 90;
@@ -916,6 +920,13 @@ function EntryView({
   const [localSlotTimes, setLocalSlotTimes] = useState<Record<string, string>>({});
   const lastAutoSavedRef = useRef<string>("");
   const failedSnapshotRef = useRef<string>("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retryInfo, setRetryInfo] = useState<{ attempt: number; scheduled: boolean }>({ attempt: 0, scheduled: false });
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+  }, []);
 
 
 
@@ -1021,11 +1032,12 @@ function EntryView({
           else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
           continue;
         }
-        const num = Number(trimmed);
-        if (!Number.isNaN(num) && trimmed !== "") {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null, recorded_at: nowIso });
+        // Malformed numbers ("9.9.", "54 2") are never stored as text.
+        if (isMalformedNumber(trimmed)) continue;
+        if (isValidNumber(trimmed)) {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: Number(trimmed), status: null, recorded_at: nowIso });
         } else {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed, recorded_at: nowIso });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: normalizeStatusText(trimmed), recorded_at: nowIso });
         }
       }
 
@@ -1041,7 +1053,9 @@ function EntryView({
           const s = stored.get(`${r.field_id}|${r.time_slot}`);
           if (!s || !s.recorded_at) continue;
           const sameVal = s.value == null ? r.value == null : r.value != null && Number(s.value) === r.value;
-          if (sameVal && (s.status ?? null) === (r.status ?? null)) toUpsert.splice(i, 1);
+          const sameStatus = (s.status ?? null) === (r.status ?? null) ||
+            (s.status != null && r.status != null && normalizeStatusText(s.status) === r.status);
+          if (sameVal && sameStatus) toUpsert.splice(i, 1);
         }
       }
 
@@ -1129,6 +1143,11 @@ function EntryView({
       const savedSnapshot = JSON.stringify(vars.snapshot);
       lastAutoSavedRef.current = savedSnapshot;
       failedSnapshotRef.current = "";
+      setSaveError(null);
+      retryCountRef.current = 0;
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+      setRetryInfo({ attempt: 0, scheduled: false });
       // Never clear the safety draft when the operator typed more while this
       // request was in flight; those newer values still need another save.
       if (JSON.stringify(currentDraftRef.current) === savedSnapshot) {
@@ -1189,9 +1208,39 @@ function EntryView({
       // Remember the snapshot that failed so the autosave effect does not
       // re-fire the same request forever (one toast per distinct failure).
       failedSnapshotRef.current = JSON.stringify(vars?.snapshot ?? null);
-      toast.error(msg);
+      setSaveError(msg);
+      // Refresh what the database really holds, so the retry only sends the
+      // cells that are still different (changed-cell-only logic is unchanged).
+      qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
+      const attempt = retryCountRef.current;
+      if (attempt < MAX_AUTO_RETRIES) {
+        retryCountRef.current = attempt + 1;
+        setRetryInfo({ attempt: attempt + 1, scheduled: true });
+        if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          save.mutate({ silent: true, snapshot: currentDraftRef.current });
+        }, RETRY_DELAYS_MS[attempt]);
+        if (attempt === 0) toast.error(msg);
+      } else {
+        setRetryInfo({ attempt, scheduled: false });
+        toast.error(
+          locale === "ar"
+            ? "لم يتم الحفظ بعد عدة محاولات. اضغط «إعادة المحاولة» — قيمك ما زالت في الصفحة."
+            : "Still not saved after several attempts. Press Retry — your values are still on the page.",
+        );
+      }
     },
   });
+
+  const manualRetry = useCallback(() => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    retryCountRef.current = 0;
+    setRetryInfo({ attempt: 0, scheduled: false });
+    save.mutate({ silent: false, snapshot: currentDraftRef.current });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Automatic save to the database — no manual confirmation needed.
   useEffect(() => {
@@ -1222,6 +1271,11 @@ function EntryView({
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
     setLocalSlotTimes({});
+    setSaveError(null);
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    setRetryInfo({ attempt: 0, scheduled: false });
   }, [draftKey]);
 
   // Warn before leaving with values that have not reached the database yet.
@@ -1259,6 +1313,41 @@ function EntryView({
     }
     return m;
   }, [data?.entry?.reading_values, localSlotTimes]);
+
+  // Cells with a malformed number (e.g. "9.9.", "54 2"). They are never sent.
+  const invalidCount = useMemo(() => {
+    let n = 0;
+    for (const [key, raw] of Object.entries(values)) {
+      const [fid, slot] = key.split("|");
+      if (statuses[fid] || slotLocked(slot)) continue;
+      if (isMalformedNumber(raw)) n++;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, statuses]);
+
+  // Retry now if the connection comes back while a save is failing.
+  useEffect(() => {
+    const onOnline = () => {
+      if (saveError && !save.isPending) manualRetry();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [saveError, save.isPending, manualRetry]);
+
+  // The badge always reflects the latest attempt, never an older success.
+  const isDirty = JSON.stringify(draftData) !== lastAutoSavedRef.current && lastAutoSavedRef.current !== "";
+  const saveUi: "idle" | "saving" | "pending" | "failed" | "invalid" | "saved" = save.isPending
+    ? "saving"
+    : saveError
+      ? "failed"
+      : invalidCount > 0
+        ? "invalid"
+        : isDirty
+          ? "pending"
+          : autoSavedAt
+            ? "saved"
+            : "idle";
 
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
@@ -1304,11 +1393,45 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {(save.isPending || autoSavedAt) && (
-            <div className="fixed bottom-4 end-4 z-50 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-lg text-emerald-700 dark:text-emerald-400">
-              {save.isPending
-                ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…")
-                : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") + new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {canWrite && saveUi !== "idle" && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`fixed bottom-4 end-4 z-50 flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${
+                saveUi === "failed" || saveUi === "invalid"
+                  ? "bg-destructive text-destructive-foreground border-destructive"
+                  : saveUi === "pending"
+                    ? "bg-card text-amber-700 border-amber-400 dark:text-amber-400"
+                    : "bg-card text-emerald-700 dark:text-emerald-400"
+              }`}
+            >
+              <span>
+                {saveUi === "saving"
+                  ? locale === "ar" ? "جارٍ الحفظ…" : "Saving…"
+                  : saveUi === "pending"
+                    ? locale === "ar" ? "● تغييرات لم تُحفظ بعد" : "● Unsaved changes"
+                    : saveUi === "invalid"
+                      ? locale === "ar"
+                        ? `✕ لم يُحفظ: ${invalidCount} رقم غير صحيح`
+                        : `✕ Not saved: ${invalidCount} invalid number(s)`
+                      : saveUi === "failed"
+                        ? retryInfo.scheduled
+                          ? locale === "ar"
+                            ? `✕ لم يُحفظ — إعادة المحاولة تلقائياً (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                            : `✕ Not saved — retrying (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                          : locale === "ar" ? "✕ لم يُحفظ" : "✕ Save failed"
+                        : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") +
+                          new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              {saveUi === "failed" && !retryInfo.scheduled && (
+                <button
+                  type="button"
+                  onClick={manualRetry}
+                  className="rounded-full bg-background/20 px-2 py-0.5 underline"
+                >
+                  {locale === "ar" ? "إعادة المحاولة" : "Retry"}
+                </button>
+              )}
             </div>
           )}
           {(save.isPending || autoSavedAt || draftSavedAt) && (
@@ -1317,7 +1440,7 @@ function EntryView({
                 ? locale === "ar"
                   ? "جارٍ الحفظ التلقائي…"
                   : "Auto-saving…"
-                : autoSavedAt
+                : saveUi === "saved" && autoSavedAt
                   ? locale === "ar"
                     ? `تم الحفظ التلقائي ${new Date(autoSavedAt).toLocaleTimeString()}`
                     : `Auto-saved at ${new Date(autoSavedAt).toLocaleTimeString()}`
@@ -1683,11 +1806,16 @@ function EntryView({
                                 data-row={f.id}
 
                                 disabled={!cellWritable(slot)}
+                                aria-invalid={isMalformedNumber(values[key] ?? "") || undefined}
                                 title={
                                   slotLocked(slot)
                                     ? locale === "ar"
                                       ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
                                       : "Locked: this shift has ended"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? locale === "ar"
+                                        ? "رقم غير صحيح — لن يُحفظ حتى يُصحح (مثال صحيح: 9.9)"
+                                        : "Invalid number — will not be saved until corrected (e.g. 9.9)"
                                     : deviated && base
                                       ? locale === "ar"
                                         ? `انحراف ${deviationPct(cellNum, base).toFixed(1)}٪ عن متوسط أمس (${base.toFixed(2)})`
@@ -1697,6 +1825,8 @@ function EntryView({
                                 className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                                   slotLocked(slot)
                                     ? "bg-muted/60 cursor-not-allowed"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? "bg-destructive/20 border-2 border-destructive text-destructive font-semibold"
                                     : deviated
                                       ? "bg-destructive/15 border-destructive/50 text-destructive font-semibold"
                                       : "bg-background"

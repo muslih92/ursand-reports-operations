@@ -38,7 +38,9 @@ if ! command -v git >/dev/null 2>&1 || ! git rev-parse --is-inside-work-tree >/d
 else
   HITS=""
   for p in "${SECRET_PATTERNS[@]}"; do
-    h="$(git grep -I -l -E -e "$p" -- . "${EXCLUDE_PATHS[@]}" 2>/dev/null)"
+    # ignore documented placeholders such as PASSWORD / YOUR_... / xxxx
+    h="$(git grep -I -n -E -e "$p" -- . "${EXCLUDE_PATHS[@]}" 2>/dev/null \
+         | grep -v -E 'PASSWORD@|YOUR[_-]|<[a-z_-]+>|xxxx' | cut -d: -f1 | sort -u)"
     [ -n "$h" ] && HITS+="$h"$'\n'
   done
   if [ -n "$HITS" ]; then

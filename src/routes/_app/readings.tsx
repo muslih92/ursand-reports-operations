@@ -1125,6 +1125,40 @@ function EntryView({
         if (error) throw error;
       }
 
+      // 2c) verify every requested clear really is NULL in the database.
+      // An old value still present means the clear FAILED (never "saved").
+      if (toDelete.length > 0 || toDeleteByKey.length > 0) {
+        const wantIds = new Set(toDelete);
+        const wantKeys = new Set(toDeleteByKey.map((r) => `${r.fieldId}|${r.timeSlot}`));
+        const upsertKeys = new Set(toUpsert.map((r) => `${r.field_id}|${r.time_slot}`));
+        let notCleared = 0;
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: rows, error: vErr } = await supabase
+            .from("reading_values")
+            .select("id, field_id, time_slot, value, status")
+            .eq("entry_id", entryId!)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (vErr) throw vErr;
+          for (const r of rows ?? []) {
+            const key = `${r.field_id}|${r.time_slot}`;
+            if (upsertKeys.has(key)) continue;
+            if (!wantIds.has(r.id) && !wantKeys.has(key)) continue;
+            const blank = r.value == null && (r.status == null || r.status.trim() === "");
+            if (!blank) notCleared++;
+          }
+          if (!rows || rows.length < PAGE) break;
+        }
+        if (notCleared > 0) {
+          throw new Error(
+            locale === "ar"
+              ? `لم يتم مسح ${notCleared} خانة في قاعدة البيانات. أعد المحاولة.`
+              : `${notCleared} cleared cells did not reach the database. Please retry.`,
+          );
+        }
+      }
+
       // 3) verify the write actually landed in the database.
       // PostgREST caps a select at 1000 rows, so page through everything.
       let verifiedMissing = 0;

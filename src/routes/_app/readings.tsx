@@ -1189,9 +1189,39 @@ function EntryView({
       // Remember the snapshot that failed so the autosave effect does not
       // re-fire the same request forever (one toast per distinct failure).
       failedSnapshotRef.current = JSON.stringify(vars?.snapshot ?? null);
-      toast.error(msg);
+      setSaveError(msg);
+      // Refresh what the database really holds, so the retry only sends the
+      // cells that are still different (changed-cell-only logic is unchanged).
+      qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
+      const attempt = retryCountRef.current;
+      if (attempt < MAX_AUTO_RETRIES) {
+        retryCountRef.current = attempt + 1;
+        setRetryInfo({ attempt: attempt + 1, scheduled: true });
+        if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          save.mutate({ silent: true, snapshot: currentDraftRef.current });
+        }, RETRY_DELAYS_MS[attempt]);
+        if (attempt === 0) toast.error(msg);
+      } else {
+        setRetryInfo({ attempt, scheduled: false });
+        toast.error(
+          locale === "ar"
+            ? "لم يتم الحفظ بعد عدة محاولات. اضغط «إعادة المحاولة» — قيمك ما زالت في الصفحة."
+            : "Still not saved after several attempts. Press Retry — your values are still on the page.",
+        );
+      }
     },
   });
+
+  const manualRetry = useCallback(() => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    retryCountRef.current = 0;
+    setRetryInfo({ attempt: 0, scheduled: false });
+    save.mutate({ silent: false, snapshot: currentDraftRef.current });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Automatic save to the database — no manual confirmation needed.
   useEffect(() => {

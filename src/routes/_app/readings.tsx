@@ -1049,7 +1049,79 @@ function EntryView({
       }
 
 
-      return { saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
+      // Verify CLEAR operations as well as normal upserts.
+    // A successful UPDATE must leave the stored row with NULL value/status/recorded_at.
+    let verifiedClears = 0;
+
+    if (toDelete.length > 0) {
+      const { data: clearedRows, error: verifyClearError } = await supabase
+        .from("reading_values")
+        .select("id,value,status,recorded_at")
+        .in("id", toDelete);
+
+      if (verifyClearError) throw verifyClearError;
+
+      const failedClearIds = (clearedRows ?? [])
+        .filter(
+          (row) =>
+            row.value !== null ||
+            row.status !== null ||
+            row.recorded_at !== null,
+        )
+        .map((row) => row.id);
+
+      if (failedClearIds.length > 0) {
+        throw new Error(
+          `Clear verification failed for ${failedClearIds.length} cell(s).`,
+        );
+      }
+
+      verifiedClears += toDelete.length - failedClearIds.length;
+    }
+
+    if (toDeleteByKey.length > 0) {
+      const { data: entryRows, error: verifyKeyClearError } = await supabase
+        .from("reading_values")
+        .select("field_id,time_slot,value,status,recorded_at")
+        .eq("entry_id", entryId!);
+
+      if (verifyKeyClearError) throw verifyKeyClearError;
+
+      const rowMap = new Map(
+        (entryRows ?? []).map((row) => [
+          `${row.field_id}|${row.time_slot}`,
+          row,
+        ]),
+      );
+
+      const failedKeyClears = toDeleteByKey.filter((row) => {
+        const stored = rowMap.get(`${row.fieldId}|${row.timeSlot}`);
+
+        // If no row exists, the cell is effectively clear.
+        // If it exists, all stored contents must be NULL.
+        return (
+          stored &&
+          (stored.value !== null ||
+            stored.status !== null ||
+            stored.recorded_at !== null)
+        );
+      });
+
+      if (failedKeyClears.length > 0) {
+        throw new Error(
+          `Clear verification failed for ${failedKeyClears.length} cell(s).`,
+        );
+      }
+
+      verifiedClears += toDeleteByKey.length - failedKeyClears.length;
+    }
+
+    return {
+      saved: toUpsert.length,
+      deleted: toDelete.length + toDeleteByKey.length,
+      skippedLocked,
+      verifiedClears,
+    };
     },
 
     onSuccess: (res, vars) => {

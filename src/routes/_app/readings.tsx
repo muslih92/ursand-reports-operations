@@ -913,6 +913,7 @@ function EntryView({
     hydratedKey === draftKey && canWrite,
   );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const [localSlotTimes, setLocalSlotTimes] = useState<Record<string, string>>({});
   const lastAutoSavedRef = useRef<string>("");
   const failedSnapshotRef = useRef<string>("");
 
@@ -1121,7 +1122,7 @@ function EntryView({
       }
 
 
-      return { saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
+      return { savedSlots: Array.from(new Set(toUpsert.map((r) => r.time_slot))), savedAt: nowIso, saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
     },
 
     onSuccess: (res, vars) => {
@@ -1135,6 +1136,13 @@ function EntryView({
         setRestoredAt(null);
       }
       setAutoSavedAt(Date.now());
+      if (res?.savedSlots?.length) {
+        setLocalSlotTimes((prev) => {
+          const next = { ...prev };
+          for (const sl of res.savedSlots) next[sl] = res.savedAt;
+          return next;
+        });
+      }
       if (!vars?.silent) {
         toast.success(
           locale === "ar"
@@ -1213,6 +1221,7 @@ function EntryView({
     touchedRef.current = new Set();
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
+    setLocalSlotTimes({});
   }, [draftKey]);
 
   // Warn before leaving with values that have not reached the database yet.
@@ -1245,8 +1254,11 @@ function EntryView({
       const cur = m[rv.time_slot];
       if (!cur || new Date(rv.recorded_at) > new Date(cur)) m[rv.time_slot] = rv.recorded_at;
     }
+    for (const [sl, ts] of Object.entries(localSlotTimes)) {
+      if (!m[sl] || new Date(ts) > new Date(m[sl])) m[sl] = ts;
+    }
     return m;
-  }, [data?.entry?.reading_values]);
+  }, [data?.entry?.reading_values, localSlotTimes]);
 
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
@@ -1292,6 +1304,13 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
+          {(save.isPending || autoSavedAt) && (
+            <div className="fixed bottom-4 end-4 z-50 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-lg text-emerald-700 dark:text-emerald-400">
+              {save.isPending
+                ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…")
+                : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") + new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          )}
           {(save.isPending || autoSavedAt || draftSavedAt) && (
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
               {save.isPending

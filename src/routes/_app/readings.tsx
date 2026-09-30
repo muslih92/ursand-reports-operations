@@ -916,6 +916,13 @@ function EntryView({
   const [localSlotTimes, setLocalSlotTimes] = useState<Record<string, string>>({});
   const lastAutoSavedRef = useRef<string>("");
   const failedSnapshotRef = useRef<string>("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retryInfo, setRetryInfo] = useState<{ attempt: number; scheduled: boolean }>({ attempt: 0, scheduled: false });
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+  }, []);
 
 
 
@@ -1021,11 +1028,12 @@ function EntryView({
           else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
           continue;
         }
-        const num = Number(trimmed);
-        if (!Number.isNaN(num) && trimmed !== "") {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null, recorded_at: nowIso });
+        // Malformed numbers ("9.9.", "54 2") are never stored as text.
+        if (isMalformedNumber(trimmed)) continue;
+        if (isValidNumber(trimmed)) {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: Number(trimmed), status: null, recorded_at: nowIso });
         } else {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed, recorded_at: nowIso });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: normalizeStatusText(trimmed), recorded_at: nowIso });
         }
       }
 
@@ -1129,6 +1137,11 @@ function EntryView({
       const savedSnapshot = JSON.stringify(vars.snapshot);
       lastAutoSavedRef.current = savedSnapshot;
       failedSnapshotRef.current = "";
+      setSaveError(null);
+      retryCountRef.current = 0;
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+      setRetryInfo({ attempt: 0, scheduled: false });
       // Never clear the safety draft when the operator typed more while this
       // request was in flight; those newer values still need another save.
       if (JSON.stringify(currentDraftRef.current) === savedSnapshot) {

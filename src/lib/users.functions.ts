@@ -289,14 +289,12 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data }) => {
-    const { employeeEmail } = await import("@/lib/users.server");
+    const { employeeEmail, isInstallationUninitialized } = await import("@/lib/users.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Only allowed if no users exist yet
-    const { count, error: countErr } = await supabaseAdmin
-      .from("profiles")
-      .select("*", { count: "exact", head: true });
-    if (countErr) throw new Error(countErr.message);
-    if ((count ?? 0) > 0) throw new Error("System already initialized");
+    // Only allowed on a genuinely new installation (marker, admins, profiles, auth users).
+    if (!(await isInstallationUninitialized(supabaseAdmin))) {
+      throw new Error("System already initialized");
+    }
 
     const email = employeeEmail(data.employee_no);
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({

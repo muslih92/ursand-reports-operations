@@ -875,6 +875,7 @@ function EntryView({
     hydratedKey === draftKey && canWrite,
   );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const lastAutoSavedRef = useRef<string>("");
   const failedSnapshotRef = useRef<string>("");
 
@@ -891,6 +892,9 @@ function EntryView({
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
+    onMutate: () => {
+      setSaveStatus("saving");
+    },
     mutationFn: async (vars: {
       silent?: boolean;
       snapshot: { values: Record<string, string>; statuses: Record<string, string>; notes: string };
@@ -1125,6 +1129,7 @@ function EntryView({
     },
 
     onSuccess: (res, vars) => {
+      setSaveStatus("saved");
       const savedSnapshot = JSON.stringify(vars.snapshot);
       lastAutoSavedRef.current = savedSnapshot;
       failedSnapshotRef.current = "";
@@ -1177,6 +1182,7 @@ function EntryView({
     },
 
     onError: (e: unknown, vars) => {
+      setSaveStatus("failed");
       const msg = e instanceof Error ? e.message : String(e);
       // Remember the snapshot that failed so the autosave effect does not
       // re-fire the same request forever (one toast per distinct failure).
@@ -1213,6 +1219,7 @@ function EntryView({
     touchedRef.current = new Set();
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
+    setSaveStatus("idle");
   }, [draftKey]);
 
   // Warn before leaving with values that have not reached the database yet.
@@ -1292,19 +1299,27 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {(save.isPending || autoSavedAt || draftSavedAt) && (
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {save.isPending
+          {saveStatus !== "idle" && (
+            <p
+              className={`text-[11px] mt-0.5 ${
+                saveStatus === "failed"
+                  ? "text-red-600 dark:text-red-400"
+                  : saveStatus === "saving"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {saveStatus === "saving"
                 ? locale === "ar"
-                  ? "جارٍ الحفظ التلقائي…"
-                  : "Auto-saving…"
-                : autoSavedAt
+                  ? "جارٍ الحفظ والتحقق…"
+                  : "Saving & verifying…"
+                : saveStatus === "failed"
                   ? locale === "ar"
-                    ? `تم الحفظ التلقائي ${new Date(autoSavedAt).toLocaleTimeString()}`
-                    : `Auto-saved at ${new Date(autoSavedAt).toLocaleTimeString()}`
+                    ? "✕ لم يتم الحفظ — البيانات ما زالت محفوظة على الشاشة"
+                    : "✕ Save failed — your data remains on screen"
                   : locale === "ar"
-                    ? "الحفظ التلقائي مفعّل"
-                    : "Auto-save is on"}
+                    ? `✓ تم الحفظ والتحقق${autoSavedAt ? ` ${new Date(autoSavedAt).toLocaleTimeString()}` : ""}`
+                    : `✓ Saved & verified${autoSavedAt ? ` at ${new Date(autoSavedAt).toLocaleTimeString()}` : ""}`}
             </p>
           )}
 

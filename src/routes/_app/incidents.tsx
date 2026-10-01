@@ -29,6 +29,16 @@ const searchSchema = z.object({ id: z.string().optional() });
 
 export const Route = createFileRoute("/_app/incidents")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: "Incident Reports | WTCO Operations" },
+      { name: "description", content: "Create, review, and export WTCO operations incident reports with supporting photos." },
+      { property: "og:title", content: "Incident Reports | WTCO Operations" },
+      { property: "og:description", content: "Create, review, and export WTCO operations incident reports with supporting photos." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: IncidentsPage,
 });
 
@@ -298,6 +308,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const [excelDownload, setExcelDownload] = useState<DownloadLink | null>(null);
   const [pdfDownload, setPdfDownload] = useState<DownloadLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
 
   const stationMap = useMemo(() => {
     const m: Record<string, Station> = {};
@@ -338,6 +349,15 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     };
   }, [excelDownload, pdfDownload]);
 
+  const pendingPhotoPreviews = useMemo(
+    () => pendingPhotos.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [pendingPhotos],
+  );
+
+  useEffect(() => {
+    return () => pendingPhotoPreviews.forEach(({ url }) => URL.revokeObjectURL(url));
+  }, [pendingPhotoPreviews]);
+
   /* ---------- Attachments ---------- */
   const { data: attachments } = useQuery({
     queryKey: ["incident-attachments", id],
@@ -368,28 +388,37 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     })();
   }, [attachments]);
 
-  const uploadFile = useMutation({
-    mutationFn: async (file: File) => {
-      if (isNew) throw new Error(locale === "ar" ? "احفظ التقرير أولاً" : "Save the report first");
+  const uploadAttachment = async (incidentId: string, file: File) => {
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
-      const path = `${id}/${Date.now()}_${safe}`;
+      const path = `${incidentId}/${Date.now()}_${safe}`;
       const up = await supabase.storage.from(BUCKET).upload(path, file, {
         contentType: file.type || undefined,
         upsert: false,
       });
       if (up.error) throw up.error;
       const { error } = await supabase.from("incident_attachments").insert({
-        incident_id: id,
+        incident_id: incidentId,
         storage_path: path,
         file_name: file.name,
         content_type: file.type || null,
         uploaded_by: profile?.id ?? null,
       });
       if (error) throw error;
+  };
+
+  const uploadFile = useMutation({
+    mutationFn: async (file: File) => {
+      if (isNew) {
+        setPendingPhotos((current) => [...current, file]);
+        return;
+      }
+      await uploadAttachment(id, file);
     },
     onSuccess: () => {
-      toast.success(locale === "ar" ? "تم الرفع" : "Uploaded");
-      qc.invalidateQueries({ queryKey: ["incident-attachments", id] });
+      if (!isNew) {
+        toast.success(locale === "ar" ? "تم الرفع" : "Uploaded");
+        qc.invalidateQueries({ queryKey: ["incident-attachments", id] });
+      }
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
@@ -431,6 +460,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           .insert({ ...payload, reported_by: profile?.id ?? null })
           .select("id").single();
         if (error) throw error;
+        for (const photo of pendingPhotos) {
+          await uploadAttachment(data.id, photo);
+        }
         return data.id as string;
       }
       const { error } = await supabase.from("incidents").update(payload).eq("id", id);
@@ -441,13 +473,23 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["incidents"] });
       qc.invalidateQueries({ queryKey: ["incident", newId] });
-      if (isNew) window.history.replaceState({}, "", `?id=${newId}`);
+      if (isNew) {
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("id", newId);
+        window.location.replace(nextUrl.toString());
+      }
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : String(e)),
   });
 
   const station = stationMap[stationId];
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+  const imageAttachments = (attachments ?? []).filter((attachment) =>
+    (attachment.content_type ?? "").startsWith("image/"),
+  );
+  const fileAttachments = (attachments ?? []).filter((attachment) =>
+    !(attachment.content_type ?? "").startsWith("image/"),
+  );
 
   const emailReport = () => {
     const subject = `Incident Report - ${report.incident_date} - ${report.subject}`;
@@ -633,7 +675,12 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
       {/* Printable sheet with fixed structure */}
       <div id="incident-print-sheet" className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0" dir="ltr">
-        <div className="text-center mb-6">
+        <div className="text-center mb-6" data-pdf-block>
+          <img
+            src="/wtco-logo.png"
+            alt="WTCO"
+            className="mx-auto mb-3 h-16 w-auto object-contain"
+          />
           <div className="text-xs text-muted-foreground">Water Transmission Company</div>
           <h1 className="text-2xl font-bold mt-1">Operations Incident Report</h1>
           {stationTitle && <div className="text-sm text-muted-foreground mt-1">{stationTitle}</div>}
@@ -758,6 +805,120 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           textPlaceholder=""
         />
 
+        {/* Optional photos — positioned directly after section 3 */}
+        <section className="mt-5 border-t pt-4" data-pdf-block>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-primary font-semibold text-base">Incident Photos</h3>
+              <p className="text-xs text-muted-foreground">
+                {locale === "ar" ? "صور الحادث (اختياري)" : "Optional — multiple photos can be attached"}
+              </p>
+            </div>
+            {canWrite && (
+              <label
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 text-sm hover:bg-accent print:hidden"
+                data-pdf-hide
+              >
+                <Upload className="h-4 w-4" />
+                {uploadFile.isPending
+                  ? locale === "ar" ? "جارٍ رفع الصور…" : "Uploading…"
+                  : locale === "ar" ? "إرفاق صور" : "Add photos"}
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadFile.isPending}
+                  onChange={async (event) => {
+                    const files = Array.from(event.target.files ?? []);
+                    const invalid = files.find((file) => !file.type.startsWith("image/"));
+                    const oversized = files.find((file) => file.size > 10 * 1024 * 1024);
+                    if (invalid) {
+                      toast.error(locale === "ar" ? "اختر ملفات صور فقط" : "Please select image files only");
+                    } else if (oversized) {
+                      toast.error(locale === "ar" ? "حجم الصورة يجب ألا يتجاوز 10 ميجابايت" : "Each photo must be 10 MB or smaller");
+                    } else {
+                      for (const file of files) await uploadFile.mutateAsync(file);
+                    }
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </div>
+
+          {isNew && pendingPhotoPreviews.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pdf-photo-grid">
+              {pendingPhotoPreviews.map(({ file, url }, index) => (
+                <figure key={`${file.name}-${file.lastModified}-${index}`} className="relative overflow-hidden rounded-md border bg-background pdf-photo-item" data-pdf-block>
+                  <img src={url} alt={file.name} className="h-56 w-full object-contain bg-muted/20" />
+                  <figcaption className="truncate border-t px-3 py-2 text-xs" title={file.name}>{file.name}</figcaption>
+                  <button
+                    type="button"
+                    onClick={() => setPendingPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))}
+                    className="absolute right-2 top-2 rounded-md border bg-background/90 p-1.5 text-destructive shadow-sm hover:bg-destructive/10 print:hidden"
+                    aria-label={locale === "ar" ? "حذف الصورة" : "Delete photo"}
+                    data-pdf-hide
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </figure>
+              ))}
+              <p className="text-xs text-muted-foreground sm:col-span-2 print:hidden" data-pdf-hide>
+                {locale === "ar" ? "ستُرفع الصور تلقائيًا عند حفظ التقرير." : "Photos will upload automatically when the report is saved."}
+              </p>
+            </div>
+          ) : isNew || imageAttachments.length === 0 ? (
+            <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground print:hidden" data-pdf-hide>
+              {locale === "ar" ? "لا توجد صور مرفقة — يمكنك اختيار الصور قبل الحفظ، والإرفاق غير إلزامي." : "No photos attached — you can select photos before saving, and photos are optional."}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pdf-photo-grid">
+              {imageAttachments.map((attachment) => {
+                const url = signedUrls[attachment.storage_path];
+                return (
+                  <figure
+                    key={attachment.id}
+                    className="relative overflow-hidden rounded-md border bg-background pdf-photo-item"
+                    data-pdf-block
+                  >
+                    {url ? (
+                      <a href={url} target="_blank" rel="noreferrer" className="block">
+                        <img
+                          src={url}
+                          alt={attachment.file_name}
+                          crossOrigin="anonymous"
+                          className="h-56 w-full object-contain bg-muted/20"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex h-56 items-center justify-center text-muted-foreground">
+                        <ImageIcon className="h-10 w-10" />
+                      </div>
+                    )}
+                    <figcaption className="truncate border-t px-3 py-2 text-xs" title={attachment.file_name}>
+                      {attachment.file_name}
+                    </figcaption>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(locale === "ar" ? "حذف الصورة؟" : "Delete photo?")) removeAttachment.mutate(attachment);
+                        }}
+                        className="absolute right-2 top-2 rounded-md border bg-background/90 p-1.5 text-destructive shadow-sm hover:bg-destructive/10 print:hidden"
+                        aria-label={locale === "ar" ? "حذف الصورة" : "Delete photo"}
+                        data-pdf-hide
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </figure>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {/* 4. Impact & Observations */}
         <H>4. Impact & Observations</H>
         <LabeledList
@@ -794,84 +955,34 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           />
         </div>
 
-        {/* Attachments (photos & files) */}
-        <H>Attachments</H>
-        {isNew ? (
-          <div className="text-xs text-muted-foreground">
-            {locale === "ar" ? "احفظ التقرير لتفعيل رفع الصور والملفات." : "Save the report to enable uploads."}
-          </div>
-        ) : (
-          <>
-            {canWrite && (
-              <div className="flex items-center gap-2 mb-3 print:hidden">
-                <label className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border bg-background text-sm cursor-pointer hover:bg-accent">
-                  <Upload className="h-4 w-4" />
-                  {uploadFile.isPending ? (locale === "ar" ? "جارٍ الرفع…" : "Uploading…") : (locale === "ar" ? "رفع صور/ملفات" : "Upload photos / files")}
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const files = Array.from(e.target.files ?? []);
-                      for (const f of files) await uploadFile.mutateAsync(f);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-                <span className="text-xs text-muted-foreground">
-                  {locale === "ar" ? "الصور والملفات ستُرفق مع تقرير الحادث" : "Photos & files will be attached to this incident"}
-                </span>
-              </div>
-            )}
-            {(attachments ?? []).length === 0 ? (
-              <div className="text-xs text-muted-foreground">
-                {locale === "ar" ? "لا توجد مرفقات." : "No attachments yet."}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {(attachments ?? []).map((a) => {
-                  const url = signedUrls[a.storage_path];
-                  const isImg = (a.content_type ?? "").startsWith("image/");
-                  return (
-                    <div key={a.id} className="relative rounded-lg border overflow-hidden group bg-background">
-                      {isImg && url ? (
-                        <a href={url} target="_blank" rel="noreferrer" className="block">
-                          <img src={url} alt={a.file_name} className="w-full h-32 object-cover" />
-                        </a>
-                      ) : (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2"
-                        >
-                          {isImg ? <ImageIcon className="h-8 w-8" /> : <FileText className="h-8 w-8" />}
-                          <span className="text-[10px] uppercase">{(a.content_type ?? "file").split("/").pop()}</span>
-                        </a>
-                      )}
-                      <div className="p-2 text-xs truncate flex items-center gap-1">
-                        <Paperclip className="h-3 w-3 shrink-0" />
-                        <span className="truncate" title={a.file_name}>{a.file_name}</span>
-                      </div>
-                      {canWrite && (
-                        <button
-                          onClick={() => {
-                            if (confirm(locale === "ar" ? "حذف المرفق؟" : "Delete attachment?"))
-                              removeAttachment.mutate(a);
-                          }}
-                          className="absolute top-1 right-1 p-1 rounded bg-background/80 hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 print:hidden"
-                          aria-label="remove"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+        {/* Legacy non-image attachments remain available without mixing them into the photo report. */}
+        {fileAttachments.length > 0 && (
+          <section className="mt-5 border-t pt-4" data-pdf-block>
+            <H>Other Attachments</H>
+            <div className="space-y-2">
+              {fileAttachments.map((attachment) => (
+                <div key={attachment.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <a className="min-w-0 flex-1 truncate text-primary underline" href={signedUrls[attachment.storage_path]} target="_blank" rel="noreferrer">
+                    {attachment.file_name}
+                  </a>
+                  {canWrite && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(locale === "ar" ? "حذف المرفق؟" : "Delete attachment?")) removeAttachment.mutate(attachment);
+                      }}
+                      className="rounded p-1 text-destructive hover:bg-destructive/10 print:hidden"
+                      aria-label={locale === "ar" ? "حذف المرفق" : "Delete attachment"}
+                      data-pdf-hide
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         <div className="mt-8 text-[10px] text-center text-muted-foreground border-t pt-2">

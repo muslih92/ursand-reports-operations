@@ -1,3 +1,4 @@
+import { fetchAll } from "@/lib/fetch-all";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ import {
 import { z } from "zod";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 import { isDeviating, deviationPct, notifyStation } from "@/lib/notifications";
+import { isValidNumber, isMalformedNumber, normalizeStatusText } from "@/lib/reading-validation";
 
 /** Collect all cells that deviate more than 10% from the previous-day average. */
 function collectDeviations(
@@ -150,6 +152,9 @@ function displayCellValue(raw: string, locale: "ar" | "en"): string {
   return code ? markText(code, locale) : raw;
 }
 
+const MAX_AUTO_RETRIES = 3;
+const RETRY_DELAYS_MS = [3000, 10000, 30000];
+
 // Allowed delay (minutes) after the scheduled slot before the actual entry time is flagged
 const LATE_LIMIT_MIN = 90;
 
@@ -204,7 +209,7 @@ function ReadingsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/readings" });
   const { profile, isAdmin, hasRole } = useAuth();
-  const { scopedStationId, canPickStation: canPick } = useStationScope();
+  const { scopedStationId, canPickStation: canPick } = useStationScope({ supervisorViewAll: true });
   const canPickStation = (isAdmin || hasRole("supervisor") || hasRole("viewer")) && canPick;
 
   const date = search.date ?? todayISO();
@@ -270,13 +275,11 @@ function ListView({
     if (ids.length === 0) return;
     const msg =
       locale === "ar"
-        ? `سيتم حذف ${ids.length} سجل قراءات نهائياً. هل أنت متأكد؟`
-        : `${ids.length} reading record(s) will be permanently deleted. Continue?`;
+        ? `سيتم نقل ${ids.length} سجل قراءات إلى سلة المحذوفات. هل أنت متأكد؟`
+        : `${ids.length} reading record(s) will be moved to the recycle bin. Continue?`;
     if (!window.confirm(msg)) return;
     setDeleting(true);
     try {
-      const { error: vErr } = await supabase.from("reading_values").delete().in("entry_id", ids);
-      if (vErr) throw vErr;
       const { error } = await supabase.from("reading_entries").delete().in("id", ids);
       if (error) throw error;
       setSelected((prev) => {
@@ -297,7 +300,7 @@ function ListView({
 
 
 
-  const { data: stations } = useScopedStations();
+  const { data: stations } = useScopedStations({ supervisorViewAll: true });
 
   // Saved reading records (most recent first) — visible immediately on open
   const { data: recent, isLoading: recentLoading } = useQuery({
@@ -362,16 +365,28 @@ function ListView({
     queryFn: async () => {
       let q = supabase
         .from("reading_entries")
-        .select("id, template_id, reading_values(time_slot)")
+        .select("id, template_id")
         .eq("entry_date", date);
       if (stationId) q = q.eq("station_id", stationId);
       const { data, error } = await q;
       if (error) throw error;
+      const tplByEntry: Record<string, string> = {};
+      for (const e of data ?? []) tplByEntry[e.id] = e.template_id;
+      const ids = Object.keys(tplByEntry);
       const map: Record<string, Set<string>> = {};
-      for (const row of data ?? []) {
-        const rv = (row as { template_id: string; reading_values: { time_slot: string }[] });
-        map[rv.template_id] ??= new Set();
-        for (const v of rv.reading_values ?? []) map[rv.template_id].add(v.time_slot);
+      if (ids.length === 0) return map;
+      const vals = await fetchAll<{ entry_id: string; time_slot: string }>((a, b) =>
+        supabase
+          .from("reading_values")
+          .select("entry_id, time_slot")
+          .in("entry_id", ids)
+          .order("id", { ascending: true })
+          .range(a, b),
+      );
+      for (const v of vals) {
+        const t = tplByEntry[v.entry_id];
+        if (!t) continue;
+        (map[t] ??= new Set()).add(v.time_slot);
       }
       return map;
     },
@@ -659,12 +674,13 @@ function EntryView({
 }) {
   const { locale, t, dir } = useI18n();
   const { profile, isAdmin, hasRole } = useAuth();
-  const { allowedStationIds } = useStationScope();
   const qc = useQueryClient();
-  const stationInScope = !!stationId && allowedStationIds.includes(stationId);
+  const { editableStationIds } = useStationScope();
+  // Admin edits any station; supervisors/operators only their assigned stations.
   const canWrite =
     isAdmin ||
-    ((hasRole("supervisor") || hasRole("operator")) && stationInScope);
+    ((hasRole("supervisor") || hasRole("operator")) &&
+      !!stationId && editableStationIds.includes(stationId));
   // Operators lose edit access to a time slot once its 12-hour shift is over
   const shiftLockActive = !isAdmin && !hasRole("supervisor");
   const slotLocked = (slot: string) => shiftLockActive && isSlotLocked(date, slot);
@@ -707,6 +723,24 @@ function EntryView({
       if (sectionsRes.error) throw sectionsRes.error;
       if (fieldsRes.error) throw fieldsRes.error;
       if (entryRes.error) throw entryRes.error;
+      // The embedded reading_values list is capped at 1000 rows by the API, so
+      // large sheets silently lost rows on reload. Always load them in pages.
+      if (entryRes.data) {
+        const all: unknown[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: page, error } = await supabase
+            .from("reading_values")
+            .select("id, field_id, time_slot, value, status, recorded_at")
+            .eq("entry_id", (entryRes.data as { id: string }).id)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          all.push(...(page ?? []));
+          if (!page || page.length < PAGE) break;
+        }
+        (entryRes.data as { reading_values: unknown[] }).reading_values = all;
+      }
       return {
         template: tplRes.data as Template,
         sections: (sectionsRes.data ?? []) as Section[],
@@ -731,15 +765,23 @@ function EntryView({
     queryFn: async (): Promise<Record<string, number>> => {
       const { data: prevEntry, error } = await supabase
         .from("reading_entries")
-        .select("id, reading_values(field_id, value)")
+        .select("id")
         .eq("template_id", templateId)
         .eq("entry_date", prevDate)
         .eq("station_id", stationId!)
         .maybeSingle();
       if (error) throw error;
       const acc: Record<string, { sum: number; n: number }> = {};
-      const rows = (prevEntry as { reading_values?: { field_id: string; value: number | null }[] } | null)
-        ?.reading_values ?? [];
+      const rows = prevEntry
+        ? await fetchAll<{ field_id: string; value: number | null }>((a, b) =>
+            supabase
+              .from("reading_values")
+              .select("field_id, value")
+              .eq("entry_id", prevEntry.id)
+              .order("id", { ascending: true })
+              .range(a, b),
+          )
+        : [];
       for (const rv of rows) {
         if (rv.value === null || rv.value === undefined) continue;
         const v = Number(rv.value);
@@ -808,7 +850,8 @@ function EntryView({
     // Restore an unsaved local draft (idle / refresh / accidental close).
     // A draft may NEVER blank out a value that already exists in the database:
     // empty draft cells are ignored, only real typed content is restored.
-    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string }>(draftKey);
+    const draft = readDraft<{ values: Record<string, string>; statuses: Record<string, string>; notes: string; cleared?: string[] }>(draftKey);
+    const restoredClears: string[] = [];
     if (draft) {
       let restoredSomething = false;
       for (const [k, dv] of Object.entries(draft.data.values ?? {})) {
@@ -824,13 +867,21 @@ function EntryView({
         restoredSomething = true;
       }
       if (draft.data.notes) n = draft.data.notes;
+      // Explicit clears (operator emptied the cell) are the one exception:
+      // restore them as blank and keep them marked so the save persists NULL.
+      for (const k of draft.data.cleared ?? []) {
+        if ((v[k] ?? "") === "") continue;
+        v[k] = "";
+        restoredClears.push(k);
+        restoredSomething = true;
+      }
       if (restoredSomething) setRestoredAt(draft.savedAt);
     }
     setValues(v);
     setStatuses(s);
     setNotes(n);
     setOperatorName(profile?.full_name ?? data.entry?.operator_name ?? "");
-    touchedRef.current = new Set();
+    touchedRef.current = new Set(restoredClears);
     setHydratedKey(draftKey);
   }, [data, profile?.full_name, draftKey, hydratedKey]);
 
@@ -869,15 +920,30 @@ function EntryView({
   const draftData = useMemo(() => ({ values, statuses, notes }), [values, statuses, notes]);
   const currentDraftRef = useRef(draftData);
   currentDraftRef.current = draftData;
+  // Cells the operator explicitly cleared are kept in the local draft too, so a
+  // refresh/close before the autosave lands does not bring the old value back.
+  const localDraftData = useMemo(() => {
+    const cleared = Object.keys(values).filter(
+      (k) => touchedRef.current.has(k) && (values[k] ?? "").trim() === "",
+    );
+    return { ...draftData, cleared };
+  }, [draftData, values]);
   const { savedAt: draftSavedAt, clear: clearLocalDraft } = useAutoDraft(
     draftKey,
-    draftData,
+    localDraftData,
     hydratedKey === draftKey && canWrite,
   );
   const [autoSavedAt, setAutoSavedAt] = useState<number | null>(null);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [localSlotTimes, setLocalSlotTimes] = useState<Record<string, string>>({});
   const lastAutoSavedRef = useRef<string>("");
   const failedSnapshotRef = useRef<string>("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [retryInfo, setRetryInfo] = useState<{ attempt: number; scheduled: boolean }>({ attempt: 0, scheduled: false });
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+  }, []);
 
 
 
@@ -892,57 +958,12 @@ function EntryView({
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
-    onMutate: () => {
-      setSaveStatus("saving");
-    },
     mutationFn: async (vars: {
       silent?: boolean;
       snapshot: { values: Record<string, string>; statuses: Record<string, string>; notes: string };
     }) => {
       if (!stationId) throw new Error("no station");
       const snapshot = vars.snapshot;
-
-      // Validate all newly entered numeric values BEFORE any database write.
-      // Valid numeric examples: 9, 9.9, 0.5, 1250, -5, .5, +5
-      // Reject malformed numeric-looking input such as: 9.9., 54 2, 1828.., 13..7, 39,6, -0.4-, 8+
-      const fieldMap = new Map((data?.fields ?? []).map((f) => [f.id, f]));
-      const numericPattern = /^[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))$/;
-      const malformedNumericPattern = /^[+\-]?[0-9][0-9.,+\-\s]*$/;
-
-      for (const [key, raw] of Object.entries(snapshot.values)) {
-        const trimmed = raw.trim();
-        if (!trimmed) continue;
-
-        const [fieldId] = key.split("|");
-        const field = fieldMap.get(fieldId);
-        if (!field) continue;
-
-        const isValidNumeric = numericPattern.test(trimmed);
-        const looksNumeric = malformedNumericPattern.test(trimmed);
-
-        if (!isValidNumeric && looksNumeric) {
-          const label = locale === "ar" ? field.label_ar : field.label_en;
-          throw new Error(
-            locale === "ar"
-              ? `قيمة غير صحيحة في "${label}": ${trimmed}`
-              : `Invalid numeric value in "${label}": ${trimmed}`,
-          );
-        }
-
-        if (isValidNumeric) {
-          const num = Number(trimmed);
-          if (!Number.isFinite(num)) {
-            const label = locale === "ar" ? field.label_ar : field.label_en;
-            throw new Error(
-              locale === "ar"
-                ? `قيمة رقمية غير صالحة في "${label}": ${trimmed}`
-                : `Invalid numeric value in "${label}": ${trimmed}`,
-            );
-          }
-
-        }
-      }
-
       // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;
       if (!entryId) {
@@ -967,6 +988,7 @@ function EntryView({
             .from("reading_entries")
             .select("id")
             .eq("template_id", templateId)
+            .eq("station_id", stationId)
             .eq("entry_date", date)
             .maybeSingle();
           if (findErr || !found) throw error;
@@ -1027,28 +1049,64 @@ function EntryView({
           else toDeleteByKey.push({ fieldId: field_id, timeSlot: time_slot });
           continue;
         }
-        const num = Number(trimmed);
-        if (!Number.isNaN(num) && trimmed !== "") {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: num, status: null, recorded_at: nowIso });
+        // Malformed numbers ("9.9.", "54 2") are never stored as text.
+        if (isMalformedNumber(trimmed)) continue;
+        if (isValidNumber(trimmed)) {
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: Number(trimmed), status: null, recorded_at: nowIso });
         } else {
-          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: trimmed, recorded_at: nowIso });
+          toUpsert.push({ entry_id: entryId!, field_id, time_slot, value: null, status: normalizeStatusText(trimmed), recorded_at: nowIso });
+        }
+      }
+
+      // Keep the original recorded time: only send cells whose value/status
+      // actually changed versus what is stored. Otherwise every autosave
+      // would stamp earlier slots (e.g. 04:00) with the current time.
+      {
+        const stored = new Map(
+          (data?.entry?.reading_values ?? []).map((rv) => [`${rv.field_id}|${rv.time_slot}`, rv]),
+        );
+        for (let i = toUpsert.length - 1; i >= 0; i--) {
+          const r = toUpsert[i];
+          const s = stored.get(`${r.field_id}|${r.time_slot}`);
+          if (!s || !s.recorded_at) continue;
+          const sameVal = s.value == null ? r.value == null : r.value != null && Number(s.value) === r.value;
+          const sameStatus = (s.status ?? null) === (r.status ?? null) ||
+            (s.status != null && r.status != null && normalizeStatusText(s.status) === r.status);
+          if (sameVal && sameStatus) toUpsert.splice(i, 1);
         }
       }
 
 
-      // CLEAR = UPDATE, not DELETE.
-      // Operators/supervisors can update readings but must not have DELETE access.
-      // Keep the row and clear its contents so RLS permissions remain least-privilege.
-      if (toDelete.length > 0) {
-        const { error } = await supabase
-          .from("reading_values")
-          .update({ value: null, status: null, recorded_at: null })
-          .in("id", toDelete);
-        if (error) throw error;
+      // 2b) A row-level status (Standby/N/V/...) that existed in the database
+      // but was removed in this session must also be blanked, otherwise it
+      // comes back after refresh.
+      for (const rv of data?.entry?.reading_values ?? []) {
+        if (rv.value != null || !rv.status) continue;
+        if (!(STATUS_TOKENS as readonly string[]).includes(rv.status)) continue;
+        const key = `${rv.field_id}|${rv.time_slot}`;
+        if (snapshot.statuses[rv.field_id]) continue;
+        if ((snapshot.values[key] ?? "").trim() !== "") continue;
+        if (slotLocked(rv.time_slot)) continue;
+        if (!toDelete.includes(rv.id)) toDelete.push(rv.id);
       }
 
-      // If the cached query does not know the row id, clear it using the
-      // stable composite key instead.
+      // Clearing a cell sets value/status to NULL (never DELETE — admin only, per RLS).
+      // `.select("id")` confirms each row really changed; RLS can block silently.
+      if (toDelete.length > 0) {
+        const { data: upd, error } = await supabase
+          .from("reading_values")
+          .update({ value: null, status: null, recorded_at: null })
+          .in("id", toDelete)
+          .select("id");
+        if (error) throw error;
+        if ((upd ?? []).length < toDelete.length) {
+          throw new Error(
+            locale === "ar"
+              ? "تعذر مسح بعض الخانات في قاعدة البيانات. أعد المحاولة."
+              : "Some cleared cells could not be saved. Please retry.",
+          );
+        }
+      }
       for (const row of toDeleteByKey) {
         const { error } = await supabase
           .from("reading_values")
@@ -1065,6 +1123,40 @@ function EntryView({
           .from("reading_values")
           .upsert(toUpsert.slice(i, i + CHUNK), { onConflict: "entry_id,field_id,time_slot" });
         if (error) throw error;
+      }
+
+      // 2c) verify every requested clear really is NULL in the database.
+      // An old value still present means the clear FAILED (never "saved").
+      if (toDelete.length > 0 || toDeleteByKey.length > 0) {
+        const wantIds = new Set(toDelete);
+        const wantKeys = new Set(toDeleteByKey.map((r) => `${r.fieldId}|${r.timeSlot}`));
+        const upsertKeys = new Set(toUpsert.map((r) => `${r.field_id}|${r.time_slot}`));
+        let notCleared = 0;
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data: rows, error: vErr } = await supabase
+            .from("reading_values")
+            .select("id, field_id, time_slot, value, status")
+            .eq("entry_id", entryId!)
+            .order("id", { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (vErr) throw vErr;
+          for (const r of rows ?? []) {
+            const key = `${r.field_id}|${r.time_slot}`;
+            if (upsertKeys.has(key)) continue;
+            if (!wantIds.has(r.id) && !wantKeys.has(key)) continue;
+            const blank = r.value == null && (r.status == null || r.status.trim() === "");
+            if (!blank) notCleared++;
+          }
+          if (!rows || rows.length < PAGE) break;
+        }
+        if (notCleared > 0) {
+          throw new Error(
+            locale === "ar"
+              ? `لم يتم مسح ${notCleared} خانة في قاعدة البيانات. أعد المحاولة.`
+              : `${notCleared} cleared cells did not reach the database. Please retry.`,
+          );
+        }
       }
 
       // 3) verify the write actually landed in the database.
@@ -1095,86 +1187,18 @@ function EntryView({
       }
 
 
-      // Verify CLEAR operations as well as normal upserts.
-    // A successful UPDATE must leave the stored row with NULL value/status/recorded_at.
-    let verifiedClears = 0;
-
-    if (toDelete.length > 0) {
-      const { data: clearedRows, error: verifyClearError } = await supabase
-        .from("reading_values")
-        .select("id,value,status,recorded_at")
-        .in("id", toDelete);
-
-      if (verifyClearError) throw verifyClearError;
-
-      const failedClearIds = (clearedRows ?? [])
-        .filter(
-          (row) =>
-            row.value !== null ||
-            row.status !== null ||
-            row.recorded_at !== null,
-        )
-        .map((row) => row.id);
-
-      if (failedClearIds.length > 0) {
-        throw new Error(
-          `Clear verification failed for ${failedClearIds.length} cell(s).`,
-        );
-      }
-
-      verifiedClears += toDelete.length - failedClearIds.length;
-    }
-
-    if (toDeleteByKey.length > 0) {
-      const { data: entryRows, error: verifyKeyClearError } = await supabase
-        .from("reading_values")
-        .select("field_id,time_slot,value,status,recorded_at")
-        .eq("entry_id", entryId!);
-
-      if (verifyKeyClearError) throw verifyKeyClearError;
-
-      const rowMap = new Map(
-        (entryRows ?? []).map((row) => [
-          `${row.field_id}|${row.time_slot}`,
-          row,
-        ]),
-      );
-
-      const failedKeyClears = toDeleteByKey.filter((row) => {
-        const stored = rowMap.get(`${row.fieldId}|${row.timeSlot}`);
-
-        // If no row exists, the cell is effectively clear.
-        // If it exists, all stored contents must be NULL.
-        return (
-          stored &&
-          (stored.value !== null ||
-            stored.status !== null ||
-            stored.recorded_at !== null)
-        );
-      });
-
-      if (failedKeyClears.length > 0) {
-        throw new Error(
-          `Clear verification failed for ${failedKeyClears.length} cell(s).`,
-        );
-      }
-
-      verifiedClears += toDeleteByKey.length - failedKeyClears.length;
-    }
-
-    return {
-      saved: toUpsert.length,
-      deleted: toDelete.length + toDeleteByKey.length,
-      skippedLocked,
-      verifiedClears,
-    };
+      return { savedSlots: Array.from(new Set(toUpsert.map((r) => r.time_slot))), savedAt: nowIso, saved: toUpsert.length, deleted: toDelete.length + toDeleteByKey.length, skippedLocked };
     },
 
     onSuccess: (res, vars) => {
-      setSaveStatus("saved");
       const savedSnapshot = JSON.stringify(vars.snapshot);
       lastAutoSavedRef.current = savedSnapshot;
       failedSnapshotRef.current = "";
+      setSaveError(null);
+      retryCountRef.current = 0;
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+      setRetryInfo({ attempt: 0, scheduled: false });
       // Never clear the safety draft when the operator typed more while this
       // request was in flight; those newer values still need another save.
       if (JSON.stringify(currentDraftRef.current) === savedSnapshot) {
@@ -1182,6 +1206,13 @@ function EntryView({
         setRestoredAt(null);
       }
       setAutoSavedAt(Date.now());
+      if (res?.savedSlots?.length) {
+        setLocalSlotTimes((prev) => {
+          const next = { ...prev };
+          for (const sl of res.savedSlots) next[sl] = res.savedAt;
+          return next;
+        });
+      }
       if (!vars?.silent) {
         toast.success(
           locale === "ar"
@@ -1224,14 +1255,43 @@ function EntryView({
     },
 
     onError: (e: unknown, vars) => {
-      setSaveStatus("failed");
       const msg = e instanceof Error ? e.message : String(e);
       // Remember the snapshot that failed so the autosave effect does not
       // re-fire the same request forever (one toast per distinct failure).
       failedSnapshotRef.current = JSON.stringify(vars?.snapshot ?? null);
-      toast.error(msg);
+      setSaveError(msg);
+      // Refresh what the database really holds, so the retry only sends the
+      // cells that are still different (changed-cell-only logic is unchanged).
+      qc.invalidateQueries({ queryKey: ["reading-entry", templateId, date, stationId ?? "none"] });
+      const attempt = retryCountRef.current;
+      if (attempt < MAX_AUTO_RETRIES) {
+        retryCountRef.current = attempt + 1;
+        setRetryInfo({ attempt: attempt + 1, scheduled: true });
+        if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          save.mutate({ silent: true, snapshot: currentDraftRef.current });
+        }, RETRY_DELAYS_MS[attempt]);
+        if (attempt === 0) toast.error(msg);
+      } else {
+        setRetryInfo({ attempt, scheduled: false });
+        toast.error(
+          locale === "ar"
+            ? "لم يتم الحفظ بعد عدة محاولات. اضغط «إعادة المحاولة» — قيمك ما زالت في الصفحة."
+            : "Still not saved after several attempts. Press Retry — your values are still on the page.",
+        );
+      }
     },
   });
+
+  const manualRetry = useCallback(() => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    retryCountRef.current = 0;
+    setRetryInfo({ attempt: 0, scheduled: false });
+    save.mutate({ silent: false, snapshot: currentDraftRef.current });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Automatic save to the database — no manual confirmation needed.
   useEffect(() => {
@@ -1261,7 +1321,12 @@ function EntryView({
     touchedRef.current = new Set();
     failedSnapshotRef.current = "";
     setAutoSavedAt(null);
-    setSaveStatus("idle");
+    setLocalSlotTimes({});
+    setSaveError(null);
+    retryCountRef.current = 0;
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
+    setRetryInfo({ attempt: 0, scheduled: false });
   }, [draftKey]);
 
   // Warn before leaving with values that have not reached the database yet.
@@ -1294,8 +1359,46 @@ function EntryView({
       const cur = m[rv.time_slot];
       if (!cur || new Date(rv.recorded_at) > new Date(cur)) m[rv.time_slot] = rv.recorded_at;
     }
+    for (const [sl, ts] of Object.entries(localSlotTimes)) {
+      if (!m[sl] || new Date(ts) > new Date(m[sl])) m[sl] = ts;
+    }
     return m;
-  }, [data?.entry?.reading_values]);
+  }, [data?.entry?.reading_values, localSlotTimes]);
+
+  // Cells with a malformed number (e.g. "9.9.", "54 2"). They are never sent.
+  const invalidCount = useMemo(() => {
+    let n = 0;
+    for (const [key, raw] of Object.entries(values)) {
+      const [fid, slot] = key.split("|");
+      if (statuses[fid] || slotLocked(slot)) continue;
+      if (isMalformedNumber(raw)) n++;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, statuses]);
+
+  // Retry now if the connection comes back while a save is failing.
+  useEffect(() => {
+    const onOnline = () => {
+      if (saveError && !save.isPending) manualRetry();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [saveError, save.isPending, manualRetry]);
+
+  // The badge always reflects the latest attempt, never an older success.
+  const isDirty = JSON.stringify(draftData) !== lastAutoSavedRef.current && lastAutoSavedRef.current !== "";
+  const saveUi: "idle" | "saving" | "pending" | "failed" | "invalid" | "saved" = save.isPending
+    ? "saving"
+    : saveError
+      ? "failed"
+      : invalidCount > 0
+        ? "invalid"
+        : isDirty
+          ? "pending"
+          : autoSavedAt
+            ? "saved"
+            : "idle";
 
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
@@ -1341,27 +1444,60 @@ function EntryView({
           <p className="text-xs text-muted-foreground">
             {template.code} · {freqLabel(template.frequency, locale)} · {date}
           </p>
-          {saveStatus !== "idle" && (
-            <p
-              className={`text-[11px] mt-0.5 ${
-                saveStatus === "failed"
-                  ? "text-red-600 dark:text-red-400"
-                  : saveStatus === "saving"
-                    ? "text-amber-600 dark:text-amber-400"
-                    : "text-emerald-600 dark:text-emerald-400"
+          {canWrite && saveUi !== "idle" && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`fixed bottom-4 end-4 z-50 flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${
+                saveUi === "failed" || saveUi === "invalid"
+                  ? "bg-destructive text-destructive-foreground border-destructive"
+                  : saveUi === "pending"
+                    ? "bg-card text-amber-700 border-amber-400 dark:text-amber-400"
+                    : "bg-card text-emerald-700 dark:text-emerald-400"
               }`}
             >
-              {saveStatus === "saving"
+              <span>
+                {saveUi === "saving"
+                  ? locale === "ar" ? "جارٍ الحفظ…" : "Saving…"
+                  : saveUi === "pending"
+                    ? locale === "ar" ? "● تغييرات لم تُحفظ بعد" : "● Unsaved changes"
+                    : saveUi === "invalid"
+                      ? locale === "ar"
+                        ? `✕ لم يُحفظ: ${invalidCount} رقم غير صحيح`
+                        : `✕ Not saved: ${invalidCount} invalid number(s)`
+                      : saveUi === "failed"
+                        ? retryInfo.scheduled
+                          ? locale === "ar"
+                            ? `✕ لم يُحفظ — إعادة المحاولة تلقائياً (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                            : `✕ Not saved — retrying (${retryInfo.attempt}/${MAX_AUTO_RETRIES})`
+                          : locale === "ar" ? "✕ لم يُحفظ" : "✕ Save failed"
+                        : (locale === "ar" ? "✓ تم الحفظ " : "✓ Saved ") +
+                          new Date(autoSavedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+              {saveUi === "failed" && !retryInfo.scheduled && (
+                <button
+                  type="button"
+                  onClick={manualRetry}
+                  className="rounded-full bg-background/20 px-2 py-0.5 underline"
+                >
+                  {locale === "ar" ? "إعادة المحاولة" : "Retry"}
+                </button>
+              )}
+            </div>
+          )}
+          {(save.isPending || autoSavedAt || draftSavedAt) && (
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {save.isPending
                 ? locale === "ar"
-                  ? "جارٍ الحفظ والتحقق…"
-                  : "Saving & verifying…"
-                : saveStatus === "failed"
+                  ? "جارٍ الحفظ التلقائي…"
+                  : "Auto-saving…"
+                : saveUi === "saved" && autoSavedAt
                   ? locale === "ar"
-                    ? "✕ لم يتم الحفظ — البيانات ما زالت محفوظة على الشاشة"
-                    : "✕ Save failed — your data remains on screen"
+                    ? `تم الحفظ التلقائي ${new Date(autoSavedAt).toLocaleTimeString()}`
+                    : `Auto-saved at ${new Date(autoSavedAt).toLocaleTimeString()}`
                   : locale === "ar"
-                    ? `✓ تم الحفظ والتحقق${autoSavedAt ? ` ${new Date(autoSavedAt).toLocaleTimeString()}` : ""}`
-                    : `✓ Saved & verified${autoSavedAt ? ` at ${new Date(autoSavedAt).toLocaleTimeString()}` : ""}`}
+                    ? "الحفظ التلقائي مفعّل"
+                    : "Auto-save is on"}
             </p>
           )}
 
@@ -1721,11 +1857,16 @@ function EntryView({
                                 data-row={f.id}
 
                                 disabled={!cellWritable(slot)}
+                                aria-invalid={isMalformedNumber(values[key] ?? "") || undefined}
                                 title={
                                   slotLocked(slot)
                                     ? locale === "ar"
                                       ? "مقفل: انتهت الوردية الخاصة بهذا الوقت"
                                       : "Locked: this shift has ended"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? locale === "ar"
+                                        ? "رقم غير صحيح — لن يُحفظ حتى يُصحح (مثال صحيح: 9.9)"
+                                        : "Invalid number — will not be saved until corrected (e.g. 9.9)"
                                     : deviated && base
                                       ? locale === "ar"
                                         ? `انحراف ${deviationPct(cellNum, base).toFixed(1)}٪ عن متوسط أمس (${base.toFixed(2)})`
@@ -1735,6 +1876,8 @@ function EntryView({
                                 className={`w-full h-9 px-2 rounded-md border text-center text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${
                                   slotLocked(slot)
                                     ? "bg-muted/60 cursor-not-allowed"
+                                    : isMalformedNumber(values[key] ?? "")
+                                      ? "bg-destructive/20 border-2 border-destructive text-destructive font-semibold"
                                     : deviated
                                       ? "bg-destructive/15 border-destructive/50 text-destructive font-semibold"
                                       : "bg-background"
@@ -1873,7 +2016,21 @@ async function exportSelectedReadingsXlsx(opts: {
   const templateIds = Array.from(new Set(entries.map((e) => e.template_id)));
 
   const [valsRes, fieldsRes, sectionsRes] = await Promise.all([
-    supabase.from("reading_values").select("entry_id, field_id, time_slot, value").in("entry_id", ids),
+    (async () => {
+      const all: { entry_id: string; field_id: string; time_slot: string; value: number | null }[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("reading_values")
+          .select("entry_id, field_id, time_slot, value")
+          .in("entry_id", ids)
+          .order("id", { ascending: true })
+          .range(from, from + 999);
+        if (error) return { data: null, error };
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return { data: all, error: null };
+    })(),
     supabase
       .from("reading_fields")
       .select("id, template_id, section_id, label_en, label_ar, unit, sort_order")

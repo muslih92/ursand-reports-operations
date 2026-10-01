@@ -9,127 +9,48 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppUsersRouteImport } from './routes/_app/users'
-import { Route as AppTrendsRouteImport } from './routes/_app/trends'
-import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
-import { Route as AppStationsRouteImport } from './routes/_app/stations'
-import { Route as AppStationNotesRouteImport } from './routes/_app/station-notes'
-import { Route as AppRoutineRouteImport } from './routes/_app/routine'
-import { Route as AppReportsRouteImport } from './routes/_app/reports'
-import { Route as AppReadingsRouteImport } from './routes/_app/readings'
-import { Route as AppPowerbiRouteImport } from './routes/_app/powerbi'
-import { Route as AppMessagesRouteImport } from './routes/_app/messages'
-import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
-import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
-import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
-import { Route as AppDefeatRouteImport } from './routes/_app/defeat'
-import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
-import { Route as AppControlCenterRouteImport } from './routes/_app/control-center'
-import { Route as AppChecklistRouteImport } from './routes/_app/checklist'
-import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
+import { Route as AppChecklistRouteImport } from './routes/_app/checklist'
+import { Route as AppControlCenterRouteImport } from './routes/_app/control-center'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppDefeatRouteImport } from './routes/_app/defeat'
+import { Route as AppFirepumpRouteImport } from './routes/_app/firepump'
+import { Route as AppGeneratorRouteImport } from './routes/_app/generator'
+import { Route as AppIncidentsRouteImport } from './routes/_app/incidents'
+import { Route as AppMessagesRouteImport } from './routes/_app/messages'
+import { Route as AppPowerbiRouteImport } from './routes/_app/powerbi'
+import { Route as AppReadingsRouteImport } from './routes/_app/readings'
+import { Route as AppReportsRouteImport } from './routes/_app/reports'
+import { Route as AppRoutineRouteImport } from './routes/_app/routine'
+import { Route as AppStationNotesRouteImport } from './routes/_app/station-notes'
+import { Route as AppStationsRouteImport } from './routes/_app/stations'
+import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
+import { Route as AppTrashRouteImport } from './routes/_app/trash'
+import { Route as AppTrendsRouteImport } from './routes/_app/trends'
+import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppUsersRoute = AppUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTrendsRoute = AppTrendsRouteImport.update({
-  id: '/trends',
-  path: '/trends',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTemplatesRoute = AppTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppStationsRoute = AppStationsRouteImport.update({
-  id: '/stations',
-  path: '/stations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppStationNotesRoute = AppStationNotesRouteImport.update({
-  id: '/station-notes',
-  path: '/station-notes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRoutineRoute = AppRoutineRouteImport.update({
-  id: '/routine',
-  path: '/routine',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReportsRoute = AppReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReadingsRoute = AppReadingsRouteImport.update({
-  id: '/readings',
-  path: '/readings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPowerbiRoute = AppPowerbiRouteImport.update({
-  id: '/powerbi',
-  path: '/powerbi',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMessagesRoute = AppMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIncidentsRoute = AppIncidentsRouteImport.update({
-  id: '/incidents',
-  path: '/incidents',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGeneratorRoute = AppGeneratorRouteImport.update({
-  id: '/generator',
-  path: '/generator',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFirepumpRoute = AppFirepumpRouteImport.update({
-  id: '/firepump',
-  path: '/firepump',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDefeatRoute = AppDefeatRouteImport.update({
-  id: '/defeat',
-  path: '/defeat',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppControlCenterRoute = AppControlCenterRouteImport.update({
-  id: '/control-center',
-  path: '/control-center',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChecklistRoute = AppChecklistRouteImport.update({
-  id: '/checklist',
-  path: '/checklist',
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
@@ -137,9 +58,94 @@ const AppAvailabilityRoute = AppAvailabilityRouteImport.update({
   path: '/availability',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAuditRoute = AppAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+const AppChecklistRoute = AppChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppControlCenterRoute = AppControlCenterRouteImport.update({
+  id: '/control-center',
+  path: '/control-center',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDefeatRoute = AppDefeatRouteImport.update({
+  id: '/defeat',
+  path: '/defeat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFirepumpRoute = AppFirepumpRouteImport.update({
+  id: '/firepump',
+  path: '/firepump',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGeneratorRoute = AppGeneratorRouteImport.update({
+  id: '/generator',
+  path: '/generator',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIncidentsRoute = AppIncidentsRouteImport.update({
+  id: '/incidents',
+  path: '/incidents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPowerbiRoute = AppPowerbiRouteImport.update({
+  id: '/powerbi',
+  path: '/powerbi',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReadingsRoute = AppReadingsRouteImport.update({
+  id: '/readings',
+  path: '/readings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRoutineRoute = AppRoutineRouteImport.update({
+  id: '/routine',
+  path: '/routine',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStationNotesRoute = AppStationNotesRouteImport.update({
+  id: '/station-notes',
+  path: '/station-notes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppStationsRoute = AppStationsRouteImport.update({
+  id: '/stations',
+  path: '/stations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTemplatesRoute = AppTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrashRoute = AppTrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrendsRoute = AppTrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
 const ApiPublicAdminSetPasswordRoute =
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/station-notes': typeof AppStationNotesRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
+  '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_app/station-notes': typeof AppStationNotesRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
+  '/_app/trash': typeof AppTrashRoute
   '/_app/trends': typeof AppTrendsRoute
   '/_app/users': typeof AppUsersRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/station-notes'
     | '/stations'
     | '/templates'
+    | '/trash'
     | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/station-notes'
     | '/stations'
     | '/templates'
+    | '/trash'
     | '/trends'
     | '/users'
     | '/api/public/admin-set-password'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/_app/station-notes'
     | '/_app/stations'
     | '/_app/templates'
+    | '/_app/trash'
     | '/_app/trends'
     | '/_app/users'
     | '/api/public/admin-set-password'
@@ -308,11 +320,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -322,130 +334,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/users': {
-      id: '/_app/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof AppUsersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/trends': {
-      id: '/_app/trends'
-      path: '/trends'
-      fullPath: '/trends'
-      preLoaderRoute: typeof AppTrendsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/templates': {
-      id: '/_app/templates'
-      path: '/templates'
-      fullPath: '/templates'
-      preLoaderRoute: typeof AppTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/stations': {
-      id: '/_app/stations'
-      path: '/stations'
-      fullPath: '/stations'
-      preLoaderRoute: typeof AppStationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/station-notes': {
-      id: '/_app/station-notes'
-      path: '/station-notes'
-      fullPath: '/station-notes'
-      preLoaderRoute: typeof AppStationNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/routine': {
-      id: '/_app/routine'
-      path: '/routine'
-      fullPath: '/routine'
-      preLoaderRoute: typeof AppRoutineRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/reports': {
-      id: '/_app/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AppReportsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/readings': {
-      id: '/_app/readings'
-      path: '/readings'
-      fullPath: '/readings'
-      preLoaderRoute: typeof AppReadingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/powerbi': {
-      id: '/_app/powerbi'
-      path: '/powerbi'
-      fullPath: '/powerbi'
-      preLoaderRoute: typeof AppPowerbiRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/messages': {
-      id: '/_app/messages'
-      path: '/messages'
-      fullPath: '/messages'
-      preLoaderRoute: typeof AppMessagesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/incidents': {
-      id: '/_app/incidents'
-      path: '/incidents'
-      fullPath: '/incidents'
-      preLoaderRoute: typeof AppIncidentsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/generator': {
-      id: '/_app/generator'
-      path: '/generator'
-      fullPath: '/generator'
-      preLoaderRoute: typeof AppGeneratorRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/firepump': {
-      id: '/_app/firepump'
-      path: '/firepump'
-      fullPath: '/firepump'
-      preLoaderRoute: typeof AppFirepumpRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/defeat': {
-      id: '/_app/defeat'
-      path: '/defeat'
-      fullPath: '/defeat'
-      preLoaderRoute: typeof AppDefeatRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/control-center': {
-      id: '/_app/control-center'
-      path: '/control-center'
-      fullPath: '/control-center'
-      preLoaderRoute: typeof AppControlCenterRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/checklist': {
-      id: '/_app/checklist'
-      path: '/checklist'
-      fullPath: '/checklist'
-      preLoaderRoute: typeof AppChecklistRouteImport
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/availability': {
@@ -455,11 +355,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAvailabilityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/audit': {
-      id: '/_app/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AppAuditRouteImport
+    '/_app/checklist': {
+      id: '/_app/checklist'
+      path: '/checklist'
+      fullPath: '/checklist'
+      preLoaderRoute: typeof AppChecklistRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/control-center': {
+      id: '/_app/control-center'
+      path: '/control-center'
+      fullPath: '/control-center'
+      preLoaderRoute: typeof AppControlCenterRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/defeat': {
+      id: '/_app/defeat'
+      path: '/defeat'
+      fullPath: '/defeat'
+      preLoaderRoute: typeof AppDefeatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/firepump': {
+      id: '/_app/firepump'
+      path: '/firepump'
+      fullPath: '/firepump'
+      preLoaderRoute: typeof AppFirepumpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/generator': {
+      id: '/_app/generator'
+      path: '/generator'
+      fullPath: '/generator'
+      preLoaderRoute: typeof AppGeneratorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/incidents': {
+      id: '/_app/incidents'
+      path: '/incidents'
+      fullPath: '/incidents'
+      preLoaderRoute: typeof AppIncidentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/messages': {
+      id: '/_app/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/powerbi': {
+      id: '/_app/powerbi'
+      path: '/powerbi'
+      fullPath: '/powerbi'
+      preLoaderRoute: typeof AppPowerbiRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/readings': {
+      id: '/_app/readings'
+      path: '/readings'
+      fullPath: '/readings'
+      preLoaderRoute: typeof AppReadingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/routine': {
+      id: '/_app/routine'
+      path: '/routine'
+      fullPath: '/routine'
+      preLoaderRoute: typeof AppRoutineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/station-notes': {
+      id: '/_app/station-notes'
+      path: '/station-notes'
+      fullPath: '/station-notes'
+      preLoaderRoute: typeof AppStationNotesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/stations': {
+      id: '/_app/stations'
+      path: '/stations'
+      fullPath: '/stations'
+      preLoaderRoute: typeof AppStationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/templates': {
+      id: '/_app/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AppTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trash': {
+      id: '/_app/trash'
+      path: '/trash'
+      fullPath: '/trash'
+      preLoaderRoute: typeof AppTrashRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trends': {
+      id: '/_app/trends'
+      path: '/trends'
+      fullPath: '/trends'
+      preLoaderRoute: typeof AppTrendsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
     '/api/public/admin-set-password': {
@@ -490,6 +509,7 @@ interface AppRouteChildren {
   AppStationNotesRoute: typeof AppStationNotesRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
+  AppTrashRoute: typeof AppTrashRoute
   AppTrendsRoute: typeof AppTrendsRoute
   AppUsersRoute: typeof AppUsersRoute
 }
@@ -512,6 +532,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStationNotesRoute: AppStationNotesRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
+  AppTrashRoute: AppTrashRoute,
   AppTrendsRoute: AppTrendsRoute,
   AppUsersRoute: AppUsersRoute,
 }

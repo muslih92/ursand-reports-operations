@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_installation: {
+        Row: {
+          id: boolean
+          initialized_at: string
+          initialized_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          initialized_at?: string
+          initialized_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          initialized_at?: string
+          initialized_by?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
@@ -250,6 +268,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deleted_items: {
+        Row: {
+          deleted_at: string
+          deleted_by: string
+          deletion_txid: number
+          id: string
+          record_id: string
+          record_label: string | null
+          restored_at: string | null
+          restored_by: string | null
+          row_data: Json
+          station_id: string | null
+          table_name: string
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by: string
+          deletion_txid: number
+          id?: string
+          record_id: string
+          record_label?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          row_data: Json
+          station_id?: string | null
+          table_name: string
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string
+          deletion_txid?: number
+          id?: string
+          record_id?: string
+          record_label?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+          row_data?: Json
+          station_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
       }
       equipment_availability_entries: {
         Row: {
@@ -1474,6 +1534,24 @@ export type Database = {
           _user_ids: string[]
         }
         Returns: number
+      }
+      reading_slot_locked: {
+        Args: { _entry_date: string; _slot: string }
+        Returns: boolean
+      }
+      restore_deleted_item: {
+        Args: { _actor_id: string; _item_id: string }
+        Returns: number
+      }
+      security_hardening_h1_violations: { Args: never; Returns: string }
+      security_hardening_report: {
+        Args: never
+        Returns: {
+          detail: string
+          expectation: string
+          passed: boolean
+          scenario: string
+        }[]
       }
       security_regression_report: {
         Args: never

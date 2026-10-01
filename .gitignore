@@ -33,23 +33,3 @@ dist-ssr
 deploy/deploy.log
 deploy/events.log
 deploy/.monitor-state
-
-# ==================================================
-# Security - never commit runtime secrets
-# ==================================================
-.env
-.env.*
-!.env.example
-!**/.env.example
-
-*.pem
-*.key
-*.p12
-*.pfx
-
-# Local deployment/runtime data
-deploy/certbot/
-
-# Local temporary backups
-*.bak
-*.bak-*

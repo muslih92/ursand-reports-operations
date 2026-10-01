@@ -258,7 +258,7 @@ function RoutinePage() {
   });
 
   const askDelete = (id: string) => {
-    if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+    if (!window.confirm(ar ? "نقل هذا السجل إلى سلة المحذوفات؟" : "Move this record to the recycle bin?")) return;
     remove.mutate(id);
   };
 
@@ -412,7 +412,7 @@ function RoutinePage() {
           <button
             onClick={() => {
               const id = existing.id;
-              if (!window.confirm(ar ? "حذف هذا السجل نهائياً؟" : "Delete this record permanently?")) return;
+              if (!window.confirm(ar ? "نقل هذا السجل إلى سلة المحذوفات؟" : "Move this record to the recycle bin?")) return;
               remove.mutate(id, { onSuccess: () => setView("list") });
             }}
             disabled={remove.isPending}

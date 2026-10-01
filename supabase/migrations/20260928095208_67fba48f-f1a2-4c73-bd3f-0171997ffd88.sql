@@ -1,0 +1,2 @@
+ALTER TABLE public.reading_entries DROP CONSTRAINT reading_entries_template_id_entry_date_key;
+ALTER TABLE public.reading_entries ADD CONSTRAINT reading_entries_template_station_date_key UNIQUE (template_id, station_id, entry_date);

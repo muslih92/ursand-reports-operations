@@ -1,3 +1,4 @@
+import { fetchAll } from "@/lib/fetch-all";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -205,13 +206,24 @@ function ReadingsTrends() {
       const dateById: Record<string, string> = {};
       for (const e of entryList) dateById[e.id] = e.entry_date;
 
-      const { data: vals, error: vErr } = await supabase
-        .from("reading_values")
-        .select("entry_id, field_id, time_slot, value")
-        .in("entry_id", entryList.map((e) => e.id))
-        .in("field_id", fieldIds)
-        .not("value", "is", null);
-      if (vErr) throw vErr;
+      const entryIds = entryList.map((e) => e.id);
+      const vals: { entry_id: string; field_id: string; time_slot: string; value: number | null }[] = [];
+      // Chunk entry ids (URL length) and page results (1000-row API cap).
+      for (let i = 0; i < entryIds.length; i += 100) {
+        const chunk = entryIds.slice(i, i + 100);
+        vals.push(
+          ...(await fetchAll<{ entry_id: string; field_id: string; time_slot: string; value: number | null }>((a, b) =>
+            supabase
+              .from("reading_values")
+              .select("entry_id, field_id, time_slot, value")
+              .in("entry_id", chunk)
+              .in("field_id", fieldIds)
+              .not("value", "is", null)
+              .order("id", { ascending: true })
+              .range(a, b),
+          )),
+        );
+      }
 
       // bucket -> field -> [values]
       const buckets = new Map<string, Record<string, number[]>>();

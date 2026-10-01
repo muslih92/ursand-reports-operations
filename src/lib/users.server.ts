@@ -30,3 +30,34 @@ export async function assertAdmin(ctx: { supabase: SupabaseClient; userId: strin
 export function employeeEmail(employeeNo: string) {
   return `emp${employeeNo.trim()}@wtco.local`;
 }
+
+/**
+ * First-admin setup is only allowed on a genuinely new installation:
+ * no persistent installation marker, no admin role, no profile and no auth user.
+ * Any lookup failure is treated as "already initialized" (fail closed).
+ */
+export async function isInstallationUninitialized(admin: SupabaseClient): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = admin as any;
+    const marker = await db.from("app_installation").select("id", { count: "exact", head: true });
+    if (marker.error || (marker.count ?? 0) > 0) return false;
+    const admins = await admin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "admin");
+    if (admins.error || (admins.count ?? 0) > 0) return false;
+    const profiles = await admin.from("profiles").select("*", { count: "exact", head: true });
+    if (profiles.error || (profiles.count ?? 0) > 0) return false;
+    const users = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+    if (users.error || (users.data?.users?.length ?? 0) > 0) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function markInstallationInitialized(admin: SupabaseClient, userId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any)
+    .from("app_installation")
+    .upsert({ id: true, initialized_by: userId }, { onConflict: "id", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+}

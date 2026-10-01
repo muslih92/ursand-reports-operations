@@ -901,6 +901,48 @@ function EntryView({
     }) => {
       if (!stationId) throw new Error("no station");
       const snapshot = vars.snapshot;
+
+      // Validate all newly entered numeric values BEFORE any database write.
+      // Valid numeric examples: 9, 9.9, 0.5, 1250, -5, .5, +5
+      // Reject malformed numeric-looking input such as: 9.9., 54 2, 1828.., 13..7, 39,6, -0.4-, 8+
+      const fieldMap = new Map((data?.fields ?? []).map((f) => [f.id, f]));
+      const numericPattern = /^[+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))$/;
+      const malformedNumericPattern = /^[+\-]?[0-9][0-9.,+\-\s]*$/;
+
+      for (const [key, raw] of Object.entries(snapshot.values)) {
+        const trimmed = raw.trim();
+        if (!trimmed) continue;
+
+        const [fieldId] = key.split("|");
+        const field = fieldMap.get(fieldId);
+        if (!field) continue;
+
+        const isValidNumeric = numericPattern.test(trimmed);
+        const looksNumeric = malformedNumericPattern.test(trimmed);
+
+        if (!isValidNumeric && looksNumeric) {
+          const label = locale === "ar" ? field.label_ar : field.label_en;
+          throw new Error(
+            locale === "ar"
+              ? `قيمة غير صحيحة في "${label}": ${trimmed}`
+              : `Invalid numeric value in "${label}": ${trimmed}`,
+          );
+        }
+
+        if (isValidNumeric) {
+          const num = Number(trimmed);
+          if (!Number.isFinite(num)) {
+            const label = locale === "ar" ? field.label_ar : field.label_en;
+            throw new Error(
+              locale === "ar"
+                ? `قيمة رقمية غير صالحة في "${label}": ${trimmed}`
+                : `Invalid numeric value in "${label}": ${trimmed}`,
+            );
+          }
+
+        }
+      }
+
       // 1) upsert entry (never fail on a duplicate template_id+entry_date row)
       let entryId = data?.entry?.id;
       if (!entryId) {

@@ -235,16 +235,16 @@ export const deleteUser = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { assertAdmin, tryAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
+    if (data.id === context.userId) throw new Error("You cannot delete your own account");
     const admin = await tryAdmin();
-    if (admin) {
-      const { error } = await admin.auth.admin.deleteUser(data.id);
-      if (error) throw new Error(error.message);
-      return { ok: true };
+    if (!admin) {
+      // Never remove authorization records while the login account stays active.
+      throw new Error(
+        "Account deletion is unavailable: the server cannot remove the login account. Nothing was changed. Deactivate the user instead.",
+      );
     }
-    // No service key: remove app access (profile + role) instead of the auth account.
-    await context.supabase.from("profile_stations").delete().eq("user_id", data.id);
-    await context.supabase.from("user_roles").delete().eq("user_id", data.id);
-    const { error } = await context.supabase.from("profiles").delete().eq("id", data.id);
+    // Removing the auth identity cascades to profile, roles and station assignments.
+    const { error } = await admin.auth.admin.deleteUser(data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -311,19 +311,15 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
     if (pErr) throw new Error(pErr.message);
     const { error: rErr } = await supabaseAdmin.from("user_roles").insert({ user_id: uid, role: "admin" });
     if (rErr) throw new Error(rErr.message);
+    const { markInstallationInitialized } = await import("@/lib/users.server");
+    await markInstallationInitialized(supabaseAdmin, uid);
     return { ok: true };
   });
 
 export const hasAnyAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  const { tryAdmin } = await import("@/lib/users.server");
+  const { tryAdmin, isInstallationUninitialized } = await import("@/lib/users.server");
   const admin = await tryAdmin();
   if (!admin) return { exists: true };
-  const { count, error } = await admin
-    .from("user_roles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "admin");
-  // If the check fails (e.g. database unreachable), never show the initial-setup
-  // screen — assume the system is already initialized.
-  if (error) return { exists: true };
-  return { exists: (count ?? 0) > 0 };
+  // Fail closed: the setup screen only shows on a genuinely new installation.
+  return { exists: !(await isInstallationUninitialized(admin)) };
 });

@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_installation: {
+        Row: {
+          id: boolean
+          initialized_at: string
+          initialized_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          initialized_at?: string
+          initialized_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          initialized_at?: string
+          initialized_by?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
@@ -1524,6 +1542,15 @@ export type Database = {
       restore_deleted_item: {
         Args: { _actor_id: string; _item_id: string }
         Returns: number
+      }
+      security_hardening_report: {
+        Args: never
+        Returns: {
+          detail: string
+          expectation: string
+          passed: boolean
+          scenario: string
+        }[]
       }
       security_regression_report: {
         Args: never

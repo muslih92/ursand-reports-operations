@@ -1543,6 +1543,7 @@ export type Database = {
         Args: { _actor_id: string; _item_id: string }
         Returns: number
       }
+      security_hardening_h1_violations: { Args: never; Returns: string }
       security_hardening_report: {
         Args: never
         Returns: {

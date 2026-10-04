@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppAvailabilityRouteImport } from './routes/_app/availability'
 import { Route as AppChecklistRouteImport } from './routes/_app/checklist'
@@ -32,6 +34,7 @@ import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppTrashRouteImport } from './routes/_app/trash'
 import { Route as AppTrendsRouteImport } from './routes/_app/trends'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,6 +51,17 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -148,6 +162,11 @@ const AppUsersRoute = AppUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAdminSetPasswordRoute =
   ApiPublicAdminSetPasswordRouteImport.update({
     id: '/api/public/admin-set-password',
@@ -158,6 +177,8 @@ const ApiPublicAdminSetPasswordRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/checklist': typeof AppChecklistRoute
@@ -178,11 +199,14 @@ export interface FileRoutesByFullPath {
   '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/audit': typeof AppAuditRoute
   '/availability': typeof AppAvailabilityRoute
   '/checklist': typeof AppChecklistRoute
@@ -203,6 +227,7 @@ export interface FileRoutesByTo {
   '/trash': typeof AppTrashRoute
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesById {
@@ -210,6 +235,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/availability': typeof AppAvailabilityRoute
   '/_app/checklist': typeof AppChecklistRoute
@@ -230,6 +257,7 @@ export interface FileRoutesById {
   '/_app/trash': typeof AppTrashRoute
   '/_app/trends': typeof AppTrendsRoute
   '/_app/users': typeof AppUsersRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRouteTypes {
@@ -237,6 +265,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/audit'
     | '/availability'
     | '/checklist'
@@ -257,11 +287,14 @@ export interface FileRouteTypes {
     | '/trash'
     | '/trends'
     | '/users'
+    | '/.lovable/oauth/consent'
     | '/api/public/admin-set-password'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/audit'
     | '/availability'
     | '/checklist'
@@ -282,12 +315,15 @@ export interface FileRouteTypes {
     | '/trash'
     | '/trends'
     | '/users'
+    | '/.lovable/oauth/consent'
     | '/api/public/admin-set-password'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/_app/audit'
     | '/_app/availability'
     | '/_app/checklist'
@@ -308,6 +344,7 @@ export interface FileRouteTypes {
     | '/_app/trash'
     | '/_app/trends'
     | '/_app/users'
+    | '/.lovable/oauth/consent'
     | '/api/public/admin-set-password'
   fileRoutesById: FileRoutesById
 }
@@ -315,6 +352,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  McpRoute: typeof McpRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicAdminSetPasswordRoute: typeof ApiPublicAdminSetPasswordRoute
 }
 
@@ -339,6 +379,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/audit': {
@@ -481,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/admin-set-password': {
       id: '/api/public/admin-set-password'
       path: '/api/public/admin-set-password'
@@ -543,6 +604,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  McpRoute: McpRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicAdminSetPasswordRoute: ApiPublicAdminSetPasswordRoute,
 }
 export const routeTree = rootRouteImport

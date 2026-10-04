@@ -37,7 +37,11 @@ function AuthPage() {
   }, [checkAdmin]);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: search.redirect ?? "/dashboard", replace: true });
+    if (!loading && user) {
+      const r = search.redirect;
+      const safe = r && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard";
+      navigate({ href: safe, replace: true });
+    }
   }, [user, loading, navigate, search.redirect]);
 
   const onSignIn = async (e: React.FormEvent) => {

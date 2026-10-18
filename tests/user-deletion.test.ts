@@ -11,7 +11,10 @@ function setup(role = true, history?: string, checkFails = false) {
   const admin = {
     auth: { admin: { getUserById: async () => ({ data: { user: { id: targetId } }, error: null }), deleteUser, updateUserById } },
     from: (table: string) => ({
-      select: () => ({ eq: async (column: string) => {
+      select: () => ({ contains: async (column: string) => {
+        queried.push(`${table}.${column}`);
+        return { count: checkFails ? null : history === `${table}.${column}` ? 1 : 0, error: checkFails ? {} : null };
+      }, eq: async (column: string) => {
         queried.push(`${table}.${column}`);
         return { count: checkFails ? null : history === `${table}.${column}` ? 1 : 0, error: checkFails ? {} : null };
       } }),

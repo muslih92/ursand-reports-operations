@@ -17,7 +17,7 @@ export const historicalReferences: ReadonlyArray<readonly [string, string]> = [
   ["incident_attachments", "uploaded_by"], ["incidents", "reported_by"],
   ["notifications", "user_id"], ["reading_entries", "operator_id"],
   ["scada_samples", "recorded_by"], ["shift_reports", "operator_id"],
-  ["station_messages", "author_id"], ["station_notes", "author_id"],
+  ["station_messages", "author_id"], ["station_messages", "target_user_ids"], ["station_notes", "author_id"],
   ["supervisor_routines", "created_by"], ["supervisor_routines", "supervisor_id"],
 ];
 
@@ -50,7 +50,8 @@ export async function manageUserDeletion(
   }
 
   for (const [table, column] of historicalReferences) {
-    const reference = await admin.from(table).select(column, { count: "exact", head: true }).eq(column, target);
+    const query = admin.from(table).select(column, { count: "exact", head: true });
+    const reference = column === "target_user_ids" ? await query.contains(column, [target]) : await query.eq(column, target);
     if (reference.error || reference.count === null) return result(503, { ok: false, code: "INTEGRITY_CHECK_FAILED", message: "تعذر التحقق من السجلات المرتبطة؛ لم يتم الحذف" });
     if (reference.count > 0) return result(409, { ok: false, code: "HISTORICAL_REFERENCES", message: "لا يمكن حذف الحساب لارتباطه بسجلات محفوظة؛ يمكنك تعطيله بدلاً من الحذف", can_deactivate: true });
   }

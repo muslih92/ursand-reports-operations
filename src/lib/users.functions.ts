@@ -231,22 +231,39 @@ export const updateUser = createServerFn({ method: "POST" })
 
 export const deleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid(), action: z.enum(["delete", "deactivate"]).default("delete") }).parse(input))
   .handler(async ({ data, context }) => {
     const { assertAdmin, tryAdmin } = await import("@/lib/users.server");
     await assertAdmin(context);
-    if (data.id === context.userId) throw new Error("You cannot delete your own account");
+    if (data.id === context.userId) throw new Error("لا يمكن حذف أو تعطيل حسابك الحالي");
     const admin = await tryAdmin();
-    if (!admin) {
-      // Never remove authorization records while the login account stays active.
-      throw new Error(
-        "Account deletion is unavailable: the server cannot remove the login account. Nothing was changed. Deactivate the user instead.",
-      );
+    if (admin) {
+      const { manageUserDeletion } = await import("@/lib/user-deletion.server");
+      const outcome = await manageUserDeletion(context, { user_id: data.id, action: data.action }, async () => admin);
+      return outcome.body;
     }
-    // Removing the auth identity cascades to profile, roles and station assignments.
-    const { error } = await admin.auth.admin.deleteUser(data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    // External hosts carry no managed key. Forward only the verified caller's token.
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const authorization = getRequest().headers.get("authorization") ?? "";
+    const base = process.env["ADMIN_API_BASE"] || "https://jrwts-urs-readings-reports-stations.lovable.app";
+    let endpoint: URL;
+    try {
+      endpoint = new URL("/api/public/admin-delete-user", base);
+      if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password) throw new Error();
+    } catch { throw new Error("عنوان خدمة إدارة الحسابات غير صالح"); }
+    const response = await fetch(endpoint, {
+      method: "POST", redirect: "error", signal: AbortSignal.timeout(15000),
+      headers: { "content-type": "application/json", authorization },
+      body: JSON.stringify({ user_id: data.id, action: data.action }),
+    });
+    const { z: validator } = await import("zod");
+    const result = validator.object({ ok: validator.boolean(), code: validator.string(), message: validator.string(), can_deactivate: validator.boolean().optional() });
+    let body: unknown;
+    try { body = await response.json(); } catch { throw new Error("خدمة حذف المستخدمين غير متاحة؛ انشر نسخة Lovable الجديدة أولاً"); }
+    const parsed = result.safeParse(body);
+    if (!parsed.success) throw new Error("تعذر التحقق من استجابة خدمة الحسابات");
+    if (!response.ok && parsed.data.ok) throw new Error("تعذر التحقق من نتيجة العملية");
+    return parsed.data;
   });
 
 export const listUsers = createServerFn({ method: "GET" })

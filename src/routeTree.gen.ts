@@ -35,6 +35,7 @@ import { Route as AppTrashRouteImport } from './routes/_app/trash'
 import { Route as AppTrendsRouteImport } from './routes/_app/trends'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicAdminDeleteUserRouteImport } from './routes/api/public/admin-delete-user'
 import { Route as ApiPublicAdminSetPasswordRouteImport } from './routes/api/public/admin-set-password'
 
 const IndexRoute = IndexRouteImport.update({
@@ -167,6 +168,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAdminDeleteUserRoute =
+  ApiPublicAdminDeleteUserRouteImport.update({
+    id: '/api/public/admin-delete-user',
+    path: '/api/public/admin-delete-user',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAdminSetPasswordRoute =
   ApiPublicAdminSetPasswordRouteImport.update({
     id: '/api/public/admin-set-password',
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/admin-delete-user': typeof ApiPublicAdminDeleteUserRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesByTo {
@@ -228,6 +236,7 @@ export interface FileRoutesByTo {
   '/trends': typeof AppTrendsRoute
   '/users': typeof AppUsersRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/admin-delete-user': typeof ApiPublicAdminDeleteUserRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRoutesById {
@@ -258,6 +267,7 @@ export interface FileRoutesById {
   '/_app/trends': typeof AppTrendsRoute
   '/_app/users': typeof AppUsersRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/admin-delete-user': typeof ApiPublicAdminDeleteUserRoute
   '/api/public/admin-set-password': typeof ApiPublicAdminSetPasswordRoute
 }
 export interface FileRouteTypes {
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/trends'
     | '/users'
     | '/.lovable/oauth/consent'
+    | '/api/public/admin-delete-user'
     | '/api/public/admin-set-password'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/trends'
     | '/users'
     | '/.lovable/oauth/consent'
+    | '/api/public/admin-delete-user'
     | '/api/public/admin-set-password'
   id:
     | '__root__'
@@ -345,6 +357,7 @@ export interface FileRouteTypes {
     | '/_app/trends'
     | '/_app/users'
     | '/.lovable/oauth/consent'
+    | '/api/public/admin-delete-user'
     | '/api/public/admin-set-password'
   fileRoutesById: FileRoutesById
 }
@@ -355,6 +368,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicAdminDeleteUserRoute: typeof ApiPublicAdminDeleteUserRoute
   ApiPublicAdminSetPasswordRoute: typeof ApiPublicAdminSetPasswordRoute
 }
 
@@ -542,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/admin-delete-user': {
+      id: '/api/public/admin-delete-user'
+      path: '/api/public/admin-delete-user'
+      fullPath: '/api/public/admin-delete-user'
+      preLoaderRoute: typeof ApiPublicAdminDeleteUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/admin-set-password': {
       id: '/api/public/admin-set-password'
       path: '/api/public/admin-set-password'
@@ -608,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicAdminDeleteUserRoute: ApiPublicAdminDeleteUserRoute,
   ApiPublicAdminSetPasswordRoute: ApiPublicAdminSetPasswordRoute,
 }
 export const routeTree = rootRouteImport

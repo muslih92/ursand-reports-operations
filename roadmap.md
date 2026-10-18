@@ -1,4 +1,4 @@
-- [ ] Add managed user-deletion endpoint and Hostinger relay with admin/self-delete checks.
-- [ ] Preserve historical references and offer explicit safe deactivation.
-- [ ] Run safety tests and verify authenticated rejection flows without deleting real users.
+- [x] Add managed user-deletion endpoint and Hostinger relay with admin/self-delete checks.
+- [x] Preserve historical references and offer explicit safe deactivation.
+- [x] Run safety tests and verify authenticated rejection flows without deleting real users.
 - [ ] Publish managed endpoint; report separate Hostinger deployment requirement.

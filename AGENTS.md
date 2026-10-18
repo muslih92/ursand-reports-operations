@@ -14,4 +14,6 @@
 - Operational hard deletes are archived by database triggers in deleted_items and restored only through an authenticated server function for 30 days — why: recovery must survive page changes without exposing privileged restore access.
 - Reading cell number/status rules live in src/lib/reading-validation.ts (malformed numbers are never saved; quick-mark aliases normalize to codes) — why: one shared rule for the reading page and any future database check.
 - Supervisor access to station data always requires can_access_station; only admin/management/viewer read all stations, verified by security_hardening_report() and tests/security-hardening.test.ts — why: a role check alone gave supervisors global access.
-- First-admin setup is gated by the app_installation marker plus no admin/profile/auth user (fail closed), and deleteUser refuses to run without the service role — why: prevents setup takeover and orphaned active logins.
+- First-admin setup is gated by the app_installation marker plus no admin/profile/auth user (fail closed) — why: prevents setup takeover.
+- User deletion and explicit deactivation share user-deletion.server.ts; self-hosted servers relay to the managed /api/public/admin-delete-user with the caller's bearer token and never follow redirects — why: the service key remains managed, every path checks admin/self-access and preserves historical attribution.
+- Keep historicalReferences in user-deletion.server.ts aligned with all user-reference columns when adding schema — why: references without foreign keys also need deletion protection.

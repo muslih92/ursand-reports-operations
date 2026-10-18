@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireSupabaseAuthFlexible } from "@/lib/server-auth";
 
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -230,7 +231,9 @@ export const updateUser = createServerFn({ method: "POST" })
   });
 
 export const deleteUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  // Flexible auth: accepts the Bearer header OR a cookie-based Supabase
+  // session (Hostinger production), always verifying the JWT server-side.
+  .middleware([requireSupabaseAuthFlexible])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid(), action: z.enum(["delete", "deactivate"]).default("delete") }).parse(input))
   .handler(async ({ data, context }) => {
     const { assertAdmin, tryAdmin } = await import("@/lib/users.server");
@@ -242,9 +245,9 @@ export const deleteUser = createServerFn({ method: "POST" })
       const outcome = await manageUserDeletion(context, { user_id: data.id, action: data.action }, async () => admin);
       return outcome.body;
     }
-    // External hosts carry no managed key. Forward only the verified caller's token.
-    const { getRequest } = await import("@tanstack/react-start/server");
-    const authorization = getRequest().headers.get("authorization") ?? "";
+    // External hosts carry no managed key. Forward only the verified caller's
+    // token — taken from the authenticated context, never re-read raw.
+    const authorization = `Bearer ${context.accessToken}`;
     const base = process.env["ADMIN_API_BASE"] || "https://jrwts-urs-readings-reports-stations.lovable.app";
     let endpoint: URL;
     try {

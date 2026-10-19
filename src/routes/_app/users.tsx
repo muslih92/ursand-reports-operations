@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createUser, listUsers, updateUser, deleteUser } from "@/lib/users.functions";
+import { createUser, listUsers, updateUser, deleteUser, listPendingUserDeletions } from "@/lib/users.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -40,6 +40,8 @@ function UsersPage() {
   const create = useServerFn(createUser);
   const update = useServerFn(updateUser);
   const del = useServerFn(deleteUser);
+  const pendingList = useServerFn(listPendingUserDeletions);
+  const { data: pendingJobs, error: pendingError } = useQuery({ queryKey: ["pending-user-deletions"], queryFn: () => pendingList(), retry: false });
 
   const { data: users, isLoading, error } = useQuery({ queryKey: ["users"], queryFn: () => list(), retry: false });
   const { data: stations } = useQuery({
@@ -73,6 +75,8 @@ function UsersPage() {
   const remove = useMutation({
     mutationFn: (input: { id: string; action?: "delete" | "deactivate" }) => del({ data: input }),
     onSuccess: (result, input) => {
+      qc.invalidateQueries({ queryKey: ["pending-user-deletions"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
       if (!result.ok) {
         toast.error(result.message);
         if (result.can_deactivate) setRestrictedUser(input.id);
@@ -148,6 +152,16 @@ function UsersPage() {
         </table>
       </div>
 
+      {pendingError && <p className="text-destructive">{(pendingError as Error).message}</p>}
+      {!!pendingJobs?.length && (
+        <div className="space-y-2">
+          <h2 className="font-semibold">{locale === "ar" ? "عمليات حسابات غير مكتملة" : "Incomplete account operations"}</h2>
+          {pendingJobs.map(job => <div key={job.target_id} className="flex items-center justify-between gap-2 border-b py-2">
+            <span>{users?.find(user => user.id === job.target_id)?.full_name ?? job.target_id.slice(0, 8)}</span>
+            <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate({ id: job.target_id, action: job.action })}>{locale === "ar" ? "استكمال العملية" : "Resume operation"}</Button>
+          </div>)}
+        </div>
+      )}
       {restrictedUser && (
         <Modal onClose={() => setRestrictedUser(null)}>
           <div className="space-y-4">

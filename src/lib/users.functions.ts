@@ -117,6 +117,14 @@ export const updateUser = createServerFn({ method: "POST" })
     }
     const admin = await tryAdmin();
     const db = admin ?? context.supabase;
+    if (data.id === context.userId && data.active === false) {
+      throw new Error("لا يمكن تعطيل حسابك الحالي");
+    }
+    if (data.active === false || (data.role !== undefined && data.role !== "admin")) {
+      const guarded = context.supabase as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: unknown }> };
+      const protection = await guarded.rpc("admin_removal_guards_ready");
+      if (protection.error || protection.data !== true) throw new Error("تغيير الصلاحية أو التعطيل غير متاح قبل اعتماد حماية آخر مسؤول");
+    }
     const patch: {
       full_name?: string; station_id?: string | null; phone?: string | null; active?: boolean;
     } = {};
@@ -260,7 +268,7 @@ export const deleteUser = createServerFn({ method: "POST" })
       body: JSON.stringify({ user_id: data.id, action: data.action }),
     });
     const { z: validator } = await import("zod");
-    const result = validator.object({ ok: validator.boolean(), code: validator.string(), message: validator.string(), can_deactivate: validator.boolean().optional() });
+    const result = validator.object({ ok: validator.boolean(), code: validator.string(), message: validator.string(), can_deactivate: validator.boolean().optional(), retryable: validator.boolean().optional() });
     let body: unknown;
     try { body = await response.json(); } catch { throw new Error("خدمة حذف المستخدمين غير متاحة؛ انشر نسخة Lovable الجديدة أولاً"); }
     const parsed = result.safeParse(body);
@@ -298,6 +306,18 @@ export const listUsers = createServerFn({ method: "GET" })
       role: roles.find((r) => r.user_id === p.id)?.role ?? "operator",
       extra_station_ids: extras.filter((e) => e.user_id === p.id).map((e) => e.station_id),
     }));
+  });
+
+export const listPendingUserDeletions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/users.server");
+    await assertAdmin(context);
+    const db = context.supabase as unknown as { from: (name: string) => { select: (columns: string) => { eq: (column: string, value: string) => Promise<{ data: unknown; error: { code?: string } | null }> } } };
+    const jobs = await db.from("user_deletion_operations").select("target_id, action").eq("state", "prepared");
+    if (jobs.error && ["PGRST205", "42P01"].includes(jobs.error.code ?? "")) return [];
+    if (jobs.error) throw new Error("تعذر تحميل عمليات الحسابات غير المكتملة");
+    return z.array(z.object({ target_id: z.string().uuid(), action: z.enum(["delete", "deactivate"]) })).parse(jobs.data ?? []);
   });
 
 export const ensureFirstAdmin = createServerFn({ method: "POST" })

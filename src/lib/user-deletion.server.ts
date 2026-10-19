@@ -21,7 +21,7 @@ export const historicalReferences: ReadonlyArray<readonly [string, string]> = [
   ["supervisor_routines", "created_by"], ["supervisor_routines", "supervisor_id"],
 ];
 
-export type DeletionResult = { ok: boolean; code: string; message: string; can_deactivate?: boolean };
+export type DeletionResult = { ok: boolean; code: string; message: string; can_deactivate?: boolean; retryable?: boolean };
 const result = (status: number, body: DeletionResult) => ({ status, body });
 
 export async function manageUserDeletion(
@@ -37,26 +37,44 @@ export async function manageUserDeletion(
   if (target === caller.userId) return result(409, { ok: false, code: "SELF_DELETE", message: "لا يمكن حذف أو تعطيل حسابك الحالي" });
   const admin = await getAdmin();
   if (!admin) return result(503, { ok: false, code: "UNAVAILABLE", message: "خدمة إدارة الحسابات غير متاحة، لم يتغير شيء" });
-  const identity = await admin.auth.admin.getUserById(target);
-  if (identity.error || !identity.data.user) return result(404, { ok: false, code: "NOT_FOUND", message: "تعذر العثور على الحساب والتحقق منه" });
-
-  if (action === "deactivate") {
-    // Revoke the ability to sign in before changing the profile; never delete history.
-    const banned = await admin.auth.admin.updateUserById(target, { ban_duration: "876000h" });
-    if (banned.error) return result(503, { ok: false, code: "DEACTIVATION_FAILED", message: "تعذر تعطيل تسجيل الدخول" });
-    const profile = await admin.from("profiles").update({ active: false }).eq("id", target).select("id");
-    if (profile.error || !profile.data?.length) return result(503, { ok: false, code: "PROFILE_UPDATE_FAILED", message: "تم منع تسجيل الدخول، لكن تعذر تحديث حالة الحساب؛ راجع المسؤول" });
-    return result(200, { ok: true, code: "DEACTIVATED", message: "تم تعطيل الحساب مع الاحتفاظ بسجلاته" });
+  // This RPC is intentionally unavailable until the reviewed schema is installed.
+  // Reservation + last-admin check + relation readiness are one DB transaction.
+  const db = admin as unknown as { rpc: (name: string, args: Record<string, string>) => Promise<{ data: unknown; error: { message?: string } | null }> };
+  const args = { _actor: caller.userId, _target: target, _action: action };
+  const pending = () => result(503, { ok: false, code: "RECOVERY_REQUIRED", retryable: true, message: "لم تكتمل العملية؛ قد يكون الحساب معطلاً. أعد الطلب نفسه لاستكماله بأمان" });
+  try {
+    const prepared = await db.rpc("prepare_user_deletion", args);
+    if (prepared.error) {
+      const code = ["LAST_ACTIVE_ADMIN", "FORBIDDEN", "SELF_DELETE", "NOT_FOUND", "ACTION_CONFLICT"].find(c => prepared.error?.message?.includes(c));
+      if (code) return result(code === "FORBIDDEN" ? 403 : code === "NOT_FOUND" ? 404 : 409, {
+        ok: false, code, message: code === "LAST_ACTIVE_ADMIN" ? "لا يمكن إزالة أو تعطيل آخر مسؤول فعّال" : "لم يُنفذ الطلب؛ راجع صلاحية الحساب وحالة العملية",
+      });
+      return result(503, { ok: false, code: "SCHEMA_NOT_READY", message: "الحذف غير مفعّل: يلزم اعتماد تجهيز الهوية التاريخية والعلاقات أولاً" });
+    }
+    const ready = z.object({ state: z.enum(["prepared", "completed"]), protected_relations: z.literal(6) }).safeParse(prepared.data);
+    if (!ready.success) return pending();
+    if (ready.data.state === "prepared") {
+      const identity = await admin.auth.admin.getUserById(target);
+      const absent = identity.error?.code === "user_not_found" || (!identity.error && !identity.data.user);
+      if (identity.error && !absent) return pending();
+      if (action === "delete" && !absent) {
+        const banned = await admin.auth.admin.updateUserById(target, { ban_duration: "876000h" });
+        if (banned.error) return pending();
+        const deleted = await admin.auth.admin.deleteUser(target);
+        // Even if Auth succeeded but its response was lost, retry can resume.
+        if (deleted.error) return pending();
+      } else if (action === "deactivate") {
+        if (absent) return pending();
+        const banned = await admin.auth.admin.updateUserById(target, { ban_duration: "876000h" });
+        if (banned.error) return pending();
+      }
+    }
+    // Authoritative DB confirmation checks auth.users (not a guessed 404),
+    // and persists completion/audit before reporting success, including retries.
+    const confirmed = await db.rpc("complete_user_deletion", args);
+    if (confirmed.error || confirmed.data !== true) return pending();
+    return result(200, { ok: true, code: action === "delete" ? "DELETED" : "DEACTIVATED", message: action === "delete" ? "تم حذف حساب تسجيل الدخول مع الاحتفاظ بجميع السجلات وهويته التاريخية" : "تم تعطيل الحساب مع الاحتفاظ بسجلاته" });
+  } catch {
+    return pending();
   }
-
-  for (const [table, column] of historicalReferences) {
-    const query = admin.from(table).select(column, { count: "exact", head: true });
-    const reference = column === "target_user_ids" ? await query.contains(column, [target]) : await query.eq(column, target);
-    if (reference.error || reference.count === null) return result(503, { ok: false, code: "INTEGRITY_CHECK_FAILED", message: "تعذر التحقق من السجلات المرتبطة؛ لم يتم الحذف" });
-    if (reference.count > 0) return result(409, { ok: false, code: "HISTORICAL_REFERENCES", message: "لا يمكن حذف الحساب لارتباطه بسجلات محفوظة؛ يمكنك تعطيله بدلاً من الحذف", can_deactivate: true });
-  }
-  // Auth removes only identity/profile/role/assignment rows. No manual operational deletes.
-  const deleted = await admin.auth.admin.deleteUser(target);
-  if (deleted.error) return result(409, { ok: false, code: "DELETE_RESTRICTED", message: "تعذر الحذف الآمن؛ يمكنك تعطيل الحساب بدلاً منه", can_deactivate: true });
-  return result(200, { ok: true, code: "DELETED", message: "تم حذف الحساب" });
 }

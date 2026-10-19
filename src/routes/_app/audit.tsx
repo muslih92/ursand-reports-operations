@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { AdminOnly } from "@/components/admin-only";
 import { ShieldCheck } from "lucide-react";
+import { attributionName, listAttributionPeople } from "@/lib/historical-identities";
 
 export const Route = createFileRoute("/_app/audit")({
   component: () => (
@@ -56,8 +57,7 @@ function AuditPage() {
 
   const { data: people } = useQuery({
     queryKey: ["audit-people"],
-    queryFn: async () =>
-      (await supabase.from("profiles").select("id, full_name, employee_no")).data ?? [],
+    queryFn: () => listAttributionPeople(supabase),
   });
 
   const { data: rows, isLoading, error } = useQuery({
@@ -77,8 +77,7 @@ function AuditPage() {
 
   const nameOf = (id: string | null) => {
     if (!id) return ar ? "النظام" : "System";
-    const p = people?.find((x) => x.id === id);
-    return p ? `${p.full_name} #${p.employee_no}` : id.slice(0, 8);
+    return attributionName(id, people ?? []) ?? id.slice(0, 8);
   };
   const stationOf = (id: string | null) => {
     if (!id) return "—";

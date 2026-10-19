@@ -36,3 +36,9 @@ INSERT INTO incident_attachments VALUES('10000000-0000-4000-8000-000000000003');
 INSERT INTO station_notes VALUES('10000000-0000-4000-8000-000000000003','Operator at note time');
 INSERT INTO audit_events(actor_id,event_type) VALUES('10000000-0000-4000-8000-000000000003','reading_saved');
 INSERT INTO deleted_items VALUES('10000000-0000-4000-8000-000000000003',NULL,'{"operator_id":"10000000-0000-4000-8000-000000000003","operator_name":"Archived name"}');
+-- Minimal local stand-ins for station-scoped policies (not production policies).
+ALTER TABLE deleted_items ADD COLUMN station_id uuid;
+ALTER TABLE reading_entries ADD COLUMN station_id uuid;
+ALTER TABLE station_notes ADD COLUMN station_id uuid;
+CREATE FUNCTION public.is_unrestricted_viewer(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;
+CREATE FUNCTION public.can_access_station(uuid,uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;

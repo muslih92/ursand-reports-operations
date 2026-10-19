@@ -54,6 +54,14 @@ suite('isolated PostgreSQL deletion integration',()=>{
   expect(sql(`SELECT complete_user_deletion('${a}','${o}','deactivate')`)).toBe('t');
   expect(sql(`SELECT count(*) FROM auth.users WHERE id='${o}'`)).toBe('1');
   expect(sql(`SELECT count(*) FROM station_notes WHERE author_id='${o}'`)).toBe('1');
+  sql(prep(a,o,'delete'));
+  sql(`DELETE FROM auth.users WHERE id='${o}'`);
+  expect(sql(`SELECT complete_user_deletion('${a}','${o}','delete')`)).toBe('t');
+ });
+ it('prevents reactivation while a reserved deletion is incomplete',()=>{
+  reset(); sql(prep(a,o));
+  expect(()=>sql(`UPDATE profiles SET active=true WHERE id='${o}'`)).toThrow();
+  expect(sql(`SELECT active FROM profiles WHERE id='${o}'`)).toBe('f');
  });
  it('denies anon and authenticated access to privileged prepare RPC',()=>{
   reset(); for(const role of ['anon','authenticated']) expect(()=>sql(`SET ROLE ${role}; ${prep(a,o)}`)).toThrow();

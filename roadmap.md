@@ -1,8 +1,8 @@
 - [x] Add managed user-deletion endpoint and Hostinger relay with admin/self-delete checks.
 - [x] Preserve historical references and offer explicit safe deactivation.
 - [x] Run safety tests and verify authenticated rejection flows without deleting real users.
-- [ ] Prepare unapplied historical-identity SQL and last-active-admin guards; never apply to shared production in this task.
-- [ ] Implement resumable permanent deletion and historical-name fallbacks.
-- [ ] Run isolated mocked tests; document database integration blocker and safe application sequence.
+- [x] Prepare unapplied historical-identity SQL and last-active-admin guards; never apply to shared production in this task.
+- [x] Implement resumable permanent deletion and historical-name fallbacks.
+- [x] Run isolated mocked and PostgreSQL tests; document managed Auth integration limits and safe application sequence.
 - [ ] Apply and verify staged SQL — blocked pending user approval and an isolated database/backup verification.
 - [ ] Publish managed endpoint and update Hostinger — blocked pending explicit user approval; outside this task.

@@ -126,7 +126,11 @@ BEGIN
  IF TG_TABLE_NAME='profiles' THEN
   target:=OLD.id;
   IF TG_OP='DELETE' THEN reducing:=OLD.active;
-  ELSE reducing:=OLD.active AND NOT NEW.active; END IF;
+ ELSE
+  IF NEW.active AND NOT OLD.active AND EXISTS(SELECT 1 FROM public.user_deletion_operations WHERE target_id=target AND state='prepared')
+  THEN RAISE EXCEPTION 'DELETION_IN_PROGRESS'; END IF;
+  reducing:=OLD.active AND NOT NEW.active;
+ END IF;
  ELSE
   target:=OLD.user_id;
   IF TG_OP='DELETE' THEN reducing:=OLD.role='admin';
@@ -173,8 +177,8 @@ BEGIN
  END LOOP;
  SELECT * INTO job FROM public.user_deletion_operations WHERE target_id=_target FOR UPDATE;
  IF FOUND THEN
-  IF job.action<>_action THEN RAISE EXCEPTION 'ACTION_CONFLICT'; END IF;
-  RETURN jsonb_build_object('state',job.state,'protected_relations',protected);
+  IF job.action=_action THEN RETURN jsonb_build_object('state',job.state,'protected_relations',protected); END IF;
+  IF job.state<>'completed' OR job.action<>'deactivate' OR _action<>'delete' THEN RAISE EXCEPTION 'ACTION_CONFLICT'; END IF;
  END IF;
  IF NOT EXISTS(SELECT 1 FROM auth.users WHERE id=_target) THEN RAISE EXCEPTION 'NOT_FOUND'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.historical_user_identities WHERE id=_target) THEN RAISE EXCEPTION 'IDENTITY_NOT_READY'; END IF;
@@ -182,7 +186,8 @@ BEGIN
  -- The shared trigger checks the remaining effective admin count under the same lock.
  UPDATE public.profiles SET active=false WHERE id=_target;
  IF NOT FOUND THEN RAISE EXCEPTION 'IDENTITY_NOT_READY'; END IF;
- INSERT INTO public.user_deletion_operations(target_id,requested_by,action) VALUES(_target,_actor,_action);
+ INSERT INTO public.user_deletion_operations(target_id,requested_by,action) VALUES(_target,_actor,_action)
+ ON CONFLICT(target_id) DO UPDATE SET requested_by=EXCLUDED.requested_by,action=EXCLUDED.action,state='prepared',requested_at=now(),completed_at=NULL;
  INSERT INTO public.audit_events(actor_id,event_type,entity_table,entity_id,details)
  VALUES(_actor,'user_deletion_prepared','historical_user_identities',_target,jsonb_build_object('action',_action));
  RETURN jsonb_build_object('state','prepared','protected_relations',protected);

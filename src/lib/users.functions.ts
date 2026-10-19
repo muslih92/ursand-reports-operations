@@ -120,6 +120,11 @@ export const updateUser = createServerFn({ method: "POST" })
     if (data.id === context.userId && data.active === false) {
       throw new Error("لا يمكن تعطيل حسابك الحالي");
     }
+    if (data.active === false || (data.role !== undefined && data.role !== "admin")) {
+      const guarded = context.supabase as unknown as { rpc: (name: string) => Promise<{ data: unknown; error: unknown }> };
+      const protection = await guarded.rpc("admin_removal_guards_ready");
+      if (protection.error || protection.data !== true) throw new Error("تغيير الصلاحية أو التعطيل غير متاح قبل اعتماد حماية آخر مسؤول");
+    }
     const patch: {
       full_name?: string; station_id?: string | null; phone?: string | null; active?: boolean;
     } = {};

@@ -11,6 +11,14 @@ GRANT ALL ON public.historical_user_identities TO service_role;
 ALTER TABLE public.historical_user_identities ENABLE ROW LEVEL SECURITY;
 CREATE POLICY historical_identity_admin_read ON public.historical_user_identities
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY historical_identity_scoped_read ON public.historical_user_identities
+ FOR SELECT TO authenticated USING (
+ public.is_unrestricted_viewer(auth.uid()) OR public.has_role(auth.uid(),'viewer')
+ OR id=auth.uid()
+ OR EXISTS(SELECT 1 FROM public.deleted_items d WHERE (d.deleted_by=id OR d.restored_by=id) AND public.can_access_station(auth.uid(),d.station_id))
+ OR EXISTS(SELECT 1 FROM public.reading_entries e WHERE e.operator_id=id AND public.can_access_station(auth.uid(),e.station_id))
+ OR EXISTS(SELECT 1 FROM public.station_notes n WHERE n.author_id=id AND public.can_access_station(auth.uid(),n.station_id))
+ );
 
 CREATE TABLE public.user_deletion_operations (
   target_id uuid PRIMARY KEY REFERENCES public.historical_user_identities(id) ON DELETE RESTRICT,
@@ -65,7 +73,7 @@ BEGIN
     ('fire_pump_tests','operator_id','operator_name'),('generator_tests','operator_id','operator_name'),
     ('supervisor_routines','supervisor_id','supervisor_name')
   ) AS refs(t,c,n) LOOP
-    EXECUTE format('UPDATE public.historical_user_identities h SET full_name=s.name FROM (SELECT %I AS id,min(NULLIF(btrim(%I),'''')) AS name FROM public.%I GROUP BY %I) s WHERE h.id=s.id AND h.full_name IS NULL AND s.name IS NOT NULL',r.c,r.n,r.t,r.c);
+    EXECUTE format('UPDATE public.historical_user_identities h SET full_name=s.name FROM (SELECT %I AS id,min(NULLIF(btrim(%I),'''')) AS name FROM public.%I GROUP BY %I HAVING count(DISTINCT NULLIF(btrim(%I),''''))=1) s WHERE h.id=s.id AND h.full_name IS NULL AND s.name IS NOT NULL',r.c,r.n,r.t,r.c,r.n);
   END LOOP;
 END $$;
 -- Capture UUIDs inside archived JSON, so restoring deleted operational rows stays possible.
@@ -201,3 +209,13 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.complete_user_deletion(uuid,uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.complete_user_deletion(uuid,uuid,text) TO service_role;
+
+-- Authenticated edit path must not assume the protection has been installed.
+CREATE FUNCTION public.admin_removal_guards_ready() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+ SELECT public.has_role(auth.uid(),'admin') AND
+ EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.profiles'::regclass AND tgname='guard_profile_last_admin' AND tgenabled='O') AND
+ EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.user_roles'::regclass AND tgname='guard_role_last_admin' AND tgenabled='O')
+$$;
+REVOKE ALL ON FUNCTION public.admin_removal_guards_ready() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.admin_removal_guards_ready() TO authenticated,service_role;

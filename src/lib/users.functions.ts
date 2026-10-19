@@ -308,6 +308,18 @@ export const listUsers = createServerFn({ method: "GET" })
     }));
   });
 
+export const listPendingUserDeletions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/users.server");
+    await assertAdmin(context);
+    const db = context.supabase as unknown as { from: (name: string) => { select: (columns: string) => { eq: (column: string, value: string) => Promise<{ data: unknown; error: { code?: string } | null }> } } };
+    const jobs = await db.from("user_deletion_operations").select("target_id, action").eq("state", "prepared");
+    if (jobs.error && ["PGRST205", "42P01"].includes(jobs.error.code ?? "")) return [];
+    if (jobs.error) throw new Error("تعذر تحميل عمليات الحسابات غير المكتملة");
+    return z.array(z.object({ target_id: z.string().uuid(), action: z.enum(["delete", "deactivate"]) })).parse(jobs.data ?? []);
+  });
+
 export const ensureFirstAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({

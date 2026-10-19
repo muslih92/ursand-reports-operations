@@ -29,7 +29,10 @@ CREATE TABLE public.user_deletion_operations (
   completed_at timestamptz
 );
 GRANT ALL ON public.user_deletion_operations TO service_role;
+GRANT SELECT ON public.user_deletion_operations TO authenticated;
 ALTER TABLE public.user_deletion_operations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY deletion_operations_admin_read ON public.user_deletion_operations
+ FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
 
 -- First preserve existing profile identity. Never overwrite operation-time names.
 INSERT INTO public.historical_user_identities(id, full_name, employee_no)
@@ -57,8 +60,8 @@ BEGIN
   END LOOP;
 END $$;
 INSERT INTO public.historical_user_identities(id)
-SELECT DISTINCT unnest(target_user_ids) FROM public.station_messages
-WHERE target_user_ids IS NOT NULL ON CONFLICT (id) DO NOTHING;
+SELECT DISTINCT target FROM public.station_messages CROSS JOIN LATERAL unnest(target_user_ids) target
+WHERE target IS NOT NULL ON CONFLICT (id) DO NOTHING;
 -- Snapshot names fill unknown identities only; no operational row is rewritten.
 DO $$
 DECLARE r record;

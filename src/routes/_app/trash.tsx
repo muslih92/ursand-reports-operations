@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { restoreDeletedItem } from "@/lib/trash.functions";
+import { attributionName, listAttributionPeople } from "@/lib/historical-identities";
 
 export const Route = createFileRoute("/_app/trash")({
   head: () => ({
@@ -60,6 +61,10 @@ function TrashPage() {
   const ar = locale === "ar";
   const qc = useQueryClient();
   const restore = useServerFn(restoreDeletedItem);
+  const { data: people } = useQuery({
+    queryKey: ["historical-attribution-people"],
+    queryFn: () => listAttributionPeople(supabase),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["deleted-items"],
@@ -124,6 +129,7 @@ function TrashPage() {
                 <th className="px-4 py-3 text-start font-medium">{ar ? "النوع" : "Type"}</th>
                 <th className="px-4 py-3 text-start font-medium">{ar ? "السجل" : "Record"}</th>
                 <th className="px-4 py-3 text-start font-medium">{ar ? "وقت الحذف" : "Deleted"}</th>
+                <th className="px-4 py-3 text-start font-medium">{ar ? "حُذف بواسطة" : "Deleted by"}</th>
                 <th className="px-4 py-3 text-end font-medium">{ar ? "الإجراء" : "Action"}</th>
               </tr>
             </thead>
@@ -142,6 +148,7 @@ function TrashPage() {
                         {ar ? "متاح حتى" : "Available until"} {expiresAt.toLocaleDateString(ar ? "ar-SA" : "en-GB")}
                       </div>
                     </td>
+                    <td className="px-4 py-3">{attributionName(item.deleted_by, people ?? []) ?? "—"}</td>
                     <td className="px-4 py-3 text-end">
                       <Button
                         size="sm"

@@ -12,9 +12,9 @@ export const Route = createFileRoute("/api/public/admin-delete-user")({
       const url = process.env["SUPABASE_URL"];
       const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
       if (!url || !key) return respond({ ok: false, code: "UNAVAILABLE", message: "الخدمة غير متاحة" }, 503);
-      const token = authorization.slice(7);
+      const token = authorization.slice(7).trim();
       const asUser = createClient(url, key, {
-        global: { headers: { Authorization: authorization } },
+        global: { headers: { Authorization: `Bearer ${token}` } },
         auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
       });
       try {

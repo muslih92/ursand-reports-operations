@@ -117,6 +117,9 @@ export const updateUser = createServerFn({ method: "POST" })
     }
     const admin = await tryAdmin();
     const db = admin ?? context.supabase;
+    if (data.id === context.userId && data.active === false) {
+      throw new Error("لا يمكن تعطيل حسابك الحالي");
+    }
     const patch: {
       full_name?: string; station_id?: string | null; phone?: string | null; active?: boolean;
     } = {};
@@ -260,7 +263,7 @@ export const deleteUser = createServerFn({ method: "POST" })
       body: JSON.stringify({ user_id: data.id, action: data.action }),
     });
     const { z: validator } = await import("zod");
-    const result = validator.object({ ok: validator.boolean(), code: validator.string(), message: validator.string(), can_deactivate: validator.boolean().optional() });
+    const result = validator.object({ ok: validator.boolean(), code: validator.string(), message: validator.string(), can_deactivate: validator.boolean().optional(), retryable: validator.boolean().optional() });
     let body: unknown;
     try { body = await response.json(); } catch { throw new Error("خدمة حذف المستخدمين غير متاحة؛ انشر نسخة Lovable الجديدة أولاً"); }
     const parsed = result.safeParse(body);

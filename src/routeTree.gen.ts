@@ -29,6 +29,7 @@ import { Route as AppReadingsRouteImport } from './routes/_app/readings'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppRoutineRouteImport } from './routes/_app/routine'
 import { Route as AppStationNotesRouteImport } from './routes/_app/station-notes'
+import { Route as AppStationStatusRouteImport } from './routes/_app/station-status'
 import { Route as AppStationsRouteImport } from './routes/_app/stations'
 import { Route as AppTemplatesRouteImport } from './routes/_app/templates'
 import { Route as AppTrashRouteImport } from './routes/_app/trash'
@@ -138,6 +139,11 @@ const AppStationNotesRoute = AppStationNotesRouteImport.update({
   path: '/station-notes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppStationStatusRoute = AppStationStatusRouteImport.update({
+  id: '/station-status',
+  path: '/station-status',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppStationsRoute = AppStationsRouteImport.update({
   id: '/stations',
   path: '/stations',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
   '/station-notes': typeof AppStationNotesRoute
+  '/station-status': typeof AppStationStatusRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/trash': typeof AppTrashRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/routine': typeof AppRoutineRoute
   '/station-notes': typeof AppStationNotesRoute
+  '/station-status': typeof AppStationStatusRoute
   '/stations': typeof AppStationsRoute
   '/templates': typeof AppTemplatesRoute
   '/trash': typeof AppTrashRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/routine': typeof AppRoutineRoute
   '/_app/station-notes': typeof AppStationNotesRoute
+  '/_app/station-status': typeof AppStationStatusRoute
   '/_app/stations': typeof AppStationsRoute
   '/_app/templates': typeof AppTemplatesRoute
   '/_app/trash': typeof AppTrashRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/routine'
     | '/station-notes'
+    | '/station-status'
     | '/stations'
     | '/templates'
     | '/trash'
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/routine'
     | '/station-notes'
+    | '/station-status'
     | '/stations'
     | '/templates'
     | '/trash'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/routine'
     | '/_app/station-notes'
+    | '/_app/station-status'
     | '/_app/stations'
     | '/_app/templates'
     | '/_app/trash'
@@ -514,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStationNotesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/station-status': {
+      id: '/_app/station-status'
+      path: '/station-status'
+      fullPath: '/station-status'
+      preLoaderRoute: typeof AppStationStatusRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/stations': {
       id: '/_app/stations'
       path: '/stations'
@@ -589,6 +608,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppRoutineRoute: typeof AppRoutineRoute
   AppStationNotesRoute: typeof AppStationNotesRoute
+  AppStationStatusRoute: typeof AppStationStatusRoute
   AppStationsRoute: typeof AppStationsRoute
   AppTemplatesRoute: typeof AppTemplatesRoute
   AppTrashRoute: typeof AppTrashRoute
@@ -612,6 +632,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppRoutineRoute: AppRoutineRoute,
   AppStationNotesRoute: AppStationNotesRoute,
+  AppStationStatusRoute: AppStationStatusRoute,
   AppStationsRoute: AppStationsRoute,
   AppTemplatesRoute: AppTemplatesRoute,
   AppTrashRoute: AppTrashRoute,

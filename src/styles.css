@@ -155,3 +155,33 @@
   }
   [dir="rtl"] { text-align: right; }
 }
+
+/* Printing (Supervisor routine, Defeat log, browser print): A4 with even
+   margins, white paper, exact colors for status badges and header bands. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  table {
+    page-break-inside: auto;
+  }
+  tr,
+  td,
+  th {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  textarea {
+    resize: none;
+  }
+}

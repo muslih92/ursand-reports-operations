@@ -439,7 +439,7 @@ function RoutinePage() {
         </button>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3">
+      <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3 print:hidden">
         <label className="text-sm space-y-1">
           <span className="text-muted-foreground">{ar ? "التاريخ" : "Date"}</span>
           <input
@@ -488,7 +488,7 @@ function RoutinePage() {
               <tr>
                 <th className="p-3 w-10 text-start">#</th>
                 <th className="p-3 text-start">{ar ? "المهمة" : "Task"}</th>
-                <th className="p-3 w-56 text-center">{ar ? "الحالة" : "Status"}</th>
+                <th className="p-3 w-56 print:w-28 text-center">{ar ? "الحالة" : "Status"}</th>
                 <th className="p-3 text-start">{ar ? "سبب عدم التنفيذ" : "Reason if NOT DONE"}</th>
               </tr>
             </thead>
@@ -506,6 +506,7 @@ function RoutinePage() {
                           onClick={() => setStatus(it.key, it.status === s ? "" : s)}
                           className={
                             "px-3 h-8 rounded-lg border text-xs font-semibold transition " +
+                            (it.status === s ? "" : "print:hidden ") +
                             (it.status === s
                               ? s === "done"
                                 ? "bg-emerald-600 text-white border-emerald-600"
@@ -521,11 +522,12 @@ function RoutinePage() {
                   <td className="p-2">
                     <textarea
                       rows={2}
+                      dir="auto"
                       value={it.reason}
                       disabled={it.status !== "not_done"}
                       onChange={(e) => setReason(it.key, e.target.value)}
                       placeholder={it.status === "not_done" ? (ar ? "اكتب السبب" : "Write the reason") : ""}
-                      className="w-full rounded-lg border bg-background px-2 py-1 text-sm disabled:bg-muted/40"
+                      className="w-full rounded-lg border bg-background px-2 py-1 text-sm disabled:bg-muted/40 print:border-0 print:bg-transparent print:disabled:bg-transparent print:p-0 print:[field-sizing:content]"
                     />
                   </td>
                 </tr>
@@ -541,9 +543,10 @@ function RoutinePage() {
               <span className="text-muted-foreground">{ar ? "ملاحظات عامة" : "General notes"}</span>
               <textarea
                 rows={3}
+                dir="auto"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-lg border bg-background px-2 py-1 text-sm"
+                className="w-full rounded-lg border bg-background px-2 py-1 text-sm print:bg-transparent print:min-h-16 print:[field-sizing:content]"
               />
             </label>
             <div className="text-sm">

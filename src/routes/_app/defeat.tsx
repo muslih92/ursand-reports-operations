@@ -290,7 +290,7 @@ function DefeatPage() {
 
   const cell =
     (canEdit ? "" : "pointer-events-none opacity-80 ") +
-    "w-full rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary";
+    "print:hidden w-full rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary";
 
   return (
     <div dir={dir} className="space-y-6">
@@ -405,19 +405,23 @@ function DefeatPage() {
         <div className="text-sm">STATION: {station?.code ?? ""}</div>
       </div>
 
-      <div className="rounded-xl border bg-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[1200px]">
+      {/* The log has nine columns: print it landscape so none are cut off. */}
+      <style>{`@media print { @page { size: A4 landscape; margin: 10mm; } }`}</style>
+      <div className="rounded-xl border bg-card overflow-x-auto print:overflow-visible">
+        <table className="w-full text-sm min-w-[1200px] print:min-w-0 print:text-xs">
           <thead className="bg-muted/60">
             <tr>
-              <th className="p-2 w-12 text-start">Sl#</th>
-              <th className="p-2 w-32 text-start">Defeat Number</th>
-              <th className="p-2 text-start">Defeat Issued to, Area /System</th>
-              <th className="p-2 w-32 text-start">Defeat Duration</th>
-              <th className="p-2 w-36 text-start">Date Issued</th>
-              <th className="p-2 w-28 text-start">Supervisor Signature</th>
-              <th className="p-2 w-40 text-start">Date Released</th>
-              <th className="p-2 w-28 text-start">Supervisor Signature</th>
-              <th className="p-2 w-48 text-start">Remarks</th>
+              <th className="p-2 w-12 print:w-auto text-start">Sl#</th>
+              <th className="p-2 w-32 print:w-auto text-start">Defeat Number</th>
+              <th className="p-2 text-start">
+                <bdi>Defeat Issued to, Area /System</bdi>
+              </th>
+              <th className="p-2 w-32 print:w-auto text-start">Defeat Duration</th>
+              <th className="p-2 w-36 print:w-auto text-start">Date Issued</th>
+              <th className="p-2 w-28 print:w-auto text-start">Supervisor Signature</th>
+              <th className="p-2 w-40 print:w-auto text-start">Date Released</th>
+              <th className="p-2 w-28 print:w-auto text-start">Supervisor Signature</th>
+              <th className="p-2 w-48 print:w-auto text-start">Remarks</th>
               {canEdit && isAdmin && <th className="p-2 w-10 print:hidden" />}
             </tr>
           </thead>
@@ -434,6 +438,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { defeat_number: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.defeat_number ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <textarea
@@ -445,6 +452,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { area_system: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.area_system ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <input
@@ -455,6 +465,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { defeat_duration: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.defeat_duration ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <input
@@ -466,6 +479,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { date_issued: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-nowrap" dir="auto">
+                    {r.date_issued ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <input
@@ -476,6 +492,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { issued_signature: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.issued_signature ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <input
@@ -486,6 +505,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { date_released: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-nowrap" dir="auto">
+                    {r.date_released ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <input
@@ -496,6 +518,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { released_signature: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.released_signature ?? ""}
+                  </span>
                 </td>
                 <td className="p-2">
                   <textarea
@@ -507,6 +532,9 @@ function DefeatPage() {
                       update.mutate({ id: r.id, patch: { remarks: e.target.value || null } })
                     }
                   />
+                  <span className="hidden print:block whitespace-pre-wrap break-words" dir="auto">
+                    {r.remarks ?? ""}
+                  </span>
                 </td>
                 {canEdit && isAdmin && (
                   <td className="p-2 print:hidden">

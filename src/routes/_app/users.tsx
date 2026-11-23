@@ -2,11 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createUser, listUsers, updateUser, deleteUser } from "@/lib/users.functions";
+import { createUser, listUsers, updateUser, deleteUser, listPendingUserDeletions } from "@/lib/users.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, UserX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Modal, Input } from "./stations";
 import { AdminOnly } from "@/components/admin-only";
 
@@ -19,6 +20,13 @@ interface EditUser {
 }
 
 export const Route = createFileRoute("/_app/users")({
+  head: () => ({ meta: [
+    { title: "إدارة المستخدمين | URS Operations" },
+    { name: "description", content: "إدارة حسابات فريق URS وصلاحياتهم وحالة حساباتهم بأمان." },
+    { property: "og:title", content: "إدارة المستخدمين | URS Operations" },
+    { property: "og:description", content: "إدارة حسابات فريق URS وصلاحياتهم وحالة حساباتهم بأمان." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }),
   component: () => <AdminOnly><UsersPage /></AdminOnly>,
 });
 
@@ -26,11 +34,14 @@ function UsersPage() {
   const { locale, t } = useI18n();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<EditUser | null>(null);
+  const [restrictedUser, setRestrictedUser] = useState<string | null>(null);
 
   const list = useServerFn(listUsers);
   const create = useServerFn(createUser);
   const update = useServerFn(updateUser);
   const del = useServerFn(deleteUser);
+  const pendingList = useServerFn(listPendingUserDeletions);
+  const { data: pendingJobs, error: pendingError } = useQuery({ queryKey: ["pending-user-deletions"], queryFn: () => pendingList(), retry: false });
 
   const { data: users, isLoading, error } = useQuery({ queryKey: ["users"], queryFn: () => list(), retry: false });
   const { data: stations } = useQuery({
@@ -50,8 +61,8 @@ function UsersPage() {
         } });
       } else {
         await create({ data: {
-          employee_no: u.employee_no!, full_name: u.full_name!, password: u.password!,
-          password_confirmation: u.password_confirmation!,
+          employee_no: u.employee_no ?? "", full_name: u.full_name ?? "", password: u.password ?? "",
+          password_confirmation: u.password_confirmation ?? "",
           role: u.role ?? "operator", station_id: u.station_id ?? null,
           extra_station_ids: u.extra_station_ids ?? [], phone: u.phone ?? null,
         } });
@@ -62,8 +73,19 @@ function UsersPage() {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { toast.success(locale === "ar" ? "تم الحذف" : "Deleted"); qc.invalidateQueries({ queryKey: ["users"] }); },
+    mutationFn: (input: { id: string; action?: "delete" | "deactivate" }) => del({ data: input }),
+    onSuccess: (result, input) => {
+      qc.invalidateQueries({ queryKey: ["pending-user-deletions"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+      if (!result.ok) {
+        toast.error(result.message);
+        if (result.can_deactivate) setRestrictedUser(input.id);
+        return;
+      }
+      toast.success(result.message);
+      setRestrictedUser(null);
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -120,7 +142,7 @@ function UsersPage() {
                   <td className="px-4 py-3 text-end">
                     <div className="inline-flex gap-1">
                       <button onClick={() => setEditing({ ...u, role: u.role as Role, extra_station_ids: u.extra_station_ids ?? [], password: "", password_confirmation: "" })} className="p-1.5 hover:bg-accent rounded"><Pencil className="h-4 w-4" /></button>
-                      <button onClick={() => confirm(locale === "ar" ? "حذف؟" : "Delete?") && remove.mutate(u.id)} className="p-1.5 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="h-4 w-4" /></button>
+                      <Button variant="ghost" size="icon" title={locale === "ar" ? "حذف المستخدم" : "Delete user"} aria-label={locale === "ar" ? "حذف المستخدم" : "Delete user"} disabled={remove.isPending} onClick={() => confirm(locale === "ar" ? "حذف الحساب؟ لن تُحذف السجلات التاريخية." : "Delete account? Historical records will not be deleted.") && remove.mutate({ id: u.id })}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </td>
                 </tr>
@@ -130,6 +152,28 @@ function UsersPage() {
         </table>
       </div>
 
+      {pendingError && <p className="text-destructive">{(pendingError as Error).message}</p>}
+      {!!pendingJobs?.length && (
+        <div className="space-y-2">
+          <h2 className="font-semibold">{locale === "ar" ? "عمليات حسابات غير مكتملة" : "Incomplete account operations"}</h2>
+          {pendingJobs.map(job => <div key={job.target_id} className="flex items-center justify-between gap-2 border-b py-2">
+            <span>{users?.find(user => user.id === job.target_id)?.full_name ?? job.target_id.slice(0, 8)}</span>
+            <Button variant="outline" disabled={remove.isPending} onClick={() => remove.mutate({ id: job.target_id, action: job.action })}>{locale === "ar" ? "استكمال العملية" : "Resume operation"}</Button>
+          </div>)}
+        </div>
+      )}
+      {restrictedUser && (
+        <Modal onClose={() => setRestrictedUser(null)}>
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold">{locale === "ar" ? "الحساب مرتبط بسجلات محفوظة" : "Account has historical records"}</h2>
+            <p>{locale === "ar" ? "يمكن تعطيل تسجيل الدخول مع الاحتفاظ بالحساب وجميع سجلاته." : "Disable sign-in while keeping the account and all its records."}</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRestrictedUser(null)}>{t("common.cancel")}</Button>
+              <Button disabled={remove.isPending} onClick={() => remove.mutate({ id: restrictedUser, action: "deactivate" })}><UserX className="h-4 w-4" />{locale === "ar" ? "تعطيل الحساب" : "Deactivate account"}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {editing && (
         <Modal onClose={() => setEditing(null)}>
           <form onSubmit={(e) => { e.preventDefault(); save.mutate(editing); }} className="space-y-3">

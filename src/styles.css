@@ -206,3 +206,38 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Page polish shared by every screen (screen only, low priority so
+   any explicit utility class on an element still wins). ---- */
+@layer base {
+  @media screen {
+    /* Page-title icons become a soft tinted tile in the icon's own colour. */
+    main h1 > svg:first-child,
+    main svg:has(+ h1) {
+      box-sizing: content-box;
+      padding: 0.45rem;
+      border-radius: 0.75rem;
+      background-color: color-mix(in oklab, currentColor 12%, transparent);
+      flex-shrink: 0;
+    }
+    main h1 {
+      letter-spacing: -0.01em;
+    }
+    /* Cards: a hairline shadow so they lift off the page background. */
+    main .bg-card.border {
+      box-shadow:
+        0 1px 2px rgb(15 23 42 / 0.04),
+        0 1px 3px rgb(15 23 42 / 0.03);
+    }
+    /* Tables: semibold headers and a gentle row hover. */
+    main thead th {
+      font-weight: 600;
+    }
+    main tbody tr {
+      transition: background-color 120ms ease;
+    }
+    main tbody tr:hover {
+      background-color: color-mix(in oklab, var(--color-muted) 55%, transparent);
+    }
+  }
+}

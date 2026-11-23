@@ -122,10 +122,10 @@ function replaceFormControls(root: HTMLElement, source: HTMLElement) {
       "box-sizing:border-box",
       "display:block",
       "width:100%",
-      `min-height:${Math.ceil(measured)}px`,
+      isTextarea ? `min-height:${Math.ceil(measured)}px` : "min-height:0",
       "height:auto",
       "max-height:none",
-      "padding:7px 8px 10px",
+      isTextarea ? "padding:6px 8px 11px" : "padding:1px 8px 8px",
       "border:1px solid #d1d5db",
       "border-radius:4px",
       "background:#ffffff",
@@ -298,6 +298,18 @@ function addPageFooters(pdf: import("jspdf").jsPDF, margin: number) {
 const ARABIC_CHAR = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 const LATIN_IN_BRACKETS = /\([^()\u0600-\u06FF]*[A-Za-z0-9][^()\u0600-\u06FF]*\)/g;
 
+/**
+ * Text-only blocks that hold Arabic get dir="auto", so an Arabic note inside
+ * an English sheet reads right-to-left with its full stop and brackets at
+ * the correct end instead of being pushed to the wrong side.
+ */
+function setAutoDirection(root: HTMLElement) {
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>("div, p, span, td, th, li"))) {
+    if (el.hasAttribute("dir") || el.children.length > 0) continue;
+    if (ARABIC_CHAR.test(el.textContent ?? "")) el.dir = "auto";
+  }
+}
+
 function isolateLatinBrackets(root: HTMLElement) {
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -326,6 +338,65 @@ function isolateLatinBrackets(root: HTMLElement) {
   }
 }
 
+const MIRRORED: Record<string, string> = {
+  "(": ")",
+  ")": "(",
+  "[": "]",
+  "]": "[",
+  "{": "}",
+  "}": "{",
+};
+
+/**
+ * The browser shows a bracket inside right-to-left text as its mirror image,
+ * but html2canvas paints the raw character, so "(فتح/إغلاق)" came out as
+ * ")فتح/إغلاق(". Find brackets that the layout placed right-to-left (the
+ * next character sits to their left, or the previous one to their right)
+ * and store the mirrored character, so the canvas paints what the screen shows.
+ */
+function fixMirroredBrackets(root: HTMLElement) {
+  const doc = root.ownerDocument;
+  const range = doc.createRange();
+  const rectAt = (node: Text, i: number) => {
+    range.setStart(node, i);
+    range.setEnd(node, i + 1);
+    const rects = range.getClientRects();
+    return rects.length ? rects[0] : null;
+  };
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (/[()[\]{}]/.test(n.nodeValue ?? "")) nodes.push(n as Text);
+  }
+  for (const node of nodes) {
+    const text = node.nodeValue ?? "";
+    if (text.length < 2) continue;
+    const out = text.split("");
+    let changed = false;
+    const view = doc.defaultView;
+    const elementRtl =
+      !!node.parentElement && view?.getComputedStyle(node.parentElement).direction === "rtl";
+    for (let i = 0; i < text.length; i += 1) {
+      const mirror = MIRRORED[text[i]];
+      if (!mirror) continue;
+      const self = rectAt(node, i);
+      if (!self || self.width === 0) continue;
+      const nextIndex = i + 1 < text.length ? i + 1 : -1;
+      const other = nextIndex >= 0 ? rectAt(node, nextIndex) : rectAt(node, i - 1);
+      if (!other || Math.abs(other.top - self.top) > self.height / 2) continue;
+      const rtl = nextIndex >= 0 ? other.right <= self.left + 0.5 : other.left >= self.right - 0.5;
+      // html2canvas mirrors brackets itself when the element's direction is
+      // rtl; only a bracket laid out against its element's direction is wrong.
+      if (rtl !== elementRtl) {
+        out[i] = mirror;
+        changed = true;
+      }
+    }
+    if (changed) node.nodeValue = out.join("");
+  }
+  range.detach();
+}
+
 export async function buildElementPdf(opts: {
   elementId: string;
   filename: string;
@@ -352,6 +423,7 @@ export async function buildElementPdf(opts: {
   for (const hidden of Array.from(clone.querySelectorAll("[data-pdf-hide]"))) hidden.remove();
   replaceFormControls(clone, source);
   forceCanvasSafeColors(clone);
+  setAutoDirection(clone);
   isolateLatinBrackets(clone);
 
   const frame = document.createElement("iframe");
@@ -398,11 +470,11 @@ export async function buildElementPdf(opts: {
     table { border-collapse: collapse; table-layout: fixed; width: 100%; }
     th, td {
       border-color: #9ca3af !important;
-      vertical-align: top;
+      vertical-align: middle;
       word-break: break-word;
       overflow-wrap: anywhere;
-      padding-top: 8px !important;
-      padding-bottom: 10px !important;
+      padding-top: 6px !important;
+      padding-bottom: 12px !important;
     }
     .pdf-export-root, .pdf-export-root * {
       color: #111827 !important;
@@ -426,6 +498,8 @@ export async function buildElementPdf(opts: {
       filter: none !important;
     }
     .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
+    /* Units such as "Hrs" or "m³/h" stay in one piece next to their value. */
+    .pdf-export-root .whitespace-nowrap { white-space: nowrap !important; flex-shrink: 0; }
     /* Mixed Arabic/English text: let each paragraph pick its own direction,
        so Arabic values inside an English (LTR) sheet read and align correctly. */
     .pdf-export-root p, .pdf-export-root li, .pdf-export-root td, .pdf-export-root th,
@@ -434,20 +508,14 @@ export async function buildElementPdf(opts: {
       unicode-bidi: plaintext !important;
     }
     .pdf-export-root [data-pdf-value] { text-align: start !important; }
-    /* Flex/grid layouts are unreliable in html2canvas and were overlapping.
-       Flatten them into predictable block flow so nothing can collide. */
+    /* Flex and grid layouts are kept: with the bundled font the measured
+       layout matches what html2canvas paints, so rows, side-by-side fields
+       and "value + unit" cells stay on one line as on screen. */
     .pdf-export-root { font-size: 13px !important; background-color: #ffffff !important; }
-    .pdf-export-root [class*="flex"], .pdf-export-root [class*="grid"] {
-      display: block !important;
-      gap: 0 !important;
-    }
     .pdf-export-root [class*="flex"] > *, .pdf-export-root [class*="grid"] > * {
-      display: block !important;
       max-width: 100% !important;
-      margin: 0 0 4px 0 !important;
-      float: none !important;
+      min-width: 0;
     }
-    .pdf-export-root td [class*="flex"] > * { margin-bottom: 2px !important; }
     .pdf-export-root img {
       display: block !important;
       width: auto !important;
@@ -521,6 +589,7 @@ export async function buildElementPdf(opts: {
   try {
     await loadPdfFonts(frameDoc);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    fixMirroredBrackets(frameClone);
     if (frameDoc.fonts?.ready) {
       try {
         await frameDoc.fonts.ready;

@@ -170,7 +170,7 @@ const ELECTRIC_SECTIONS: SectionDef[] = [
   },
   {
     key: "during",
-    title: "DURRING RUNNING",
+    title: "DURING RUNNING",
     titleAr: "أثناء التشغيل",
     hint: "While the pump is operating. Flow & Valve Opening: Flowmeter → Record actual flow in m³/hr, Downstream valve → Confirm Partial Open. Electric Pump: Suction & Discharge Pressure → Record in bar, Starting Time → Record time in hours (Hrs).",
     hintAr: "أثناء عمل المضخة: سجّل التدفق الفعلي (م³/س)، وتأكد أن صمام الخروج مفتوح جزئياً، وسجّل ضغط السحب والطرد بالبار، ووقت البدء بالساعات.",
@@ -217,10 +217,10 @@ function checklistFor(type: PumpType) {
   return type === "electric" ? ELECTRIC_CHECKLIST : CHECKLIST;
 }
 function titleFor(type: PumpType) {
-  return type === "electric" ? "ELECTRIC FIRE FIGTHING PUMP TEST RUN" : "DIESEL FIRE FIGTHING PUMP";
+  return type === "electric" ? "ELECTRIC FIRE FIGHTING PUMP TEST RUN" : "DIESEL FIRE FIGHTING PUMP";
 }
 function systemFor(type: PumpType) {
-  return type === "electric" ? "FIRE FIGHTING" : "DIESEL FIRE FIGTHING PUMP";
+  return type === "electric" ? "FIRE FIGHTING" : "DIESEL FIRE FIGHTING PUMP";
 }
 
 interface CheckRow {

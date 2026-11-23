@@ -185,3 +185,24 @@
     resize: none;
   }
 }
+
+/* Phone page titles: keep the title on its own line instead of squeezing
+   it into a narrow column beside the action buttons. */
+@media (max-width: 767px) {
+  main h1 {
+    min-width: min(100%, 13rem);
+    text-wrap: balance;
+  }
+}
+
+/* Respect the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

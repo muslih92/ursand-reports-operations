@@ -14,7 +14,7 @@ export function ChangePasswordButton({ compact = false }: { compact?: boolean })
   return (
     <>
       {compact ? (
-        <button onClick={() => setOpen(true)} className="p-2 rounded hover:bg-accent" title={label}>
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title={label} aria-label={label}>
           <KeyRound className="h-4 w-4" />
         </button>
       ) : (

@@ -31,6 +31,13 @@ const dict: Dict = {
   "nav.stationNotes": { ar: "بلاغات وملاحظات المحطة", en: "Station Notes" },
   "nav.trash": { ar: "سلة المحذوفات", en: "Recycle Bin" },
   "nav.signout": { ar: "تسجيل الخروج", en: "Sign Out" },
+  "nav.group.ops": { ar: "العمليات اليومية", en: "Daily operations" },
+  "nav.group.tests": { ar: "الاختبارات والسجلات", en: "Tests & logs" },
+  "nav.group.insights": { ar: "التحليل والتواصل", en: "Insights & communication" },
+  "nav.group.admin": { ar: "الإدارة", en: "Administration" },
+  "nav.more": { ar: "المزيد", en: "More" },
+  "nav.menu": { ar: "القائمة", en: "Menu" },
+  "nav.language": { ar: "English", en: "العربية" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },
   "auth.subtitle": { ar: "أدخل رقم الموظف وكلمة السر", en: "Enter your employee number and password" },

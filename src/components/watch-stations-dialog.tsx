@@ -46,14 +46,20 @@ export function WatchStationsButton({ compact = false }: { compact?: boolean }) 
         onClick={() => setOpen(true)}
         className={cn(
           "relative flex items-center gap-2 rounded-lg text-sm transition",
-          compact ? "p-2 hover:bg-accent" : "w-full px-3 py-2 hover:bg-sidebar-accent",
+          compact ? "h-10 w-10 justify-center hover:bg-accent" : "w-full px-3 py-2 hover:bg-sidebar-accent",
         )}
         title={label}
+        aria-label={label}
       >
         <Eye className="h-4 w-4" />
         {!compact && <span className="truncate flex-1 text-start">{label}</span>}
         {watchIds.length > 0 && (
-          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+          <span
+            className={cn(
+              "min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center",
+              compact && "absolute -top-1 -end-1",
+            )}
+          >
             {watchIds.length}
           </span>
         )}

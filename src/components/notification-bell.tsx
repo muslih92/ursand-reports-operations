@@ -38,9 +38,11 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-label={locale === "ar" ? "الإشعارات" : "Notifications"}
+        aria-expanded={open}
         className={cn(
           "relative flex items-center gap-2 rounded-lg text-sm transition",
-          compact ? "p-2 hover:bg-accent" : "w-full px-3 py-2 hover:bg-sidebar-accent",
+          compact ? "h-10 w-10 justify-center hover:bg-accent" : "w-full px-3 py-2 hover:bg-sidebar-accent",
         )}
       >
         <Bell className="h-4 w-4" />

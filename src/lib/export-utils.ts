@@ -18,7 +18,9 @@ export function safeFilePart(value: string | null | undefined, fallback = "Repor
 
 export function ensureFileExtension(filename: string, extension: string) {
   const cleanExtension = extension.startsWith(".") ? extension : `.${extension}`;
-  return filename.toLowerCase().endsWith(cleanExtension.toLowerCase()) ? filename : `${filename}${cleanExtension}`;
+  return filename.toLowerCase().endsWith(cleanExtension.toLowerCase())
+    ? filename
+    : `${filename}${cleanExtension}`;
 }
 
 export function createTypedBlob(data: BlobPart | BlobPart[], mimeType: string) {
@@ -54,7 +56,11 @@ function fallbackDownload(url: string, filename: string) {
 
 export async function triggerBlobDownload(blob: Blob, filename: string): Promise<DownloadLink> {
   const lower = filename.toLowerCase();
-  const mimeType = lower.endsWith(".pdf") ? PDF_MIME : lower.endsWith(".xlsx") ? EXCEL_MIME : blob.type || "application/octet-stream";
+  const mimeType = lower.endsWith(".pdf")
+    ? PDF_MIME
+    : lower.endsWith(".xlsx")
+      ? EXCEL_MIME
+      : blob.type || "application/octet-stream";
   const typedBlob = withMimeType(blob, mimeType);
   const safeFilename = lower.endsWith(".pdf")
     ? ensureFileExtension(filename, ".pdf")
@@ -148,8 +154,18 @@ function forceCanvasSafeColors(root: HTMLElement) {
     const isTableHead = Boolean(element.closest("thead"));
     const isSectionHeader = element.className.toString().includes("pdf-title-band");
     const isCell = tag === "td" || tag === "th" || tag === "table";
-    element.style.setProperty("color", isTableHead || isSectionHeader ? "#0f4c75" : "#111827", "important");
-    element.style.setProperty("background-color", isTableHead || isSectionHeader ? "#eaf4fb" : "#ffffff", "important");
+    element.style.setProperty(
+      "color",
+      isTableHead || isSectionHeader ? "#0f4c75" : "#111827",
+      "important",
+    );
+    // Only the sheet itself is painted white. Painting every element white let
+    // each block cover the descenders of the line above it in the canvas.
+    element.style.setProperty(
+      "background-color",
+      isTableHead || isSectionHeader ? "#eaf4fb" : isRoot ? "#ffffff" : "transparent",
+      "important",
+    );
     element.style.setProperty("border-color", isCell ? "#9ca3af" : "#d1d5db", "important");
     element.style.setProperty("box-shadow", "none", "important");
     element.style.setProperty("text-shadow", "none", "important");
@@ -181,6 +197,135 @@ function measureContentWidth(source: HTMLElement) {
   return Math.ceil(widest);
 }
 
+/**
+ * Bundled font for PDF rendering. One family covers Arabic and Latin with
+ * matching metrics, so html2canvas never mixes in a fallback font whose
+ * ascent/descent differ (the cause of clipped and overlapping lines).
+ * Served from /public, so it works on the VPS and in Lovable alike.
+ */
+export const PDF_FONT_FAMILY = "URS PDF";
+const PDF_FONT_DIR = "/fonts/ibm-plex-sans-arabic";
+const ARABIC_RANGE =
+  "U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC";
+const LATIN_RANGE =
+  "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
+
+export function pdfFontFaceCss(origin: string) {
+  const faces: string[] = [];
+  for (const weight of [400, 700]) {
+    for (const [subset, range] of [
+      ["arabic", ARABIC_RANGE],
+      ["latin", LATIN_RANGE],
+    ] as const) {
+      faces.push(
+        `@font-face{font-family:"${PDF_FONT_FAMILY}";font-style:normal;font-weight:${weight === 400 ? "100 500" : "600 900"};font-display:block;` +
+          `src:url("${origin}${PDF_FONT_DIR}/ibm-plex-sans-arabic-${subset}-${weight}-normal.woff2") format("woff2");unicode-range:${range};}`,
+      );
+    }
+  }
+  return faces.join("\n");
+}
+
+/** Copy the app's stylesheets so Tailwind classes (widths, alignment, sizes) still apply. */
+async function copyStylesheets(target: Document) {
+  const loads: Promise<void>[] = [];
+  for (const node of Array.from(
+    document.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style'),
+  )) {
+    const copy = target.importNode(node, true) as HTMLLinkElement | HTMLStyleElement;
+    if (copy instanceof HTMLLinkElement || copy.tagName === "LINK") {
+      loads.push(
+        new Promise<void>((resolve) => {
+          copy.addEventListener("load", () => resolve(), { once: true });
+          copy.addEventListener("error", () => resolve(), { once: true });
+          setTimeout(resolve, 4000);
+        }),
+      );
+    }
+    target.head.appendChild(copy);
+  }
+  await Promise.all(loads);
+}
+
+async function loadPdfFonts(target: Document) {
+  const fonts = target.fonts;
+  if (!fonts?.load) return;
+  const samples = ["أبجد هوز 123 ABC", "ABC abc 0123456789"];
+  try {
+    await Promise.all(
+      ["400", "700"].flatMap((w) =>
+        samples.map((t) => fonts.load(`${w} 16px "${PDF_FONT_FAMILY}"`, t)),
+      ),
+    );
+    await fonts.ready;
+  } catch {
+    /* fall back to system fonts rather than failing the export */
+  }
+}
+
+/** Thin rule plus "Page i / n" and the export time at the bottom of every page. */
+function addPageFooters(pdf: import("jspdf").jsPDF, margin: number) {
+  const total = pdf.getNumberOfPages();
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const y = pageH - margin + 1;
+  const stamp = new Date().toLocaleString("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  for (let i = 1; i <= total; i += 1) {
+    pdf.setPage(i);
+    pdf.setDrawColor(203, 213, 225);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, y - 4, pageW - margin, y - 4);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Generated ${stamp}`, margin, y);
+    pdf.text(`Page ${i} / ${total}`, pageW - margin, y, { align: "right" });
+  }
+}
+
+/**
+ * html2canvas paints each word with an LTR canvas, so brackets around Latin
+ * text inside Arabic sentences come out reversed, e.g. ")P-101(". Isolating
+ * those runs as LTR keeps the brackets the right way round.
+ */
+const ARABIC_CHAR = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+const LATIN_IN_BRACKETS = /\([^()\u0600-\u06FF]*[A-Za-z0-9][^()\u0600-\u06FF]*\)/g;
+
+function isolateLatinBrackets(root: HTMLElement) {
+  const doc = root.ownerDocument;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n.nodeValue ?? "";
+    if (ARABIC_CHAR.test(text) && LATIN_IN_BRACKETS.test(text)) nodes.push(n as Text);
+    LATIN_IN_BRACKETS.lastIndex = 0;
+  }
+  for (const node of nodes) {
+    const text = node.nodeValue ?? "";
+    const frag = doc.createDocumentFragment();
+    let last = 0;
+    for (const m of text.matchAll(LATIN_IN_BRACKETS)) {
+      const at = m.index ?? 0;
+      if (at > last) frag.appendChild(doc.createTextNode(text.slice(last, at)));
+      const span = doc.createElement("span");
+      span.dir = "ltr";
+      span.style.setProperty("unicode-bidi", "isolate", "important");
+      span.textContent = m[0];
+      frag.appendChild(span);
+      last = at + m[0].length;
+    }
+    if (last < text.length) frag.appendChild(doc.createTextNode(text.slice(last)));
+    node.replaceWith(frag);
+  }
+}
+
 export async function buildElementPdf(opts: {
   elementId: string;
   filename: string;
@@ -207,7 +352,7 @@ export async function buildElementPdf(opts: {
   for (const hidden of Array.from(clone.querySelectorAll("[data-pdf-hide]"))) hidden.remove();
   replaceFormControls(clone, source);
   forceCanvasSafeColors(clone);
-
+  isolateLatinBrackets(clone);
 
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
@@ -228,10 +373,28 @@ export async function buildElementPdf(opts: {
   frameDoc.open();
   frameDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>`);
   frameDoc.close();
+  frameDoc.documentElement.lang = document.documentElement.lang || "ar";
+  frameDoc.documentElement.dir =
+    source.closest<HTMLElement>("[dir]")?.dir || document.documentElement.dir || "rtl";
+  await copyStylesheets(frameDoc);
+  // html2canvas paints on a canvas owned by the main document, so the font
+  // must be registered there too; otherwise glyph widths differ from layout
+  // and Arabic words run into each other.
+  if (!document.getElementById("urs-pdf-font")) {
+    const mainFont = document.createElement("style");
+    mainFont.id = "urs-pdf-font";
+    mainFont.textContent = pdfFontFaceCss(window.location.origin);
+    document.head.appendChild(mainFont);
+  }
+  await loadPdfFonts(document);
+  const fontStyle = frameDoc.createElement("style");
+  fontStyle.textContent = pdfFontFaceCss(window.location.origin);
+  frameDoc.head.appendChild(fontStyle);
 
   const style = frameDoc.createElement("style");
   style.textContent = `
-    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; font-family: Arial, sans-serif; }
+    html, body { margin: 0; padding: 0; background: #ffffff; color: #111827; }
+    .pdf-export-root, .pdf-export-root * { font-family: "${PDF_FONT_FAMILY}", Arial, sans-serif !important; }
     table { border-collapse: collapse; table-layout: fixed; width: 100%; }
     th, td {
       border-color: #9ca3af !important;
@@ -243,7 +406,7 @@ export async function buildElementPdf(opts: {
     }
     .pdf-export-root, .pdf-export-root * {
       color: #111827 !important;
-      background-color: #ffffff !important;
+      background-color: transparent !important;
       border-color: #d1d5db !important;
       box-shadow: none !important;
       text-shadow: none !important;
@@ -263,9 +426,17 @@ export async function buildElementPdf(opts: {
       filter: none !important;
     }
     .pdf-export-root [data-pdf-value] { white-space: pre-wrap !important; }
+    /* Mixed Arabic/English text: let each paragraph pick its own direction,
+       so Arabic values inside an English (LTR) sheet read and align correctly. */
+    .pdf-export-root p, .pdf-export-root li, .pdf-export-root td, .pdf-export-root th,
+    .pdf-export-root h1, .pdf-export-root h2, .pdf-export-root h3, .pdf-export-root h4,
+    .pdf-export-root label, .pdf-export-root span, .pdf-export-root [data-pdf-value] {
+      unicode-bidi: plaintext !important;
+    }
+    .pdf-export-root [data-pdf-value] { text-align: start !important; }
     /* Flex/grid layouts are unreliable in html2canvas and were overlapping.
        Flatten them into predictable block flow so nothing can collide. */
-    .pdf-export-root { font-size: 11.5px !important; }
+    .pdf-export-root { font-size: 13px !important; background-color: #ffffff !important; }
     .pdf-export-root [class*="flex"], .pdf-export-root [class*="grid"] {
       display: block !important;
       gap: 0 !important;
@@ -308,9 +479,15 @@ export async function buildElementPdf(opts: {
       object-fit: contain !important;
     }
     .pdf-export-root h1, .pdf-export-root h2, .pdf-export-root h3 {
-      margin: 0 0 4px 0 !important;
+      margin: 0 0 6px 0 !important;
       font-size: 15px !important;
-      line-height: 1.35 !important;
+      line-height: 1.7 !important;
+    }
+    .pdf-export-root h1 { font-size: 18px !important; }
+    .pdf-export-root .pdf-title-band {
+      margin-top: 14px !important;
+      padding: 4px 8px !important;
+      border-radius: 4px !important;
     }
     .pdf-export-root br { display: block !important; }
     .pdf-export-root tr, .pdf-export-root thead, .pdf-export-root td, .pdf-export-root th,
@@ -342,6 +519,7 @@ export async function buildElementPdf(opts: {
   if (!frameClone) throw new Error("PDF clone not available");
 
   try {
+    await loadPdfFonts(frameDoc);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     if (frameDoc.fonts?.ready) {
       try {
@@ -361,7 +539,11 @@ export async function buildElementPdf(opts: {
       }),
     );
     await new Promise((resolve) => setTimeout(resolve, 80));
-    const contentHeight = Math.max(frameClone.scrollHeight, frameClone.getBoundingClientRect().height, 200);
+    const contentHeight = Math.max(
+      frameClone.scrollHeight,
+      frameClone.getBoundingClientRect().height,
+      200,
+    );
     const contentWidth = Math.max(frameClone.scrollWidth, width);
     frame.style.height = `${contentHeight + 40}px`;
     frame.style.width = `${contentWidth}px`;
@@ -401,7 +583,9 @@ export async function buildElementPdf(opts: {
     const cloneRect = frameClone.getBoundingClientRect();
     const canvasRatio = canvas.height / contentHeight;
     const safeBreaks = Array.from(
-      frameClone.querySelectorAll<HTMLElement>("tr, thead, [data-pdf-value], [data-pdf-block], .pdf-title-band, .pdf-photo-item"),
+      frameClone.querySelectorAll<HTMLElement>(
+        "tr, thead, [data-pdf-value], [data-pdf-block], .pdf-title-band, .pdf-photo-item",
+      ),
     )
       .map((element) => {
         const rect = element.getBoundingClientRect();
@@ -410,13 +594,13 @@ export async function buildElementPdf(opts: {
       .filter((value) => value > 0 && value < canvas.height)
       .sort((a, b) => a - b);
 
-
     const pdf = new jsPDF(opts.orientation ?? "p", "mm", "a4");
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 8;
+    const margin = 10;
+    const footerH = 8; // reserved strip for the page footer
     const imgW = pageW - margin * 2;
-    const usableH = pageH - margin * 2;
+    const usableH = pageH - margin * 2 - footerH;
     // how many canvas pixels fit on one PDF page
     const pxPerPage = Math.floor((usableH * canvas.width) / imgW);
 
@@ -460,9 +644,9 @@ export async function buildElementPdf(opts: {
     let first = true;
     while (offset < effectiveHeight) {
       const remaining = effectiveHeight - offset;
-      const sliceH = remaining <= pxPerPage ? remaining : findBreak(offset, offset + pxPerPage) - offset;
+      const sliceH =
+        remaining <= pxPerPage ? remaining : findBreak(offset, offset + pxPerPage) - offset;
       const safeSliceH = Math.max(1, Math.min(sliceH, remaining));
-
 
       const pageCanvas = document.createElement("canvas");
       pageCanvas.width = canvas.width;
@@ -471,7 +655,17 @@ export async function buildElementPdf(opts: {
       if (pageCtx) {
         pageCtx.fillStyle = "#ffffff";
         pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-        pageCtx.drawImage(canvas, 0, offset, canvas.width, safeSliceH, 0, 0, canvas.width, safeSliceH);
+        pageCtx.drawImage(
+          canvas,
+          0,
+          offset,
+          canvas.width,
+          safeSliceH,
+          0,
+          0,
+          canvas.width,
+          safeSliceH,
+        );
       }
 
       if (!first) pdf.addPage();
@@ -489,7 +683,12 @@ export async function buildElementPdf(opts: {
       offset += safeSliceH;
     }
 
-    return { blob: withMimeType(pdf.output("blob"), PDF_MIME), filename: ensureFileExtension(opts.filename, ".pdf") };
+    addPageFooters(pdf, margin);
+
+    return {
+      blob: withMimeType(pdf.output("blob"), PDF_MIME),
+      filename: ensureFileExtension(opts.filename, ".pdf"),
+    };
   } finally {
     frame.remove();
   }

@@ -59,8 +59,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 
   return (
-    <div className="min-h-screen bg-background flex" dir={dir}>
-      <aside className="hidden md:flex w-64 flex-col border-e bg-sidebar text-sidebar-foreground sticky top-0 h-screen self-start">
+    <div className="min-h-screen bg-background flex print:block print:min-h-0 print:bg-white" dir={dir}>
+      <aside className="hidden md:flex print:!hidden w-64 flex-col border-e bg-sidebar text-sidebar-foreground sticky top-0 h-screen self-start">
         <div className="p-5 flex items-center gap-3 border-b">
           <img src={logo.url} alt="WTCO" className="h-10 w-10 object-contain" />
           <div className="flex-1 min-w-0">
@@ -122,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 border-b bg-card">
+        <header className="md:hidden print:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 border-b bg-card">
           <img src={logo.url} alt="WTCO" className="h-8 w-8" />
           <div className="flex-1 font-semibold text-sm truncate">{t("app.name")}</div>
           <NotificationBell compact />
@@ -137,8 +137,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LogOut className="h-4 w-4" />
           </button>
         </header>
-        <main className="flex-1 p-4 md:p-8 overflow-auto pb-24 md:pb-8">{children}</main>
-        <nav className="md:hidden sticky bottom-0 z-40 flex gap-1 overflow-x-auto border-t bg-card p-2">
+        <main className="flex-1 p-4 md:p-8 overflow-auto pb-24 md:pb-8 print:p-0 print:overflow-visible">{children}</main>
+        <nav className="md:hidden print:hidden sticky bottom-0 z-40 flex gap-1 overflow-x-auto border-t bg-card p-2">
           {items.map((n) => {
             const Icon = n.icon;
             const active = pathname === n.to || pathname.startsWith(n.to + "/");

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp, MessageSquare, Radio, ShieldCheck, BarChart3, ShieldAlert, ListChecks, AlertOctagon, Trash2 } from "lucide-react";
+import { LayoutDashboard, ClipboardList, AlertTriangle, Building2, FileText, Users, LogOut, Languages, FileSpreadsheet, Activity, Flame, Zap, ClipboardCheck, TrendingUp, MessageSquare, Radio, ShieldCheck, BarChart3, ShieldAlert, ListChecks, AlertOctagon, Trash2, MonitorCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { useNotifications } from "@/lib/notifications";
 interface NavItem { to: string; icon: React.ComponentType<{ className?: string }>; key: string; adminOnly?: boolean; hideForOperator?: boolean; hideForManagement?: boolean; }
 const NAV: NavItem[] = [
   { to: "/dashboard", icon: LayoutDashboard, key: "nav.dashboard" },
+  { to: "/station-status", icon: MonitorCheck, key: "nav.stationStatus", hideForOperator: true },
   { to: "/readings", icon: ClipboardList, key: "nav.readings" },
   { to: "/availability", icon: Activity, key: "nav.availability" },
   { to: "/reports", icon: FileText, key: "nav.reports" },

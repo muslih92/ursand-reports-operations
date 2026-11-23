@@ -9,8 +9,8 @@ export const createUser = createServerFn({ method: "POST" })
     z.object({
       employee_no: z.string().trim().min(1).max(32).regex(/^\d+$/, "رقم الموظف يجب أن يحتوي أرقاماً فقط"),
       full_name: z.string().trim().min(1).max(120),
-      password: z.string().min(6).max(72),
-      password_confirmation: z.string().min(6).max(72),
+      password: z.string().min(8, "كلمة المرور يجب ألا تقل عن 8 خانات").max(72),
+      password_confirmation: z.string().min(8, "كلمة المرور يجب ألا تقل عن 8 خانات").max(72),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]),
       station_id: z.string().uuid().nullable().optional(),
       extra_station_ids: z.array(z.string().uuid()).max(2).optional(),
@@ -94,8 +94,8 @@ export const updateUser = createServerFn({ method: "POST" })
       phone: z.string().max(32).nullable().optional(),
       active: z.boolean().optional(),
       role: z.enum(["admin", "supervisor", "operator", "management", "viewer"]).optional(),
-      new_password: z.string().min(6).max(72).optional().nullable(),
-      new_password_confirmation: z.string().min(6).max(72).optional().nullable(),
+      new_password: z.string().min(8, "كلمة المرور يجب ألا تقل عن 8 خانات").max(72).optional().nullable(),
+      new_password_confirmation: z.string().min(8, "كلمة المرور يجب ألا تقل عن 8 خانات").max(72).optional().nullable(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -325,7 +325,7 @@ export const ensureFirstAdmin = createServerFn({ method: "POST" })
     z.object({
       employee_no: z.string().trim().min(1).max(32).regex(/^\d+$/, "رقم الموظف يجب أن يحتوي أرقاماً فقط"),
       full_name: z.string().trim().min(1).max(120),
-      password: z.string().min(6).max(72),
+      password: z.string().min(8, "كلمة المرور يجب ألا تقل عن 8 خانات").max(72),
     }).parse(input),
   )
   .handler(async ({ data }) => {

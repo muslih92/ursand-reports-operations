@@ -932,7 +932,7 @@ function pushLogToSupabase(entry) {
                 time: entry.time || '', shift: entry.shift, date: entry.date,
                 images: entry.images || []
             }
-        }, '*');
+        }, location.origin);
         sentToHost = window.parent !== window;
     } catch (e) { sentToHost = false; }
     if (!localOk && !sentToHost) {
@@ -1896,8 +1896,8 @@ function printSummary() {
     };
 
     try {
-      if (window.parent && window.parent !== window) window.parent.postMessage(payload, '*');
-      else if (window.opener) window.opener.postMessage(payload, '*');
+      if (window.parent && window.parent !== window) window.parent.postMessage(payload, location.origin);
+      else if (window.opener) window.opener.postMessage(payload, location.origin);
       else throw new Error('no host');
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = '📤 إرسال التقرير النهائي للمشرف'; }
@@ -1976,6 +1976,8 @@ function printSummary() {
   // ── استقبال السياق ────────────────────────────────────────────────
   var p = new URLSearchParams(location.search);
   window.addEventListener('message', function (e) {
+    // Accept context only from the WTCO app on the same origin.
+    if (e.origin !== location.origin) return;
     var d = e.data;
     if (!d) return;
     if (d.type === 'WTCO_CONTEXT') {
@@ -2023,7 +2025,7 @@ function printSummary() {
     var now = Date.now();
     if (_lastEntriesReq.date === d && now - _lastEntriesReq.at < 5000) return;
     _lastEntriesReq = { date: d, at: now };
-    try { window.parent.postMessage({ type: 'WTCO_REQUEST_ENTRIES', date: d }, '*'); } catch (e) {}
+    try { window.parent.postMessage({ type: 'WTCO_REQUEST_ENTRIES', date: d }, location.origin); } catch (e) {}
   }
   window.wtcoRequestEntries = requestEntries;
 
@@ -2069,7 +2071,7 @@ function printSummary() {
     if (_lastReportsReq.date === d && now - _lastReportsReq.at < 5000) return;
     _lastReportsReq = { date: d, at: now };
     try {
-      window.parent.postMessage({ type: 'WTCO_REQUEST_REPORTS', date: d }, '*');
+      window.parent.postMessage({ type: 'WTCO_REQUEST_REPORTS', date: d }, location.origin);
     } catch (e) {}
   }
   window.wtcoRequestReports = requestReports;
@@ -2125,7 +2127,7 @@ function printSummary() {
   }
 
 
-  try { window.parent.postMessage({ type: 'WTCO_CHECKLIST_READY', version: '3.0' }, '*'); } catch (e) {}
+  try { window.parent.postMessage({ type: 'WTCO_CHECKLIST_READY', version: '3.0' }, location.origin); } catch (e) {}
 })();
 </script>
 

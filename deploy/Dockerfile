@@ -22,7 +22,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY --from=builder /app/.output ./.output
+COPY --from=builder --chown=node:node /app/.output ./.output
+
+# Run as the unprivileged "node" user that ships with the image, never root.
+USER node
 
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

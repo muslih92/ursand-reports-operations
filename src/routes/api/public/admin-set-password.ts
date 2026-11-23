@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/public/admin-set-password")({
         }
         const userId = body.user_id;
         const password = body.password;
-        if (!userId || !password || password.length < 6 || password.length > 72) {
+        if (!userId || !password || password.length < 8 || password.length > 72) {
           return new Response("Invalid body", { status: 400 });
         }
 

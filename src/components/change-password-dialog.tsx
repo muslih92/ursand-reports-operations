@@ -46,8 +46,8 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
       toast.error(ar ? "كلمتا المرور غير متطابقتين" : "Passwords do not match");
       return;
     }
-    if (next.trim() !== next || next.length < 6) {
-      toast.error(ar ? "كلمة المرور قصيرة أو تحتوي مسافات" : "Password too short or has spaces");
+    if (next.trim() !== next || next.length < 8) {
+      toast.error(ar ? "كلمة المرور يجب ألا تقل عن 8 خانات وبدون مسافات" : "Password must be at least 8 characters with no spaces");
       return;
     }
     if (next === current) {

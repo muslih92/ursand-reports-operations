@@ -136,7 +136,7 @@ function ChecklistPage() {
           : null,
         lang: locale,
       },
-      "*",
+      window.location.origin,
     );
   };
 
@@ -165,7 +165,7 @@ function ChecklistPage() {
     });
     frameRef.current?.contentWindow?.postMessage(
       { type: "WTCO_REPORTS", date: d, reports: payload },
-      "*",
+      window.location.origin,
     );
   };
 
@@ -173,6 +173,9 @@ function ChecklistPage() {
   // and keep re-sending whenever the selected station / user / language changes.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
+      // Only trust messages from our own embedded checklist frame (same origin).
+      if (e.origin !== window.location.origin) return;
+      if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
       const data = e.data as { type?: string; date?: string } | null;
       const t = data?.type;
       if (t === "WTCO_CHECKLIST_READY" || t === "WTCO_REQUEST_CONTEXT") {
@@ -192,7 +195,7 @@ function ChecklistPage() {
 
 
   const reply = (ok: boolean, error?: string) => {
-    frameRef.current?.contentWindow?.postMessage({ type: "WTCO_SUBMIT_RESULT", ok, error }, "*");
+    frameRef.current?.contentWindow?.postMessage({ type: "WTCO_SUBMIT_RESULT", ok, error }, window.location.origin);
   };
 
   const handleSubmit = async (payload: ChecklistSubmit) => {
@@ -288,7 +291,7 @@ function ChecklistPage() {
   const entryReply = (system: string, ok: boolean, error?: string) => {
     frameRef.current?.contentWindow?.postMessage(
       { type: "WTCO_ENTRY_RESULT", system, ok, error },
-      "*",
+      window.location.origin,
     );
   };
 
@@ -393,7 +396,7 @@ function ChecklistPage() {
     });
     frameRef.current?.contentWindow?.postMessage(
       { type: "WTCO_ENTRIES", date: d, entries: payload },
-      "*",
+      window.location.origin,
     );
   };
 

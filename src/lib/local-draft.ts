@@ -10,6 +10,29 @@ export interface DraftEnvelope<T> {
 }
 
 const PREFIX = "ursand-draft:";
+
+/**
+ * Callbacks that copy unsaved form input to localStorage. They run right
+ * before a forced redirect (session expiry) so nothing typed is lost.
+ */
+export const draftFlushers = new Set<() => void>();
+export function flushAllDrafts() {
+  for (const f of draftFlushers) {
+    try {
+      f();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Set while redirecting to sign-in after the session expired. */
+export function markSessionExpiring() {
+  if (typeof window !== "undefined") (window as unknown as { __ursSessionExpiring?: boolean }).__ursSessionExpiring = true;
+}
+export function isSessionExpiring() {
+  return typeof window !== "undefined" && !!(window as unknown as { __ursSessionExpiring?: boolean }).__ursSessionExpiring;
+}
 const MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000; // keep drafts 3 days
 
 export function readDraft<T>(key: string): DraftEnvelope<T> | null {
@@ -54,6 +77,8 @@ export function clearDraft(key: string) {
 export function useAutoDraft<T>(key: string, data: T, enabled: boolean, delay = 1200) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const first = useRef(true);
+  // Latest value that has NOT been copied to localStorage yet (null = none).
+  const pendingRef = useRef<{ key: string; data: T } | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -61,27 +86,44 @@ export function useAutoDraft<T>(key: string, data: T, enabled: boolean, delay = 
       first.current = false;
       return;
     }
+    pendingRef.current = { key, data };
     const id = window.setTimeout(() => {
       writeDraft(key, data);
+      pendingRef.current = null;
       setSavedAt(Date.now());
     }, delay);
     return () => window.clearTimeout(id);
   }, [key, data, enabled, delay]);
 
-  // Flush on tab hide / unload so idle sessions never lose input.
+  // Flush on tab hide / unload / in-app navigation / session expiry so the
+  // last keystrokes inside the debounce window are never lost.
   useEffect(() => {
-    if (!enabled) return;
-    const flush = () => writeDraft(key, data);
+    const flushPending = () => {
+      const p = pendingRef.current;
+      if (!p) return;
+      writeDraft(p.key, p.data);
+      pendingRef.current = null;
+    };
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") flushPending();
     };
-    window.addEventListener("beforeunload", flush);
+    window.addEventListener("beforeunload", flushPending);
     document.addEventListener("visibilitychange", onVisibility);
+    draftFlushers.add(flushPending);
     return () => {
-      window.removeEventListener("beforeunload", flush);
+      window.removeEventListener("beforeunload", flushPending);
       document.removeEventListener("visibilitychange", onVisibility);
+      draftFlushers.delete(flushPending);
+      flushPending();
     };
-  }, [key, data, enabled]);
+  }, []);
 
-  return { savedAt, clear: () => { clearDraft(key); setSavedAt(null); } };
+  return {
+    savedAt,
+    clear: () => {
+      pendingRef.current = null;
+      clearDraft(key);
+      setSavedAt(null);
+    },
+  };
 }

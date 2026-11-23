@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
 import { AlertOctagon, AlertTriangle, Info, Plus, CheckCircle2, Trash2, RotateCcw, Wrench } from "lucide-react";
 
 export const Route = createFileRoute("/_app/station-notes")({
@@ -147,11 +148,14 @@ function StationNotesPage() {
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "open" | "closed" }) => {
-      const { error } = await sb
-        .from("station_notes")
-        .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
-        .eq("id", id);
-      if (error) throw error;
+      ensureWritten(
+        await sb
+          .from("station_notes")
+          .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
+          .eq("id", id)
+          .select("id"),
+        locale,
+      );
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["station-notes"] });

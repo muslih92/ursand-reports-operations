@@ -30,6 +30,15 @@ export async function handlePossibleSessionExpiry(error: unknown): Promise<boole
   if (!isSessionExpiredError(error)) return false;
   if (handling) return true;
   handling = true;
+  // Keep everything the user typed: copy open forms to this device first and
+  // skip "leave page?" prompts so the redirect cannot get stuck.
+  try {
+    const drafts = await import("@/lib/local-draft");
+    drafts.markSessionExpiring();
+    drafts.flushAllDrafts();
+  } catch {
+    /* ignore */
+  }
   try {
     const { supabase } = await import("@/integrations/supabase/client");
     await supabase.auth.signOut().catch(() => undefined);

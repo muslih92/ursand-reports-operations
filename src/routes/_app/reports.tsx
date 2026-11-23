@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import {
   ArrowLeft,
   ArrowRight,
@@ -258,6 +261,11 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const qc = useQueryClient();
   const isNew = id === "new";
   const canWrite = isAdmin || hasRole("supervisor") || hasRole("operator");
+  // After the first save of a new report, later saves UPDATE that row instead
+  // of inserting a duplicate report.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const recordId = createdId ?? (isNew ? null : id);
+  const hydratedForRef = useRef<string | null>(null);
 
   const { data: stations } = useScopedStations();
 
@@ -303,6 +311,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     if (!existing) return;
+    // Fill from the database once; a background refetch must not wipe edits.
+    if (hydratedForRef.current === id) return;
+    hydratedForRef.current = id;
     setStationId(existing.station_id);
     setForm({
       report_date: existing.report_date,
@@ -313,6 +324,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setHydrated(true);
   }, [isNew, existing, profile?.station_id, profile?.full_name]);
 
+  const snapshot = useMemo(() => ({ stationId, form }), [stationId, form]);
+  const formDraft = useFormDraft({
+    key: `shift-report:${profile?.id ?? "anon"}:${id}`,
+    value: snapshot,
+    ready: hydrated && !!profile,
+    onRestore: (d) => {
+      if (d.stationId) setStationId(d.stationId);
+      if (d.form) setForm((f) => ({ ...f, ...d.form }));
+    },
+  });
+  useUnsavedChangesGuard(formDraft.dirty, locale);
+
   useEffect(() => {
     return () => {
       if (excelDownload) URL.revokeObjectURL(excelDownload.url);
@@ -321,7 +344,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   }, [excelDownload, pdfDownload]);
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_snap: typeof snapshot) => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
       const payload = {
         station_id: stationId,
@@ -331,20 +354,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         remarks: form.body.trim() ? [form.body] : [],
         reported_by: form.reported_by || null,
       };
-      if (isNew) {
+      if (!recordId) {
         const { data, error } = await supabase
           .from("shift_reports")
           .insert({ ...payload, operator_id: profile?.id ?? null })
           .select("id")
           .single();
         if (error) throw error;
+        setCreatedId(data.id as string);
         return data.id as string;
       }
-      const { error } = await supabase.from("shift_reports").update(payload).eq("id", id);
-      if (error) throw error;
-      return id;
+      ensureWritten(
+        await supabase.from("shift_reports").update(payload).eq("id", recordId).select("id"),
+        locale,
+      );
+      return recordId;
     },
-    onSuccess: (newId) => {
+    onSuccess: (newId, snap) => {
+      formDraft.markSaved(snap);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["shift-reports"] });
       qc.invalidateQueries({ queryKey: ["shift-report", newId] });
@@ -487,7 +514,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {locale === "ar" ? "إرسال بالإيميل" : "Email"}
         </button>
         <button
-          onClick={() => save.mutate()}
+          onClick={() => save.mutate(snapshot)}
           disabled={!canWrite || save.isPending}
           className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
         >
@@ -495,6 +522,28 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : t("common.save")}
         </button>
       </div>
+
+      {formDraft.restoredAt && (
+        <DraftRestoredBanner
+          at={formDraft.restoredAt}
+          locale={locale}
+          onDiscard={() => {
+            formDraft.discard();
+            if (existing) {
+              setStationId(existing.station_id);
+              setForm({
+                report_date: existing.report_date,
+                shift: existing.shift,
+                body: (existing.remarks ?? []).join("\n"),
+                reported_by: existing.reported_by ?? "",
+              });
+            } else {
+              setForm({ report_date: todayISO(), shift: "day", body: "", reported_by: profile?.full_name ?? "" });
+              setStationId(profile?.station_id ?? "");
+            }
+          }}
+        />
+      )}
 
       {/* Meta inputs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 print:hidden">

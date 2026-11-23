@@ -8,6 +8,16 @@ services:
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
     restart: unless-stopped
+    # Hardening: no privilege escalation, no Linux capabilities (port 3000 needs none).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     env_file:
       - ./.env
     ports:
@@ -21,6 +31,9 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
     depends_on:
       - app
     ports:

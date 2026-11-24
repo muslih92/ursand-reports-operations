@@ -589,7 +589,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   // Fixed blue headings (always shown, non-editable)
   const H = ({ children }: { children: React.ReactNode }) => (
-    <h3 className="text-primary font-semibold text-base mt-4 mb-2">{children}</h3>
+    <h3 className="report-section-title text-primary mt-4 mb-2">{children}</h3>
   );
   const Label = ({ children }: { children: React.ReactNode }) => (
     <span className="text-primary font-semibold">{children}</span>
@@ -753,7 +753,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             className="mx-auto mb-3 h-16 w-auto object-contain"
           />
           <div className="text-xs text-muted-foreground">Water Transmission Company</div>
-          <h1 className="text-2xl font-bold mt-1">Operations Incident Report</h1>
+          <h1 className="report-title mt-1">Operations Incident Report</h1>
           {stationTitle && <div className="text-sm text-muted-foreground mt-1">{stationTitle}</div>}
         </div>
 
@@ -880,7 +880,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <section className="mt-5 border-t pt-4" data-pdf-block>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-primary font-semibold text-base">Incident Photos</h3>
+              <h3 className="report-section-title text-primary">Incident Photos</h3>
               <p className="text-xs text-muted-foreground">
                 {locale === "ar" ? "صور الحادث (اختياري)" : "Optional — multiple photos can be attached"}
               </p>

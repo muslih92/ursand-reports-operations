@@ -241,3 +241,28 @@
     }
   }
 }
+
+/* ---- Report headings: one size for every report (screen, print, PDF). ----
+   .report-title          main title of a report sheet (e.g. "Shift Report")
+   .report-section-title  heading of a section inside a report            */
+@layer components {
+  .report-title {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+  .report-section-title {
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  @media (min-width: 768px) {
+    .report-title { font-size: 1.75rem; }
+  }
+  @media print {
+    .report-title { font-size: 20pt; }
+    .report-section-title { font-size: 13pt; }
+  }
+}

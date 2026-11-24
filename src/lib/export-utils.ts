@@ -552,6 +552,18 @@ export async function buildElementPdf(opts: {
       line-height: 1.7 !important;
     }
     .pdf-export-root h1 { font-size: 18px !important; }
+    /* Shared report headings: same hierarchy on every report. */
+    .pdf-export-root .report-title {
+      font-size: 22px !important;
+      font-weight: 700 !important;
+      line-height: 1.5 !important;
+      margin: 2px 0 6px 0 !important;
+    }
+    .pdf-export-root .report-section-title {
+      font-size: 15px !important;
+      font-weight: 700 !important;
+      line-height: 1.6 !important;
+    }
     .pdf-export-root .pdf-title-band {
       margin-top: 14px !important;
       padding: 4px 8px !important;

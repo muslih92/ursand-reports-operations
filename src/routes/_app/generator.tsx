@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import {
   ArrowLeft,
   ArrowRight,
@@ -320,6 +323,12 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const qc = useQueryClient();
   const isNew = id === "new";
   const canWrite = isAdmin || hasRole("supervisor") || hasRole("operator");
+  // After the first save of a new test, later saves UPDATE that row instead
+  // of inserting a duplicate test.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const recordId = createdId ?? (isNew ? null : id);
+  const hydratedForRef = useRef<string | null>(null);
+  const [hydrateTick, setHydrateTick] = useState(0);
 
   const { data: stations } = useScopedStations();
 
@@ -352,6 +361,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     if (!existing) return;
+    // Fill from the database once; a background refetch must not wipe edits.
+    if (hydratedForRef.current === id) return;
+    hydratedForRef.current = id;
     setStationId(existing.station_id);
     setTestDate(existing.test_date);
     setGensetTag(existing.genset_tag ?? "");
@@ -361,7 +373,27 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     const raw = (existing.data ?? {}) as Partial<TestData>;
     setData({ values: { ...(raw.values ?? {}) }, remarks: raw.remarks ?? "" });
     setHydrated(true);
-  }, [isNew, existing, profile?.station_id, profile?.full_name]);
+  }, [isNew, existing, profile?.station_id, profile?.full_name, hydrateTick]);
+
+  const snapshot = useMemo(
+    () => ({ stationId, testDate, gensetTag, operatorName, supervisorName, notes, data }),
+    [stationId, testDate, gensetTag, operatorName, supervisorName, notes, data],
+  );
+  const formDraft = useFormDraft({
+    key: `generator-test:${profile?.id ?? "anon"}:${id}`,
+    value: snapshot,
+    ready: hydrated && !!profile,
+    onRestore: (d) => {
+      if (d.stationId !== undefined) setStationId(d.stationId);
+      if (d.testDate !== undefined) setTestDate(d.testDate);
+      if (d.gensetTag !== undefined) setGensetTag(d.gensetTag);
+      if (d.operatorName !== undefined) setOperatorName(d.operatorName);
+      if (d.supervisorName !== undefined) setSupervisorName(d.supervisorName);
+      if (d.notes !== undefined) setNotes(d.notes);
+      if (d.data !== undefined) setData(d.data);
+    },
+  });
+  useUnsavedChangesGuard(formDraft.dirty, locale);
 
   useEffect(() => {
     return () => {
@@ -381,7 +413,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setData((d) => ({ ...d, values: { ...d.values, [key]: v } }));
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_snap: typeof snapshot) => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
       const payload = {
         station_id: stationId,
@@ -392,20 +424,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         supervisor_name: supervisorName || null,
         operator_name: operatorName || null,
       };
-      if (isNew) {
+      if (!recordId) {
         const { data: ins, error } = await supabase
           .from("generator_tests")
           .insert({ ...payload, operator_id: profile?.id ?? null, created_by: profile?.id ?? null })
           .select("id")
           .single();
         if (error) throw error;
+        setCreatedId(ins.id as string);
         return ins.id as string;
       }
-      const { error } = await supabase.from("generator_tests").update(payload).eq("id", id);
-      if (error) throw error;
-      return id;
+      ensureWritten(
+        await supabase.from("generator_tests").update(payload).eq("id", recordId).select("id"),
+        locale,
+      );
+      return recordId;
     },
-    onSuccess: (newId) => {
+    onSuccess: (newId, snap) => {
+      formDraft.markSaved(snap);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["generator-tests"] });
       qc.invalidateQueries({ queryKey: ["generator-test", newId] });
@@ -494,7 +530,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </a>
         )}
         <button
-          onClick={() => save.mutate()}
+          onClick={() => save.mutate(snapshot)}
           disabled={!canWrite || save.isPending}
           className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
         >
@@ -528,6 +564,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
         </div>
 
+        {formDraft.restoredAt && (
+          <DraftRestoredBanner
+            at={formDraft.restoredAt}
+            locale={locale}
+            onDiscard={() => {
+              formDraft.discard();
+              hydratedForRef.current = null;
+              setHydrateTick((n) => n + 1);
+              if (isNew) { setTestDate(todayISO()); setGensetTag(""); setSupervisorName(""); setNotes(""); setData(emptyData()); }
+            }}
+          />
+        )}
         {/* Meta */}
         <div className="grid gap-3 md:grid-cols-4">
           <Field label="Station">

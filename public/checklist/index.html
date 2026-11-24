@@ -861,9 +861,9 @@ var state = {
     screen: 'select',
     opID: '', opPIN: '',
     line: '', station: '',
-    shift: '', date: new Date().toISOString().split('T')[0],
+    shift: '', date: shiftDate(),
     isAdmin: false, supervisor: null,
-    adminStation: '', adminDate: new Date().toISOString().split('T')[0],
+    adminStation: '', adminDate: shiftDate(),
     system: '', status: 'no_obs', note: '', images: [],
     logs: []
 };
@@ -888,6 +888,16 @@ function getSystems(st) {
     return st && st.includes('FG') ? ['AIR COMPERSSOR SYSTEM','BOOSTER PUMP HOUSE','COOLING WATER SYSTEM','ELECTRICAL VSD BULDING','EMERGENCY GENERATOR','HV, MV, LV, VSD TRANSFORMERS','HVAC AND CHILLERS','INLET SURGE VESSEL SYSTEM','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','OUTLET SURGE VESSEL SYSTEM','PRESSURE RELIEF SYSTEM','TANK FARM AREA','UTILITY & FIRE DIESEL PUPM SYSTEM'] : ['AIR CONDITIONING&VENTILATION SYS-1','COOLING WATER SYSTEM','DRINKING AND UTILITY','ELECTRICAL BUILDING CABLE CELLAER','EMERGENCY GENERATOR','FLOW CONTROL VALVE MAIN','LOW VOLTAGE ROOM','MAIN PUMP HOUSE','MEDIUM VOLTAGE ROOM','PRESSUR CONTROL VALVE','SEWAGE SYSTEM','STATION BATTERIES ROOM','SURGE RELIEF SYSTEM','UNIT CONTROL&FEEDBACK EQUIPMENT','STATION CONRROL ROOM','SCRAPER'];
 }
 function getShift() { var h = new Date().getHours(); return (h>=6&&h<18)?'صباحي':'مسائي'; }
+// تاريخ الوردية بالتوقيت المحلي: الوردية المسائية (18:00 → 06:00) تبقى على تاريخ بدايتها
+// حتى بعد منتصف الليل. (toISOString بتوقيت UTC كان يقلب التاريخ الساعة 3 فجراً
+// فتختفي فحوصات أول الليل ويُرسل التقرير ناقصاً.)
+function shiftDate() {
+    var d = new Date();
+    if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+    var m = String(d.getMonth() + 1); if (m.length < 2) m = '0' + m;
+    var day = String(d.getDate()); if (day.length < 2) day = '0' + day;
+    return d.getFullYear() + '-' + m + '-' + day;
+}
 function getLog(sys, st, sh, dt) {
     st = st || state.station; sh = sh || state.shift; dt = dt || state.date;
     return state.logs.find(l => l.station===st && l.system===sys && l.shift===sh && l.date===dt);
@@ -907,8 +917,56 @@ function saveLogs() {
     // still update local cache for instant UI
 }
 
+// ── طابور الفحوصات غير المؤكَّدة ─────────────────────────────────────
+// كل فحص يبقى في هذا الطابور حتى يؤكد النظام حفظه في قاعدة البيانات.
+// عند فشل الحفظ (انقطاع شبكة / انتهاء الجلسة) يُعاد إرساله تلقائياً عند فتح الصفحة.
+var UNSYNCED_KEY = 'wtc_unsynced';
+function unsyncedKey(e) { return [e.station || '', e.date || '', e.shift || '', e.system || ''].join('|'); }
+function readUnsynced() {
+    try { return JSON.parse(localStorage.getItem(UNSYNCED_KEY) || '[]') || []; } catch (e) { return []; }
+}
+function writeUnsynced(list) {
+    try { localStorage.setItem(UNSYNCED_KEY, JSON.stringify(list)); } catch (e) {}
+}
+function markUnsynced(entry) {
+    var k = unsyncedKey(entry);
+    var list = readUnsynced().filter(function (x) { return x !== k; });
+    list.push(k);
+    writeUnsynced(list);
+}
+function markSynced(station, date, shift, system) {
+    var k = unsyncedKey({ station: station, date: date, shift: shift, system: system });
+    writeUnsynced(readUnsynced().filter(function (x) { return x !== k; }));
+}
+function postEntryToHost(entry) {
+    window.parent.postMessage({
+        type: 'WTCO_ENTRY_SAVE',
+        entry: {
+            station: entry.station || '',
+            system: entry.system, status: entry.status, note: entry.note || '',
+            time: entry.time || '', shift: entry.shift, date: entry.date,
+            images: entry.images || []
+        }
+    }, location.origin);
+}
+var _resentOnce = false;
+function resendUnsynced() {
+    if (_resentOnce || window.parent === window) return;
+    _resentOnce = true;
+    readUnsynced().forEach(function (k) {
+        var parts = k.split('|');
+        try {
+            var rows = JSON.parse(localStorage.getItem(logStoreKey(parts[0], parts[1])) || '[]') || [];
+            var row = rows.find(function (r) { return r.system === parts[3] && r.shift === parts[2]; });
+            if (row) postEntryToHost(row);
+        } catch (e) {}
+    });
+}
+window.wtcoResendUnsynced = resendUnsynced;
+
 function pushLogToSupabase(entry) {
     var localOk = true;
+    markUnsynced(entry);
     try {
         var key = logStoreKey(entry.station, entry.date);
         var rows = [];
@@ -925,14 +983,7 @@ function pushLogToSupabase(entry) {
     // الحفظ الأساسي: إرسال السجل إلى النظام ليخزنه في قاعدة البيانات مع الصور
     var sentToHost = false;
     try {
-        window.parent.postMessage({
-            type: 'WTCO_ENTRY_SAVE',
-            entry: {
-                system: entry.system, status: entry.status, note: entry.note || '',
-                time: entry.time || '', shift: entry.shift, date: entry.date,
-                images: entry.images || []
-            }
-        }, location.origin);
+        postEntryToHost(entry);
         sentToHost = window.parent !== window;
     } catch (e) { sentToHost = false; }
     if (!localOk && !sentToHost) {
@@ -1015,7 +1066,7 @@ function renderSystems(sc) {
     var mySeq = RENDER_SEQ;
     // العرض دائماً للوردية الحالية فقط
     state.shift = getShift();
-    state.date = new Date().toISOString().split('T')[0];
+    state.date = shiftDate();
     // Load fresh logs from Supabase for current station+date
     if (window.wtcoRequestReports) window.wtcoRequestReports(state.date);
     loadLogsFromSupabase(state.station, state.date, function(freshLogs){
@@ -1532,7 +1583,7 @@ function openSummary() {
     });
     // Set date to today
     var dateIn = document.getElementById('sumDate');
-    dateIn.value = state.adminDate || new Date().toISOString().split('T')[0];
+    dateIn.value = state.adminDate || shiftDate();
     sel.onchange = function(){ buildSummary(); };
     dateIn.onchange = function(){ buildSummary(); };
     buildSummary();
@@ -1840,7 +1891,7 @@ function printSummary() {
       state.station = STATIONS[key].name;
       state.line    = STATIONS[key].line;
       state.shift   = getShift();
-      state.date    = new Date().toISOString().split('T')[0];
+      state.date    = shiftDate();
       if (state.screen === 'select') state.screen = 'systems';
     }
     // المشرف/الإدارة/الأدمن: الدخول مباشرة إلى لوحة المشرف
@@ -1981,6 +2032,7 @@ function printSummary() {
     var d = e.data;
     if (!d) return;
     if (d.type === 'WTCO_CONTEXT') {
+      setTimeout(function () { if (window.wtcoResendUnsynced) window.wtcoResendUnsynced(); }, 1500);
       applyCtx({
         stationCode: (d.station && (d.station.code || d.station.raw_code)) || '',
         stationName: (d.station && (d.station.name_en || d.station.name_ar || d.station.name)) || '',
@@ -2011,6 +2063,9 @@ function printSummary() {
     }
     if (d.type === 'WTCO_ENTRIES') {
       mergeHostEntries(d.entries || []);
+    }
+    if (d.type === 'WTCO_ENTRY_RESULT' && d.ok === true && d.date) {
+      markSynced(d.station || '', d.date, d.shift || '', d.system || '');
     }
     if (d.type === 'WTCO_ENTRY_RESULT' && d.ok === false) {
       alert('تعذّر حفظ فحص ' + (d.system || '') + ' في النظام: ' + (d.error || 'خطأ غير معروف') + '\nالرجاء إعادة المحاولة.');

@@ -1,12 +1,12 @@
 import { fetchAll } from "@/lib/fetch-all";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
-import { readDraft, useAutoDraft } from "@/lib/local-draft";
+import { isSessionExpiring, readDraft, useAutoDraft } from "@/lib/local-draft";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -997,14 +997,24 @@ function EntryView({
           entryId = created.id;
         }
       } else {
-        const { error } = await supabase
+        const { data: updEntry, error } = await supabase
           .from("reading_entries")
           .update({
             operator_name: profile?.full_name ?? operatorName,
             notes: snapshot.notes || null,
           })
-          .eq("id", entryId);
+          .eq("id", entryId)
+          .select("id");
         if (error) throw error;
+        // RLS can drop an UPDATE without an error. Only the notes live on this
+        // row, so fail loudly when changed notes did not land.
+        if ((updEntry ?? []).length === 0 && (snapshot.notes || null) !== (data?.entry?.notes ?? null)) {
+          throw new Error(
+            locale === "ar"
+              ? "لم يتم حفظ الملاحظات: لا تملك صلاحية تعديل سجل هذه المحطة."
+              : "Notes were not saved: you cannot edit this station's sheet.",
+          );
+        }
       }
 
       // 2) build value rows (only for cells with content)
@@ -1332,6 +1342,8 @@ function EntryView({
   // Warn before leaving with values that have not reached the database yet.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
+      if (isSessionExpiring()) return;
+      if (lastAutoSavedRef.current === "") return;
       if (JSON.stringify(currentDraftRef.current) === lastAutoSavedRef.current) return;
       e.preventDefault();
       e.returnValue = "";
@@ -1339,6 +1351,22 @@ function EntryView({
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
+  // Same for in-app navigation (sidebar, bottom bar): start the save right
+  // away and let the operator decide whether to wait for it.
+  useBlocker({
+    shouldBlockFn: () => {
+      if (isSessionExpiring() || !canWrite) return false;
+      if (lastAutoSavedRef.current === "") return false;
+      if (JSON.stringify(currentDraftRef.current) === lastAutoSavedRef.current) return false;
+      if (!save.isPending) save.mutate({ silent: false, snapshot: currentDraftRef.current });
+      return !window.confirm(
+        locale === "ar"
+          ? "آخر القراءات لم تصل إلى قاعدة البيانات بعد، وبدأ حفظها الآن.\nاضغط «إلغاء» للبقاء حتى تظهر «تم الحفظ»، أو «موافق» للمغادرة (تبقى نسخة احتياطية على هذا الجهاز)."
+          : "The latest readings have not reached the database yet; saving started now.\nPress Cancel to stay until it shows Saved, or OK to leave (a backup copy stays on this device).",
+      );
+    },
+  });
 
 
 

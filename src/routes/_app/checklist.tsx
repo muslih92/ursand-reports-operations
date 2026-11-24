@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, ExternalLink, RefreshCw, Maximize2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { shiftDateISO } from "@/lib/safe-write";
+import { handlePossibleSessionExpiry, isSessionExpiredError } from "@/lib/session-expiry";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -64,7 +66,7 @@ function ChecklistPage() {
   const qc = useQueryClient();
   const [reloadKey, setReloadKey] = useState(0);
   const [stationId, setStationId] = useState<string>("");
-  const [listDate, setListDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [listDate, setListDate] = useState<string>(() => shiftDateISO());
   const frameRef = useRef<HTMLIFrameElement>(null);
 
 
@@ -144,7 +146,7 @@ function ChecklistPage() {
   // Send the operator checklist reports of a given date back into the frame,
   // so the supervisor monitor screen reflects what the operator actually checked.
   const pushReports = async (date?: string) => {
-    const d = date || new Date().toISOString().slice(0, 10);
+    const d = date || shiftDateISO();
     const { data, error } = await supabase
       .from("checklist_reports")
       .select("station_id, report_date, shift, operator_name, items, submitted_at")
@@ -194,12 +196,33 @@ function ChecklistPage() {
   });
 
 
+  // The checklist frame says which station the operator is checking. Use that
+  // station (when the user may access it) so a check is never filed under the
+  // wrong station or rejected because the top selector is still empty.
+  const resolveStationId = (hint?: { name?: string; code?: string } | string | null): string => {
+    const name = typeof hint === "string" ? hint : (hint?.name ?? "");
+    const code = typeof hint === "string" ? "" : (hint?.code ?? "");
+    const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, "");
+    if (name || code) {
+      const match = stations.find(
+        (st) =>
+          (code && (slug(st.code) === norm(code) || norm(st.code) === norm(code))) ||
+          (name && (norm(st.name_en) === norm(name) || norm(st.name_ar) === norm(name))),
+      );
+      if (match) return match.id;
+    }
+    return stationId;
+  };
+
   const reply = (ok: boolean, error?: string) => {
     frameRef.current?.contentWindow?.postMessage({ type: "WTCO_SUBMIT_RESULT", ok, error }, window.location.origin);
   };
 
   const handleSubmit = async (payload: ChecklistSubmit) => {
-    if (!stationId) {
+    const targetStationId = resolveStationId(
+      (payload as unknown as { station?: { name?: string; code?: string } }).station ?? null,
+    );
+    if (!targetStationId) {
       reply(false, ar ? "لم يتم تحديد المحطة" : "No station selected");
       return;
     }
@@ -208,7 +231,8 @@ function ChecklistPage() {
     const items = payload.items ?? [];
     const done = s.ok + s.remark + s.na;
     const pct = s.total > 0 ? Math.round((done / s.total) * 100) : 0;
-    const stationLabel = station ? `${station.code} — ${ar ? station.name_ar : station.name_en}` : "";
+    const targetStation = stations.find((st) => st.id === targetStationId) ?? station;
+    const stationLabel = targetStation ? `${targetStation.code} — ${ar ? targetStation.name_ar : targetStation.name_en}` : "";
     const title = `قائمة فحص المحطة — ${stationLabel} (${payload.date ?? ""} · ${payload.shift ?? ""})`;
     const body =
       `المشغّل: ${profile?.full_name ?? ""} #${profile?.employee_no ?? ""}\n` +
@@ -219,8 +243,8 @@ function ChecklistPage() {
     try {
       const { error } = await supabase.from("checklist_reports").upsert(
         {
-          station_id: stationId,
-          report_date: payload.date ?? new Date().toISOString().slice(0, 10),
+          station_id: targetStationId,
+          report_date: payload.date ?? shiftDateISO(),
           shift: payload.shift ?? "",
           operator_id: profile?.id ?? null,
           operator_name: profile?.full_name ?? null,
@@ -242,7 +266,7 @@ function ChecklistPage() {
 
       try {
         await notifyStation({
-          stationId,
+          stationId: targetStationId,
           kind: "checklist_report",
           title,
           body,
@@ -288,15 +312,21 @@ function ChecklistPage() {
     }
   };
 
-  const entryReply = (system: string, ok: boolean, error?: string) => {
+  const entryReply = (
+    system: string,
+    ok: boolean,
+    error?: string,
+    key?: { station?: string; date?: string; shift?: string },
+  ) => {
     frameRef.current?.contentWindow?.postMessage(
-      { type: "WTCO_ENTRY_RESULT", system, ok, error },
+      { type: "WTCO_ENTRY_RESULT", system, ok, error, ...(key ?? {}) },
       window.location.origin,
     );
   };
 
   const handleEntrySave = async (payload: {
     entry?: {
+      station?: string;
       system?: string;
       status?: string;
       note?: string;
@@ -308,11 +338,12 @@ function ChecklistPage() {
   }) => {
     const e = payload.entry ?? {};
     const system = e.system ?? "";
-    if (!stationId || !system) {
+    const targetStationId = resolveStationId(e.station ?? null);
+    if (!targetStationId || !system) {
       entryReply(system, false, ar ? "لم يتم تحديد المحطة" : "No station selected");
       return;
     }
-    const reportDate = e.date ?? new Date().toISOString().slice(0, 10);
+    const reportDate = e.date ?? shiftDateISO();
     const shift = e.shift ?? "";
     try {
       // رفع الصور الجديدة (data URLs) إلى المخزن المحمي؛ المسارات المحفوظة تبقى كما هي
@@ -325,7 +356,7 @@ function ChecklistPage() {
         }
         const parsed = dataUrlToBlob(src);
         if (!parsed) continue;
-        const path = `${stationId}/${reportDate}/${crypto.randomUUID()}.${parsed.ext}`;
+        const path = `${targetStationId}/${reportDate}/${crypto.randomUUID()}.${parsed.ext}`;
         const { error: upErr } = await supabase.storage
           .from("checklist-photos")
           .upload(path, parsed.blob, { contentType: parsed.blob.type, upsert: false });
@@ -333,9 +364,8 @@ function ChecklistPage() {
         paths.push(path);
       }
 
-      const { error } = await supabase.from("checklist_entries").upsert(
-        {
-          station_id: stationId,
+      const row = {
+          station_id: targetStationId,
           report_date: reportDate,
           shift,
           system,
@@ -345,22 +375,35 @@ function ChecklistPage() {
           operator_id: profile?.id ?? null,
           operator_name: profile?.full_name ?? null,
           images: paths,
-        },
-        { onConflict: "station_id,report_date,shift,system" },
-      );
-      if (error) throw error;
-      entryReply(system, true);
+        };
+      // A short network drop must not lose a check: retry twice before
+      // telling the operator it failed.
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 1500));
+        const { error } = await supabase
+          .from("checklist_entries")
+          .upsert(row, { onConflict: "station_id,report_date,shift,system" });
+        lastErr = error;
+        if (!error) break;
+        if (isSessionExpiredError(error)) break;
+      }
+      if (lastErr) throw lastErr;
+      entryReply(system, true, undefined, { station: e.station, date: reportDate, shift });
       void pushEntries(reportDate);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      entryReply(system, false, msg, { station: e.station, date: reportDate, shift });
+      // Expired session: go to sign-in. The check stays queued inside the
+      // checklist page and is sent again automatically after signing in.
+      if (await handlePossibleSessionExpiry(err)) return;
       toast.error(ar ? `تعذّر حفظ فحص ${system}: ${msg}` : `Failed to save ${system}: ${msg}`);
-      entryReply(system, false, msg);
     }
   };
 
   // إرسال سجلات الفحص المحفوظة (مع روابط صور مؤقتة) إلى صفحة القائمة
   const pushEntries = async (date?: string) => {
-    const d = date || new Date().toISOString().slice(0, 10);
+    const d = date || shiftDateISO();
     const { data, error } = await supabase
       .from("checklist_entries")
       .select("station_id, report_date, shift, system, status, note, checked_at, operator_name, images")

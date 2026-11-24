@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import {
   ArrowLeft,
   ArrowRight,
@@ -288,6 +291,12 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const qc = useQueryClient();
   const isNew = id === "new";
   const canWrite = isAdmin || hasRole("supervisor") || hasRole("operator");
+  // After the first save of a new incident, later saves (e.g. a retry after a
+  // photo failed to upload) UPDATE that row instead of creating a duplicate.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const recordId = createdId ?? (isNew ? null : id);
+  const hydratedForRef = useRef<string | null>(null);
+  const [hydrateTick, setHydrateTick] = useState(0);
 
   const { data: stations } = useScopedStations();
 
@@ -328,6 +337,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     if (!existing) return;
+    // Fill from the database once; a background refetch must not wipe edits.
+    if (hydratedForRef.current === id) return;
+    hydratedForRef.current = id;
     setStationId(existing.station_id);
     setEquipment(existing.equipment || "");
     setReporterName(existing.reporter_name ?? "");
@@ -340,7 +352,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     if (!merged.incident_no) merged.incident_no = existing.incident_no || "";
     setReport(merged);
     setHydrated(true);
-  }, [isNew, existing, profile?.station_id, profile?.full_name]);
+  }, [isNew, existing, profile?.station_id, profile?.full_name, hydrateTick]);
+
+  const snapshot = useMemo(
+    () => ({ stationId, equipment, reporterName, report }),
+    [stationId, equipment, reporterName, report],
+  );
+  const formDraft = useFormDraft({
+    key: `incident:${profile?.id ?? "anon"}:${id}`,
+    value: snapshot,
+    ready: hydrated && !!profile,
+    onRestore: (d) => {
+      if (d.stationId !== undefined) setStationId(d.stationId);
+      if (d.equipment !== undefined) setEquipment(d.equipment);
+      if (d.reporterName !== undefined) setReporterName(d.reporterName);
+      if (d.report) setReport({ ...emptyReport(), ...d.report });
+    },
+  });
+  const allowLeave = useUnsavedChangesGuard(formDraft.dirty || pendingPhotos.length > 0, locale);
 
   useEffect(() => {
     return () => {
@@ -425,9 +454,13 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const removeAttachment = useMutation({
     mutationFn: async (att: Attachment) => {
+      // Remove the database row first (verified), then the file — never leave
+      // a record that points to a file that is already gone.
+      ensureWritten(
+        await supabase.from("incident_attachments").delete().eq("id", att.id).select("id"),
+        locale,
+      );
       await supabase.storage.from(BUCKET).remove([att.storage_path]);
-      const { error } = await supabase.from("incident_attachments").delete().eq("id", att.id);
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success(locale === "ar" ? "تم الحذف" : "Removed");
@@ -438,7 +471,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   /* ---------- Save ---------- */
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_snap: typeof snapshot) => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
       if (!report.subject.trim()) throw new Error(locale === "ar" ? "أدخل الموضوع" : "Enter subject");
       const occurredAt = new Date(
@@ -454,28 +487,50 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         reporter_name: reporterName || null,
         report_data: report as unknown as never,
       };
-      if (isNew) {
+      let targetId = recordId;
+      if (!targetId) {
         const { data, error } = await supabase
           .from("incidents")
           .insert({ ...payload, reported_by: profile?.id ?? null })
           .select("id").single();
         if (error) throw error;
-        for (const photo of pendingPhotos) {
-          await uploadAttachment(data.id, photo);
-        }
-        return data.id as string;
+        targetId = data.id as string;
+        setCreatedId(targetId);
+      } else {
+        ensureWritten(
+          await supabase.from("incidents").update(payload).eq("id", targetId).select("id"),
+          locale,
+        );
       }
-      const { error } = await supabase.from("incidents").update(payload).eq("id", id);
-      if (error) throw error;
-      return id;
+      // Upload photos one by one; keep the ones that failed so the next
+      // Save retries them (the incident itself is already stored).
+      const failed: File[] = [];
+      for (const photo of pendingPhotos) {
+        try {
+          await uploadAttachment(targetId, photo);
+        } catch {
+          failed.push(photo);
+        }
+      }
+      setPendingPhotos(failed);
+      if (failed.length > 0) {
+        throw new Error(
+          locale === "ar"
+            ? `تم حفظ البلاغ، لكن تعذّر رفع ${failed.length} صورة. اضغط «حفظ» مرة أخرى لإعادة رفعها.`
+            : `The incident was saved, but ${failed.length} photo(s) failed to upload. Press Save again to retry them.`,
+        );
+      }
+      return targetId;
     },
-    onSuccess: (newId) => {
+    onSuccess: (newId, snap) => {
+      formDraft.markSaved(snap);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["incidents"] });
       qc.invalidateQueries({ queryKey: ["incident", newId] });
       if (isNew) {
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.set("id", newId);
+        allowLeave();
         window.location.replace(nextUrl.toString());
       }
     },
@@ -636,7 +691,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {locale === "ar" ? "إرسال بالإيميل" : "Email"}
         </button>
         <button
-          onClick={() => save.mutate()}
+          onClick={() => save.mutate(snapshot)}
           disabled={!canWrite || save.isPending}
           className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
         >
@@ -644,6 +699,22 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : t("common.save")}
         </button>
       </div>
+
+      {formDraft.restoredAt && (
+        <DraftRestoredBanner
+          at={formDraft.restoredAt}
+          locale={locale}
+          onDiscard={() => {
+            formDraft.discard();
+            hydratedForRef.current = null;
+            setHydrateTick((n) => n + 1);
+            if (isNew) {
+              setEquipment("");
+              setReport({ ...emptyReport(), prepared_name: profile?.full_name ?? "" });
+            }
+          }}
+        />
+      )}
 
       {/* Meta */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 print:hidden">

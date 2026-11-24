@@ -6,6 +6,9 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import { ShieldAlert, Printer, Plus, Trash2, FileSpreadsheet } from "lucide-react";
 import { createExcelBlob, safeFilePart, triggerBlobDownload } from "@/lib/export-utils";
 
@@ -76,6 +79,17 @@ function DefeatPage() {
 
   const station = stations?.find((s) => s.id === stationId);
 
+  // Safety copy of the "add new record" form + warning before leaving with
+  // unsaved input (including an inline cell that was typed but not yet blurred).
+  const addDraft = useFormDraft({
+    key: `defeat-add:${user?.id ?? "anon"}:${stationId}`,
+    value: draft,
+    ready: !!stationId,
+    onRestore: (d) => setDraft({ ...emptyDraft, ...d }),
+  });
+  const [cellEditing, setCellEditing] = useState(false);
+  useUnsavedChangesGuard(addDraft.dirty || cellEditing, locale);
+
   const { data: rows = [], isFetching } = useQuery({
     queryKey: ["defeat-records", stationId],
     enabled: !!stationId,
@@ -134,7 +148,7 @@ function DefeatPage() {
       if (!draft.defeat_number?.trim() && !draft.area_system?.trim())
         throw new Error(ar ? "أدخل رقم الإبطال أو النظام" : "Enter a defeat number or system");
       const nextSl = rows.reduce((m, r) => Math.max(m, r.sl_no), 0) + 1;
-      const { error } = await supabase.from("defeat_records").insert({
+      const ins = await supabase.from("defeat_records").insert({
         station_id: stationId,
         sl_no: nextSl,
         defeat_number: draft.defeat_number || null,
@@ -146,11 +160,12 @@ function DefeatPage() {
         released_signature: draft.released_signature || null,
         remarks: draft.remarks || null,
         created_by: user?.id ?? null,
-      });
-      if (error) throw error;
+      }).select("id");
+      ensureWritten(ins, locale);
     },
     onSuccess: () => {
       toast.success(ar ? "تمت الإضافة" : "Record added");
+      addDraft.markSaved(emptyDraft);
       setDraft(emptyDraft);
       qc.invalidateQueries({ queryKey: ["defeat-records"] });
     },
@@ -159,8 +174,10 @@ function DefeatPage() {
 
   const update = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<DefeatRow> }) => {
-      const { error } = await supabase.from("defeat_records").update(patch).eq("id", id);
-      if (error) throw error;
+      ensureWritten(
+        await supabase.from("defeat_records").update(patch).eq("id", id).select("id"),
+        locale,
+      );
     },
     onError: (e: Error) => toast.error(e.message),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["defeat-records"] }),
@@ -432,8 +449,11 @@ function DefeatPage() {
                 <td className="p-2">
                   <input
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.defeat_number ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.defeat_number ?? "") &&
                       update.mutate({ id: r.id, patch: { defeat_number: e.target.value || null } })
                     }
@@ -446,8 +466,11 @@ function DefeatPage() {
                   <textarea
                     rows={2}
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.area_system ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.area_system ?? "") &&
                       update.mutate({ id: r.id, patch: { area_system: e.target.value || null } })
                     }
@@ -459,8 +482,11 @@ function DefeatPage() {
                 <td className="p-2">
                   <input
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.defeat_duration ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.defeat_duration ?? "") &&
                       update.mutate({ id: r.id, patch: { defeat_duration: e.target.value || null } })
                     }
@@ -473,8 +499,11 @@ function DefeatPage() {
                   <input
                     type="date"
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.date_issued ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.date_issued ?? "") &&
                       update.mutate({ id: r.id, patch: { date_issued: e.target.value || null } })
                     }
@@ -486,8 +515,11 @@ function DefeatPage() {
                 <td className="p-2">
                   <input
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.issued_signature ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.issued_signature ?? "") &&
                       update.mutate({ id: r.id, patch: { issued_signature: e.target.value || null } })
                     }
@@ -499,8 +531,11 @@ function DefeatPage() {
                 <td className="p-2">
                   <input
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.date_released ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.date_released ?? "") &&
                       update.mutate({ id: r.id, patch: { date_released: e.target.value || null } })
                     }
@@ -512,8 +547,11 @@ function DefeatPage() {
                 <td className="p-2">
                   <input
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.released_signature ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.released_signature ?? "") &&
                       update.mutate({ id: r.id, patch: { released_signature: e.target.value || null } })
                     }
@@ -526,8 +564,11 @@ function DefeatPage() {
                   <textarea
                     rows={2}
                     className={cell}
+                    readOnly={!canEdit}
+                    onChange={() => canEdit && setCellEditing(true)}
                     defaultValue={r.remarks ?? ""}
                     onBlur={(e) =>
+                      (setCellEditing(false), canEdit) &&
                       e.target.value !== (r.remarks ?? "") &&
                       update.mutate({ id: r.id, patch: { remarks: e.target.value || null } })
                     }
@@ -563,6 +604,16 @@ function DefeatPage() {
       {canEdit && (
       <div className="rounded-xl border bg-card p-4 space-y-3 print:hidden">
         <div className="font-semibold">{ar ? "إضافة سجل جديد" : "Add new record"}</div>
+        {addDraft.restoredAt && (
+          <DraftRestoredBanner
+            at={addDraft.restoredAt}
+            locale={locale}
+            onDiscard={() => {
+              addDraft.discard();
+              setDraft(emptyDraft);
+            }}
+          />
+        )}
         <div className="grid gap-3 md:grid-cols-4">
           <input
             className={cell}

@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -182,7 +185,17 @@ function RoutinePage() {
     },
   });
 
+  // Fill the form from the database once per station + date. Later refetches
+  // (window focus, after save) and language switches must never wipe what the
+  // supervisor is typing.
+  const formKey = `${stationId}|${date}`;
+  const [hydratedKey, setHydratedKey] = useState<string>("");
+  const hydratedKeyRef = useRef("");
   useEffect(() => {
+    if (!stationId || existing === undefined) return;
+    if (hydratedKeyRef.current === formKey) return;
+    hydratedKeyRef.current = formKey;
+    setHydratedKey(formKey);
     if (!day) {
       setItems([]);
       setNotes("");
@@ -201,7 +214,39 @@ function RoutinePage() {
       }),
     );
     setNotes(existing?.notes ?? "");
-  }, [existing, day, ar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing, day, formKey, stationId, hydratedKey]);
+
+  // Language switch only renames the task labels; statuses/reasons stay.
+  useEffect(() => {
+    if (!day) return;
+    setItems((prev) =>
+      prev.map((i) => {
+        const t = day.tasks.find((x) => x.key === i.key);
+        return t ? { ...i, label: ar ? t.ar : t.en } : i;
+      }),
+    );
+  }, [ar, day]);
+
+  const snapshot = useMemo(
+    () => ({ items: items.map((i) => ({ key: i.key, status: i.status, reason: i.reason })), notes }),
+    [items, notes],
+  );
+  const formDraft = useFormDraft({
+    key: `routine:${user?.id ?? "anon"}:${formKey}`,
+    value: snapshot,
+    ready: !!stationId && hydratedKey === formKey,
+    onRestore: (d) => {
+      setItems((prev) =>
+        prev.map((i) => {
+          const r = d.items?.find((x) => x.key === i.key);
+          return r ? { ...i, status: r.status as Status, reason: r.reason ?? "" } : i;
+        }),
+      );
+      setNotes(d.notes ?? "");
+    },
+  });
+  useUnsavedChangesGuard(formDraft.dirty, locale);
 
   const setStatus = (key: string, status: Status) =>
     setItems((prev) =>
@@ -213,7 +258,7 @@ function RoutinePage() {
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, reason } : i)));
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_snap: typeof snapshot) => {
       if (!stationId) throw new Error(ar ? "اختر المحطة" : "Select a station");
       if (!day) throw new Error(ar ? "لا توجد مهام في هذا اليوم" : "No tasks for this day");
       const missing = items.find((i) => i.status === "not_done" && !i.reason.trim());
@@ -228,15 +273,33 @@ function RoutinePage() {
         notes: notes || null,
         created_by: user?.id ?? null,
       };
-      if (existing?.id) {
-        const { error } = await supabase.from("supervisor_routines").update(payload).eq("id", existing.id);
-        if (error) throw error;
+      if (existing === undefined) throw new Error(ar ? "انتظر تحميل السجل ثم احفظ" : "Wait for the record to load, then save");
+      // Look the row up again so a record created meanwhile (another device)
+      // is updated instead of failing on the unique station+date rule.
+      let rowId = existing?.id ?? null;
+      if (!rowId) {
+        const { data: found, error: findErr } = await supabase
+          .from("supervisor_routines")
+          .select("id")
+          .eq("station_id", stationId)
+          .eq("routine_date", date)
+          .maybeSingle();
+        if (findErr) throw findErr;
+        rowId = found?.id ?? null;
+      }
+      if (rowId) {
+        // created_by keeps the original author.
+        const { created_by: _cb, ...updatePayload } = payload;
+        ensureWritten(
+          await supabase.from("supervisor_routines").update(updatePayload).eq("id", rowId).select("id"),
+          locale,
+        );
       } else {
-        const { error } = await supabase.from("supervisor_routines").insert(payload);
-        if (error) throw error;
+        ensureWritten(await supabase.from("supervisor_routines").insert(payload).select("id"), locale);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_res, snap) => {
+      formDraft.markSaved(snap);
       toast.success(ar ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["supervisor-routine", stationId, date] });
       qc.invalidateQueries({ queryKey: ["supervisor-routine-list"] });
@@ -430,14 +493,25 @@ function RoutinePage() {
           {ar ? "طباعة" : "Print"}
         </button>
         <button
-          onClick={() => save.mutate()}
-          disabled={save.isPending || !day}
+          onClick={() => save.mutate(snapshot)}
+          disabled={save.isPending || !day || existing === undefined}
           className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 h-9 text-sm disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
           {ar ? "حفظ" : "Save"}
         </button>
       </div>
+      {formDraft.restoredAt && (
+        <DraftRestoredBanner
+          at={formDraft.restoredAt}
+          locale={locale}
+          onDiscard={() => {
+            formDraft.discard();
+            hydratedKeyRef.current = "";
+            setHydratedKey("");
+          }}
+        />
+      )}
 
       <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3 print:hidden">
         <label className="text-sm space-y-1">

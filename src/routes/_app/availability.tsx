@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useScopedStations, useStationScope } from "@/lib/station-scope";
 import { toast } from "sonner";
+import { ensureWritten } from "@/lib/safe-write";
+import { useFormDraft, useUnsavedChangesGuard } from "@/lib/form-safety";
+import { DraftRestoredBanner } from "@/components/draft-restored-banner";
 import { buildElementPdf, createExcelBlob, safeFilePart, triggerBlobDownload, type DownloadLink } from "@/lib/export-utils";
 import { notifyStation } from "@/lib/notifications";
 
@@ -437,6 +440,14 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
   const { data: stations } = useScopedStations();
 
+  // After the first save of a new entry, later saves UPDATE that entry
+  // instead of creating a duplicate one.
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const recordId = createdId ?? (isNew ? null : id);
+  const hydratedForRef = useRef<string | null>(null);
+  const valuesHydratedForRef = useRef<string | null>(null);
+  const [hydrateTick, setHydrateTick] = useState(0);
+
   const { data: existing, isLoading } = useQuery({
     queryKey: ["availability-entry", id],
     enabled: !isNew,
@@ -506,6 +517,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
       return;
     }
     if (!existing) return;
+    // Fill from the database once; a background refetch must not wipe edits.
+    if (hydratedForRef.current === id) return;
+    hydratedForRef.current = id;
     setStationId(existing.station_id);
     setEntryDate(existing.entry_date);
     setOperatorName(existing.operator_name ?? "");
@@ -513,11 +527,15 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     setShift(existing.shift ?? "day");
     setNotes(existing.notes ?? "");
     setHydrated(true);
-  }, [isNew, existing, profile?.station_id, profile?.full_name]);
+  }, [isNew, existing, profile?.station_id, profile?.full_name, hydrateTick]);
 
-  // Merge existing values once available
+  // Merge stored values once available. Stored values always win over the
+  // "in service" defaults (equipment may load first); later refetches never
+  // overwrite what the user is editing.
   useEffect(() => {
     if (!existingValues) return;
+    if (valuesHydratedForRef.current === id) return;
+    valuesHydratedForRef.current = id;
     const next: Record<string, ValueDraft> = {};
     for (const v of existingValues) {
       next[v.equipment_id] = {
@@ -529,8 +547,9 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         ets: v.ets ?? "",
       };
     }
-    setValues((prev) => ({ ...next, ...prev }));
-  }, [existingValues]);
+    setValues((prev) => ({ ...prev, ...next }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingValues, hydrateTick]);
 
   // Default new equipment to in_service
   useEffect(() => {
@@ -551,9 +570,33 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
     };
   }, [excelDownload, pdfDownload]);
 
+  const valuesReady =
+    !!equipment && (isNew || existingValues !== undefined) && equipment.every((e) => !!values[e.id]);
+  const snapshot = useMemo(
+    () => ({ stationId, entryDate, operatorName, supervisorName, shift, notes, values }),
+    [stationId, entryDate, operatorName, supervisorName, shift, notes, values],
+  );
+  const formDraft = useFormDraft({
+    key: `availability:${profile?.id ?? "anon"}:${id}`,
+    value: snapshot,
+    ready: hydrated && !!profile && valuesReady,
+    onRestore: (d) => {
+      if (d.stationId !== undefined) setStationId(d.stationId);
+      if (d.entryDate) setEntryDate(d.entryDate);
+      if (d.operatorName !== undefined) setOperatorName(d.operatorName);
+      if (d.supervisorName !== undefined) setSupervisorName(d.supervisorName);
+      if (d.shift) setShift(d.shift);
+      if (d.notes !== undefined) setNotes(d.notes);
+      if (d.values) setValues((prev) => ({ ...prev, ...d.values }));
+    },
+  });
+  useUnsavedChangesGuard(formDraft.dirty, locale);
+
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_snap: typeof snapshot) => {
       if (!stationId) throw new Error(locale === "ar" ? "اختر المحطة" : "Pick a station");
+      if (!isNew && existingValues === undefined)
+        throw new Error(locale === "ar" ? "انتظر تحميل القيم المحفوظة ثم احفظ" : "Wait for the saved values to load, then save");
       if (!equipment || equipment.length === 0)
         throw new Error(
           locale === "ar"
@@ -561,7 +604,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
             : "No equipment defined for this station. Add via Equipment List.",
         );
 
-      let entryId = isNew ? "" : id;
+      let entryId = recordId ?? "";
       const entryPayload = {
         station_id: stationId,
         entry_date: entryDate,
@@ -570,7 +613,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         supervisor_name: supervisorName || null,
         shift: shift || null,
       };
-      if (isNew) {
+      if (!entryId) {
         const { data, error } = await supabase
           .from("equipment_availability_entries")
           .insert({ ...entryPayload, operator_id: profile?.id ?? null })
@@ -578,12 +621,16 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           .single();
         if (error) throw error;
         entryId = data.id as string;
+        setCreatedId(entryId);
       } else {
-        const { error } = await supabase
-          .from("equipment_availability_entries")
-          .update(entryPayload)
-          .eq("id", id);
-        if (error) throw error;
+        ensureWritten(
+          await supabase
+            .from("equipment_availability_entries")
+            .update(entryPayload)
+            .eq("id", entryId)
+            .select("id"),
+          locale,
+        );
       }
 
       const rows = equipment.map((e) => {
@@ -600,13 +647,18 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           ets: v.ets || null,
         };
       });
-      const { error: vErr } = await supabase
-        .from("equipment_availability_values")
-        .upsert(rows, { onConflict: "entry_id,equipment_id" });
-      if (vErr) throw vErr;
+      ensureWritten(
+        await supabase
+          .from("equipment_availability_values")
+          .upsert(rows, { onConflict: "entry_id,equipment_id" })
+          .select("equipment_id"),
+        locale,
+        rows.length,
+      );
       return entryId;
     },
-    onSuccess: (newId) => {
+    onSuccess: (newId, snap) => {
+      formDraft.markSaved(snap);
       toast.success(locale === "ar" ? "تم الحفظ" : "Saved");
       qc.invalidateQueries({ queryKey: ["availability-entries"] });
       qc.invalidateQueries({ queryKey: ["availability-entry", newId] });
@@ -647,7 +699,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
   const station = stationMap[stationId];
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
 
-  if (!isNew && (isLoading || !hydrated)) {
+  if (!isNew && (isLoading || !hydrated || existingValues === undefined)) {
     return (
       <div className="space-y-4">
         <button onClick={onBack} className="inline-flex items-center gap-2 text-sm text-primary">
@@ -776,7 +828,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           </a>
         )}
         <button
-          onClick={() => save.mutate()}
+          onClick={() => save.mutate(snapshot)}
           disabled={!canWrite || save.isPending}
           className="inline-flex items-center gap-2 text-sm px-4 h-9 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 hover:opacity-90"
         >
@@ -784,6 +836,24 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
           {save.isPending ? (locale === "ar" ? "جارٍ الحفظ…" : "Saving…") : t("common.save")}
         </button>
       </div>
+
+      {formDraft.restoredAt && (
+        <DraftRestoredBanner
+          at={formDraft.restoredAt}
+          locale={locale}
+          onDiscard={() => {
+            formDraft.discard();
+            hydratedForRef.current = null;
+            valuesHydratedForRef.current = null;
+            if (isNew) {
+              setValues(Object.fromEntries((equipment ?? []).map((e) => [e.id, emptyDraft()])));
+              setNotes("");
+              setSupervisorName("");
+            }
+            setHydrateTick((n) => n + 1);
+          }}
+        />
+      )}
 
       {/* Meta */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 print:hidden">
@@ -1549,6 +1619,18 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
   const [values, setValues] = useState<Record<string, ValueDraft>>({});
   const [download, setDownload] = useState<DownloadLink | null>(null);
   const Back = dir === "rtl" ? ArrowRight : ArrowLeft;
+  // Rows the user changed since the last successful save. A background
+  // refetch (window focus, 30s refresh) must never overwrite them.
+  const touchedRef = useRef<Set<string>>(new Set());
+  const [touchedCount, setTouchedCount] = useState(0);
+  // Entries created by an earlier, partly failed save of this date — reused so
+  // a retry never creates a second entry for the same station.
+  const createdEntriesRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    touchedRef.current = new Set();
+    setTouchedCount(0);
+  }, [reportDate]);
+  useUnsavedChangesGuard(touchedCount > 0, locale);
 
   const { data, isLoading } = useQuery({
     queryKey: ["unified-mdr", reportDate],
@@ -1612,7 +1694,10 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
         ets: value.ets ?? "",
       };
     }
-    setValues(next);
+    setValues((current) => {
+      for (const key of touchedRef.current) if (current[key]) next[key] = current[key];
+      return next;
+    });
   }, [data]);
 
   useEffect(() => () => {
@@ -1632,6 +1717,8 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
   }, [data?.equipment]);
 
   function updateValue(equipmentId: string, field: keyof ValueDraft, value: string) {
+    touchedRef.current.add(equipmentId);
+    setTouchedCount(touchedRef.current.size);
     setValues((current) => ({
       ...current,
       [equipmentId]: { ...(current[equipmentId] ?? emptyDraft()), [field]: value },
@@ -1646,6 +1733,10 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
       const stationIds = Array.from(new Set(writableEquipment.map((equipment) => equipment.station_id)));
       const existingByStation = Object.fromEntries(data.entries.map((entry) => [entry.station_id, entry.id]));
       const entryIdByStation: Record<string, string> = { ...existingByStation };
+      for (const stationId of stationIds) {
+        const created = createdEntriesRef.current[`${reportDate}|${stationId}`];
+        if (!entryIdByStation[stationId] && created) entryIdByStation[stationId] = created;
+      }
 
       for (const stationId of stationIds) {
         if (entryIdByStation[stationId]) continue;
@@ -1662,6 +1753,7 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
           .single();
         if (error) throw error;
         entryIdByStation[stationId] = entry.id as string;
+        createdEntriesRef.current[`${reportDate}|${stationId}`] = entry.id as string;
       }
 
       const rows = writableEquipment.map((equipment) => {
@@ -1678,12 +1770,18 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
           ets: value.ets || null,
         };
       });
-      const { error } = await supabase
-        .from("equipment_availability_values")
-        .upsert(rows, { onConflict: "entry_id,equipment_id" });
-      if (error) throw error;
+      ensureWritten(
+        await supabase
+          .from("equipment_availability_values")
+          .upsert(rows, { onConflict: "entry_id,equipment_id" })
+          .select("equipment_id"),
+        locale,
+        rows.length,
+      );
     },
     onSuccess: async () => {
+      touchedRef.current = new Set();
+      setTouchedCount(0);
       await qc.invalidateQueries({ queryKey: ["unified-mdr", reportDate] });
       toast.success(locale === "ar" ? "تم حفظ تقرير MDR الموحّد" : "Unified MDR saved");
     },

@@ -10,7 +10,14 @@
   font-display: swap;
 }
 
-@custom-variant dark (&:is(.dark *));
+/* dark: utilities apply on screen only, so printouts keep their light colours. */
+@custom-variant dark {
+  @media screen {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --font-sans: "WTT", "Cairo", "IBM Plex Sans Arabic", "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -109,6 +116,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.18 0.02 230);
   --foreground: oklch(0.97 0.005 220);
   --card: oklch(0.22 0.025 230);
@@ -183,6 +191,47 @@
   }
   textarea {
     resize: none;
+  }
+}
+
+/* Paper is always white: printing from dark mode uses the light palette. */
+@media print {
+  .dark {
+    color-scheme: light;
+    --background: oklch(0.985 0.005 220);
+    --foreground: oklch(0.22 0.03 240);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.22 0.03 240);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.22 0.03 240);
+    --primary: oklch(0.62 0.11 208);
+    --primary-foreground: oklch(0.99 0.005 220);
+    --primary-glow: oklch(0.78 0.10 200);
+    --secondary: oklch(0.95 0.015 220);
+    --secondary-foreground: oklch(0.28 0.03 240);
+    --muted: oklch(0.96 0.01 220);
+    --muted-foreground: oklch(0.5 0.02 240);
+    --accent: oklch(0.92 0.05 200);
+    --accent-foreground: oklch(0.25 0.04 220);
+    --destructive: oklch(0.58 0.22 25);
+    --destructive-foreground: oklch(0.99 0 0);
+    --success: oklch(0.62 0.13 155);
+    --success-foreground: oklch(0.99 0 0);
+    --warning: oklch(0.75 0.14 75);
+    --warning-foreground: oklch(0.22 0.03 240);
+    --border: oklch(0.9 0.01 220);
+    --input: oklch(0.92 0.01 220);
+    --ring: oklch(0.62 0.11 208);
+    --sidebar: oklch(0.99 0.005 220);
+    --sidebar-foreground: oklch(0.28 0.03 240);
+    --sidebar-primary: oklch(0.62 0.11 208);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.94 0.02 210);
+    --sidebar-accent-foreground: oklch(0.25 0.04 220);
+    --sidebar-border: oklch(0.9 0.01 220);
+    --sidebar-ring: oklch(0.62 0.11 208);
+    --gradient-brand: linear-gradient(135deg, var(--primary), var(--primary-glow));
+    --shadow-brand: 0 10px 30px -10px color-mix(in oklab, var(--primary) 40%, transparent);
   }
 }
 
@@ -264,5 +313,24 @@
   @media print {
     .report-title { font-size: 20pt; }
     .report-section-title { font-size: 13pt; }
+  }
+}
+
+/* ---- Dark mode details for third-party widgets (screen only). ---- */
+@media screen {
+  .dark .recharts-cartesian-axis-tick-value,
+  .dark .recharts-legend-item-text {
+    fill: var(--color-muted-foreground);
+  }
+  .dark .recharts-cartesian-grid line {
+    stroke: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  }
+  .dark .recharts-default-tooltip {
+    background-color: var(--color-popover) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-popover-foreground);
+  }
+  .dark main .bg-card.border {
+    box-shadow: none;
   }
 }

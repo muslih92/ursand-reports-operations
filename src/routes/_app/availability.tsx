@@ -163,15 +163,15 @@ function statusColor(s: EqStatus): string {
   switch (s) {
     case "in_service":
     case "standby":
-      return "bg-white text-slate-800 border-slate-300";
+      return "bg-white text-slate-800 border-slate-300 dark:bg-card dark:text-slate-300 dark:border-slate-500/40";
     case "out_of_service":
       return "bg-yellow-300 text-yellow-900 border-yellow-500";
     case "emergency_standby":
     case "running_on_emergency":
-      return "bg-red-200 text-red-900 border-red-400";
+      return "bg-red-200 text-red-900 border-red-400 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/40";
     case "standby_fixed_speed":
     case "in_service_fixed_speed":
-      return "bg-amber-200 text-amber-900 border-amber-400";
+      return "bg-amber-200 text-amber-900 border-amber-400 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/40";
   }
 }
 
@@ -1837,7 +1837,7 @@ function UnifiedMdrEditor({ onBack }: { onBack: () => void }) {
                 const readOnly = !canWriteStation(station.id);
                 return (
                   <div key={`${block.station}-${block.title}`} className="overflow-x-auto border">
-                    <div className="flex items-center bg-sky-100 px-3 py-2 text-foreground">
+                    <div className="flex items-center bg-sky-100 px-3 py-2 text-foreground dark:bg-sky-500/15">
                       <span className="w-28 font-bold">STATION</span><strong className="text-base">{block.title}</strong>
                     </div>
                     <table className="w-full min-w-[1050px] table-fixed text-xs">

@@ -19,7 +19,10 @@ import {
   ShieldCheck,
   UserRound,
   type LucideIcon,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "@/lib/theme";
 const logo = { url: "/wtco-logo.png" };
 // Deeper than --gradient-brand so white text keeps at least 4.5:1 contrast.
 const BRAND_GRADIENT = "linear-gradient(135deg, oklch(0.42 0.09 215) 0%, oklch(0.5 0.1 205) 100%)";
@@ -127,7 +130,7 @@ function AuthPage() {
     >
       {/* Brand panel: full height on desktop, compact header on mobile. */}
       <aside
-        className="relative overflow-hidden px-6 pb-10 pt-6 text-primary-foreground lg:flex lg:flex-col lg:justify-between lg:p-12"
+        className="relative overflow-hidden px-6 pb-10 pt-6 text-white lg:flex lg:flex-col lg:justify-between lg:p-12"
         style={{ background: BRAND_GRADIENT }}
       >
         <WaterPattern />
@@ -147,7 +150,10 @@ function AuthPage() {
               <div className="text-xs opacity-80">URS</div>
             </div>
           </div>
-          <LangToggle ar={ar} onToggle={() => setLocale(ar ? "en" : "ar")} className="lg:hidden" />
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle ar={ar} />
+            <LangToggle ar={ar} onToggle={() => setLocale(ar ? "en" : "ar")} />
+          </div>
         </div>
 
         <div className="relative mt-8 max-w-lg lg:mt-0">
@@ -173,7 +179,8 @@ function AuthPage() {
 
       {/* Form panel */}
       <main className="relative flex flex-col px-4 pb-10 sm:px-6 lg:justify-center lg:px-12">
-        <div className="absolute end-6 top-6 hidden lg:block">
+        <div className="absolute end-6 top-6 hidden items-center gap-2 lg:flex">
+          <ThemeToggle ar={ar} variant="outline" />
           <LangToggle ar={ar} onToggle={() => setLocale(ar ? "en" : "ar")} variant="outline" />
         </div>
 
@@ -268,6 +275,27 @@ function FormHeader({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
+function ThemeToggle({ ar, variant = "glass" }: { ar: boolean; variant?: "glass" | "outline" }) {
+  const { theme, toggleTheme } = useTheme();
+  const dark = theme === "dark";
+  const label = dark ? (ar ? "الوضع النهاري" : "Light mode") : ar ? "الوضع الليلي" : "Dark mode";
+  const style =
+    variant === "glass"
+      ? "bg-white/15 text-white hover:bg-white/25 focus-visible:ring-white"
+      : "border bg-card text-foreground hover:bg-accent focus-visible:ring-ring";
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      title={label}
+      aria-label={label}
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 ${style}`}
+    >
+      {dark ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+    </button>
+  );
+}
+
 function LangToggle({
   ar,
   onToggle,
@@ -281,7 +309,7 @@ function LangToggle({
 }) {
   const style =
     variant === "glass"
-      ? "bg-white/15 text-primary-foreground hover:bg-white/25 focus-visible:ring-white"
+      ? "bg-white/15 text-white hover:bg-white/25 focus-visible:ring-white"
       : "border bg-card text-foreground hover:bg-accent focus-visible:ring-ring";
   return (
     <button
@@ -324,7 +352,7 @@ function SubmitButton({
       type="submit"
       disabled={submitting}
       aria-busy={submitting}
-      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold text-primary-foreground shadow-lg transition-[filter,transform] hover:brightness-110 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold text-white shadow-lg transition-[filter,transform] hover:brightness-110 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       style={{ background: BRAND_GRADIENT }}
     >
       {submitting && (

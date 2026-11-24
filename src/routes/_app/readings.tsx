@@ -126,10 +126,10 @@ function statusLabel(token: string, locale: "ar" | "en"): string {
 }
 // Quick status marks applied to a whole unit at a given time slot
 const QUICK_MARKS = [
-  { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300" },
-  { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300" },
-  { code: "MAINTENANCE", ar: "تحت الصيانة", en: "Under Maintenance", cls: "bg-blue-100 text-blue-800 border-blue-300" },
-  { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400" },
+  { code: "SHUTDOWN", ar: "إيقاف", en: "Shutdown", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/40" },
+  { code: "STANDBY", ar: "احتياطي", en: "Standby", cls: "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-500/15 dark:text-yellow-300 dark:border-yellow-500/40" },
+  { code: "MAINTENANCE", ar: "تحت الصيانة", en: "Under Maintenance", cls: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/40" },
+  { code: "OOS", ar: "خارج الخدمة", en: "Out of Service (OOS)", cls: "bg-slate-200 text-slate-800 border-slate-400 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-500/40" },
 ] as const;
 
 /** Text written into a cell for a quick mark (localized, never the raw code). */
@@ -197,10 +197,10 @@ function isSlotLocked(entryDate: string, slot: string, now: Date = new Date()): 
 
 function statusClass(token: string): string {
   switch (token) {
-    case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300";
-    case "standby": return "bg-yellow-100 text-yellow-900 border-yellow-300";
-    case "maintenance": return "bg-blue-100 text-blue-800 border-blue-300";
-    case "fixed_speed": return "bg-orange-100 text-orange-800 border-orange-300";
+    case "in_service": return "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/40";
+    case "standby": return "bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-500/15 dark:text-yellow-300 dark:border-yellow-500/40";
+    case "maintenance": return "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/40";
+    case "fixed_speed": return "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/40";
     default: return "bg-muted";
   }
 }
@@ -1764,8 +1764,8 @@ function EntryView({
                           <div
                             className={`mt-0.5 text-[10px] font-semibold rounded px-1 ${
                               isLate(slot, slotRecorded[slot])
-                                ? "bg-red-100 text-red-700"
-                                : "bg-emerald-100 text-emerald-700"
+                                ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                             }`}
                             title={isLate(slot, slotRecorded[slot]) ? "Late entry" : "On time"}
                           >

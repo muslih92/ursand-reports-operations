@@ -663,9 +663,9 @@ function ChecklistPage() {
                                key={i}
                                className={`rounded-lg border p-2 text-xs ${
                                  it.status === "no_obs"
-                                   ? "border-emerald-300 bg-emerald-50"
+                                   ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/15"
                                    : it.status === "remark"
-                                     ? "border-amber-300 bg-amber-50"
+                                     ? "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/15"
                                      : it.status === "na"
                                        ? "border-muted bg-muted/40"
                                        : "border-destructive/30 bg-destructive/5"

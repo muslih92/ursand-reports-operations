@@ -38,6 +38,8 @@ const dict: Dict = {
   "nav.more": { ar: "المزيد", en: "More" },
   "nav.menu": { ar: "القائمة", en: "Menu" },
   "nav.language": { ar: "English", en: "العربية" },
+  "nav.theme.toDark": { ar: "الوضع الليلي", en: "Dark mode" },
+  "nav.theme.toLight": { ar: "الوضع النهاري", en: "Light mode" },
 
   "auth.title": { ar: "تسجيل الدخول", en: "Sign In" },
   "auth.subtitle": { ar: "أدخل رقم الموظف وكلمة السر", en: "Enter your employee number and password" },

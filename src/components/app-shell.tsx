@@ -24,9 +24,12 @@ import {
   Trash2,
   MonitorCheck,
   Menu,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 const logo = { url: "/wtco-logo.png" };
 import { useEffect, useState, type ReactNode } from "react";
@@ -144,6 +147,7 @@ function CountBadge({ count, className }: { count: number; className?: string })
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut, roles } = useAuth();
   const { t, locale, setLocale, dir } = useI18n();
+  const { theme, toggleTheme } = useTheme();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: notifications = [] } = useNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -233,6 +237,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 
+  const isDark = theme === "dark";
+  const themeLabel = t(isDark ? "nav.theme.toLight" : "nav.theme.toDark");
+
   const iconButton =
     "inline-flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -243,7 +250,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     >
       <aside className="hidden md:flex print:!hidden w-64 flex-col border-e bg-sidebar text-sidebar-foreground sticky top-0 h-screen self-start">
         <div className="px-4 py-4 flex items-center gap-3 border-b">
-          <img src={logo.url} alt="WTCO" className="h-10 w-10 object-contain" />
+          <img src={logo.url} alt="WTCO" className="h-10 w-10 object-contain dark:rounded-lg dark:bg-white dark:p-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-bold text-sm truncate">{t("app.name")}</div>
             <div className="text-xs text-muted-foreground truncate">{t("app.short")}</div>
@@ -266,6 +273,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Languages className="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={iconButton}
+              title={themeLabel}
+              aria-label={themeLabel}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <ChangePasswordButton compact />
             <button
               type="button"
@@ -282,7 +298,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden print:hidden sticky top-0 z-40 flex items-center gap-2 px-3 py-2 border-b bg-card/95 backdrop-blur">
-          <img src={logo.url} alt="WTCO" className="h-8 w-8 object-contain" />
+          <img src={logo.url} alt="WTCO" className="h-8 w-8 object-contain dark:rounded-lg dark:bg-white dark:p-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm truncate">{t("app.name")}</div>
             <div className="text-[11px] text-muted-foreground truncate">{t("app.short")}</div>
@@ -360,7 +376,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="md:hidden flex w-[85vw] max-w-sm flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground"
         >
           <div className="flex items-center gap-3 border-b px-4 py-4 pe-12">
-            <img src={logo.url} alt="" className="h-9 w-9 object-contain" />
+            <img src={logo.url} alt="" className="h-9 w-9 object-contain dark:rounded-lg dark:bg-white dark:p-0.5" />
             <SheetTitle className="text-sm font-bold">{t("app.name")}</SheetTitle>
           </div>
           <nav aria-label={t("nav.menu")} className="flex-1 min-h-0 overflow-y-auto px-3 py-4">
@@ -376,6 +392,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <Languages className="h-4 w-4" />
               <span>{t("nav.language")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent transition"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>{themeLabel}</span>
             </button>
             <ChangePasswordButton />
             <button

@@ -928,7 +928,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         className="rounded-xl border bg-card p-6 md:p-8 print:border-0 print:shadow-none print:rounded-none print:p-0"
       >
         <div className="text-center mb-6">
-          <h2 className="text-xl font-bold">
+          <h2 className="report-title">
             {locale === "ar" ? "التقرير الصباحي اليومي" : "Morning Daily Report (MDR)"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">

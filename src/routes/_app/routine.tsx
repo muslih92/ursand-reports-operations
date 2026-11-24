@@ -549,7 +549,7 @@ function RoutinePage() {
 
       <div className="hidden print:block text-center space-y-1 mb-3">
         <img src="/wtco-logo.png" alt="WTCO" className="h-12 mx-auto object-contain" />
-        <div className="text-lg font-bold uppercase">Supervisor&apos;s Routine</div>
+        <div className="report-title uppercase">Supervisor&apos;s Routine</div>
         <div className="text-sm">
           {station ? station.code : ""} — {date} — {day ? day.en : ""}
         </div>

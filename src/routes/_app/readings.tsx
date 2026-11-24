@@ -1669,7 +1669,7 @@ function EntryView({
 
       <div id="readings-print-sheet" className="space-y-5 rounded-xl border bg-card p-4 md:p-6">
         <div className="text-center">
-          <h2 className="text-xl font-bold">{locale === "ar" ? template.name_ar : template.name_en}</h2>
+          <h2 className="report-title">{locale === "ar" ? template.name_ar : template.name_en}</h2>
           <p className="text-sm text-muted-foreground" dir="ltr">
             {template.code} · {date}
           </p>
@@ -1745,7 +1745,7 @@ function EntryView({
         return (
           <div key={sec.id} className="rounded-xl border bg-card overflow-hidden">
             <div className="px-4 py-3 border-b bg-primary/10">
-              <h2 className="text-base font-bold text-primary uppercase tracking-wide">
+              <h2 className="report-section-title text-primary uppercase">
                 {locale === "ar" ? sec.name_ar : sec.name_en}
               </h2>
             </div>

@@ -608,7 +608,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         dir="ltr"
       >
         <div className="text-center mb-6 print:mb-4">
-          <h2 className="text-lg font-bold uppercase tracking-wide">
+          <h2 className="report-title uppercase">
             {stationTitle ? `${stationTitle} — ` : ""}Shift Report
           </h2>
           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm max-w-md mx-auto">

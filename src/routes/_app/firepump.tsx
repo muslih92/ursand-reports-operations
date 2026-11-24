@@ -708,7 +708,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4">
           <div>
             <div className="text-xs font-semibold tracking-wide text-muted-foreground print:text-black">WEEKLY TEST RUN LOGSHEET</div>
-            <h2 className="text-lg md:text-xl font-bold mt-1">{titleFor(pumpType)}</h2>
+            <h2 className="report-title mt-1">{titleFor(pumpType)}</h2>
             <div className="text-xs mt-1">SYSTEM: <span className="font-semibold">{systemFor(pumpType)}</span></div>
 
           </div>
@@ -787,7 +787,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         {sections.map((sec) => (
           <div key={sec.key} className="border rounded-lg overflow-hidden">
             <div className="bg-muted/60 px-4 py-2 border-b">
-              <div className="font-bold text-sm">{sec.title}</div>
+              <div className="report-section-title">{sec.title}</div>
               <div className="text-xs text-muted-foreground print:text-black">
                 {locale === "ar" ? sec.hintAr : sec.hint}
               </div>
@@ -843,7 +843,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
 
         {/* Checklist */}
         <div className="border rounded-lg overflow-hidden">
-          <div className="bg-muted/60 px-4 py-2 border-b font-bold text-sm">FIRE PUMP CHECK LIST</div>
+          <div className="bg-muted/60 px-4 py-2 border-b report-section-title">FIRE PUMP CHECK LIST</div>
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
@@ -892,7 +892,7 @@ function EditorView({ id, onBack }: { id: string; onBack: () => void }) {
         {/* Notes & signature */}
         <div className="space-y-3">
           <div>
-            <div className="text-sm font-bold mb-1">SUPERVISOR NOTES</div>
+            <div className="report-section-title mb-1">SUPERVISOR NOTES</div>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
